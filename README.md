@@ -33,6 +33,7 @@ Looga Tags uses `LoogaSoft.Tags` namespaces and `LoogaTag*` public types. Unity 
 - [Hierarchy reference](Documentation~/Hierarchy.md)
 - [Looga Tags reference](Documentation~/Tags.md)
 - [Prefab Browser reference](Documentation~/Prefab-Browser.md)
+- [Tools reference](Documentation~/Tools.md)
 - [Migration guide](Documentation~/Migration.md)
 
 ## Installation

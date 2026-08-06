@@ -1,10 +1,25 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace LoogaSoft.Tools.Runtime
 {
+    /// <summary>
+    /// Stores an indirect reference to another Unity asset.
+    /// </summary>
     [CreateAssetMenu(fileName = "New Cross Reference", menuName = "LoogaSoft/Tools/Cross Reference")]
-    public class CrossReference : ScriptableObject
+    public sealed class CrossReference : ScriptableObject
     {
-        public Object reference;
+        [FormerlySerializedAs("reference")]
+        [SerializeField]
+        private Object _reference;
+
+        /// <summary>
+        /// Gets or sets the referenced asset.
+        /// </summary>
+        public Object Reference
+        {
+            get => _reference;
+            set => _reference = value;
+        }
     }
 }

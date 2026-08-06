@@ -10,8 +10,9 @@ using Object = UnityEngine.Object;
 namespace LoogaSoft.Inspector.Editor
 {
     /// <summary>
-    /// Experimental component-header clipboard buttons. Unity does not expose a public API for the built-in
-    /// component header icon cluster, so this probes the Inspector UIElements tree and fails silently if it changes.
+    /// Adds clipboard controls to component headers.
+    /// Unity does not provide a public API for this header area.
+    /// The integration stops safely if Unity changes the Inspector hierarchy.
     /// </summary>
     [InitializeOnLoad]
     internal static class LoogaComponentHeaderClipboardButtons

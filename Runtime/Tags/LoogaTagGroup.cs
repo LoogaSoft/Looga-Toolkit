@@ -1,27 +1,61 @@
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.Scripting.APIUpdating;
+using UnityEngine.Serialization;
 
 namespace LoogaSoft.Tags.Runtime
 {
+    /// <summary>
+    /// Stores the stable identifiers assigned to one GameObject.
+    /// </summary>
     [System.Serializable]
     [MovedFrom(true, "LoogaSoft.PolyTags.Runtime", "LoogaSoft.PolyTags.Runtime", "PolyTagGroup")]
     public struct LoogaTagGroup
     {
-        public List<string> selectedTagGuids;
+        [FormerlySerializedAs("selectedTagGuids")]
+        [SerializeField]
+        private List<string> _selectedTagGuids;
 
-        public bool HasTag(string guid) => selectedTagGuids?.Contains(guid) == true;
+        /// <summary>
+        /// Gets the assigned tag identifiers.
+        /// </summary>
+        public readonly IReadOnlyList<string> SelectedTagGuids => _selectedTagGuids;
 
-        public bool HasTags(params string[] guids)
+        /// <summary>
+        /// Returns true when the group contains the specified tag identifier.
+        /// </summary>
+        public readonly bool HasTag(string guid)
         {
-            foreach (string guid in guids)
+            return !string.IsNullOrEmpty(guid) && _selectedTagGuids?.Contains(guid) == true;
+        }
+
+        /// <summary>
+        /// Returns true when the group contains every specified tag identifier.
+        /// </summary>
+        public readonly bool HasTags(params string[] guids)
+        {
+            if (guids == null)
             {
-                if (!HasTag(guid))
+                return false;
+            }
+
+            for (int index = 0; index < guids.Length; index++)
+            {
+                if (!HasTag(guids[index]))
+                {
                     return false;
+                }
             }
 
             return true;
         }
 
-        public void ClearTags() => selectedTagGuids?.Clear();
+        /// <summary>
+        /// Removes every assigned tag.
+        /// </summary>
+        public void ClearTags()
+        {
+            _selectedTagGuids?.Clear();
+        }
     }
 }

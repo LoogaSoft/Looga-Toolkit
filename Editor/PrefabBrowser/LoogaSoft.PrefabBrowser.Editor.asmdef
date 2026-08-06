@@ -1,6 +1,6 @@
 {
     "name": "LoogaSoft.PrefabBrowser.Editor",
-    "rootNamespace": "",
+    "rootNamespace": "LoogaSoft.PrefabBrowser.Editor",
     "references": ["GUID:cb5a2d36031334a4c86d84e524cca3e6"],
     "includePlatforms": [
         "Editor"

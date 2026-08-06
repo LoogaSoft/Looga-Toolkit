@@ -5,7 +5,7 @@ using UnityEngine;
 namespace LoogaSoft.Tags.Editor
 {
     [InitializeOnLoad]
-    public class LoogaTagsOverlay
+    internal static class LoogaTagsOverlay
     {
         private const float AddButtonHeight = 18f;
         private const float AddButtonIconSize = 10f;
@@ -107,12 +107,13 @@ namespace LoogaSoft.Tags.Editor
                     {
                         if (obj is not GameObject go ||
                             !go.TryGetComponent(out LoogaTags loogaTags) ||
-                            loogaTags.tagGroup.selectedTagGuids == null ||
-                            loogaTags.tagGroup.selectedTagGuids.Count == 0)
+                            loogaTags.TagGroup.SelectedTagGuids is not { Count: > 0 })
+                        {
                             continue;
+                        }
 
                         Undo.RecordObject(loogaTags, "Clear Looga Tags");
-                        loogaTags.tagGroup.selectedTagGuids.Clear();
+                        loogaTags.ClearTags();
                         EditorUtility.SetDirty(loogaTags);
                     }
                 }
@@ -143,9 +144,12 @@ namespace LoogaSoft.Tags.Editor
             while (iterator.NextVisible(enterChildren))
             {
                 enterChildren = false;
-                if (iterator.name == "m_Script") 
+                if (iterator.name == "m_Script")
+                {
                     continue;
-                if (iterator.name == "tagGroup")
+                }
+
+                if (iterator.name == "_tagGroup")
                 {
                     EditorGUILayout.PropertyField(iterator, GUIContent.none, true);
                     break;
@@ -161,8 +165,10 @@ namespace LoogaSoft.Tags.Editor
             {
                 if (target is GameObject go &&
                     go.TryGetComponent(out LoogaTags tagsObject) &&
-                    tagsObject.tagGroup.selectedTagGuids is { Count: > 0 })
+                    tagsObject.TagGroup.SelectedTagGuids is { Count: > 0 })
+                {
                     return true;
+                }
             }
 
             return false;

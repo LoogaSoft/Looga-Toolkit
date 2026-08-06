@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace LoogaSoft.Hierarchy.Editor
 {
@@ -20,7 +22,7 @@ namespace LoogaSoft.Hierarchy.Editor
         [SerializeField]
         private Color _labelColor;
 
-        // Retained only to migrate folder records authored before 0.7.0 back to ordinary objects.
+        // Keep these fields until all pre-0.7.0 folder records are migrated.
         [SerializeField, HideInInspector]
         private bool _isSection;
 
@@ -141,6 +143,12 @@ namespace LoogaSoft.Hierarchy.Editor
 
         internal bool TryGet(GameObject gameObject, out HierarchyPresentation presentation)
         {
+            if (gameObject == null)
+            {
+                presentation = null;
+                return false;
+            }
+
             EnsureLookup();
 
             bool found = _lookup.TryGetValue(HierarchyObjectId.Get(gameObject), out presentation) ||
@@ -177,6 +185,14 @@ namespace LoogaSoft.Hierarchy.Editor
         private static void ScheduleLegacyFolderMigration()
         {
             instance.ResetRuntimeState();
+            EditorSceneManager.sceneOpened -= HandleSceneOpened;
+            EditorSceneManager.sceneOpened += HandleSceneOpened;
+            EditorApplication.delayCall -= instance.MigrateLegacyFolders;
+            EditorApplication.delayCall += instance.MigrateLegacyFolders;
+        }
+
+        private static void HandleSceneOpened(Scene scene, OpenSceneMode mode)
+        {
             EditorApplication.delayCall -= instance.MigrateLegacyFolders;
             EditorApplication.delayCall += instance.MigrateLegacyFolders;
         }
@@ -243,9 +259,19 @@ namespace LoogaSoft.Hierarchy.Editor
 
             _lookup.Clear();
             _locatorLookup.Clear();
-            for (int index = 0; index < _entries.Count; index++)
+            bool removedDuplicate = false;
+
+            // Iterate backward so the newest serialized record wins.
+            for (int index = _entries.Count - 1; index >= 0; index--)
             {
                 HierarchyPresentation presentation = _entries[index];
+                if (presentation == null || IsDuplicate(presentation))
+                {
+                    _entries.RemoveAt(index);
+                    removedDuplicate = true;
+                    continue;
+                }
+
                 if (!string.IsNullOrEmpty(presentation.ObjectId))
                 {
                     _lookup[presentation.ObjectId] = presentation;
@@ -258,6 +284,16 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             _lookupDirty = false;
+            if (removedDuplicate)
+            {
+                ScheduleSave();
+            }
+        }
+
+        private bool IsDuplicate(HierarchyPresentation presentation)
+        {
+            return !string.IsNullOrEmpty(presentation.ObjectId) && _lookup.ContainsKey(presentation.ObjectId) ||
+                   !string.IsNullOrEmpty(presentation.ObjectLocator) && _locatorLookup.ContainsKey(presentation.ObjectLocator);
         }
 
         private void ResetRuntimeState()

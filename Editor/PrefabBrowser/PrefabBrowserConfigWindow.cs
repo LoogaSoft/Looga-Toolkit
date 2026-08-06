@@ -33,9 +33,9 @@ namespace LoogaSoft.PrefabBrowser.Editor
             
             _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 
-            for (int i = 0; i < _settings.categories.Count; i++)
+            for (int i = 0; i < _settings.Categories.Count; i++)
             {
-                DrawCategory(_settings.categories[i], i);
+                DrawCategory(_settings.Categories[i], i);
                 GUILayout.Space(5);
             }
 
@@ -44,7 +44,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
             if (GUILayout.Button("Add New Category", GUILayout.Height(30)))
             {
                 Undo.RecordObject(_settings, "Add Category");
-                _settings.categories.Add(new BrowserCategory { name = "New Category" } );
+                _settings.Categories.Add(new BrowserCategory { Name = "New Category" } );
                 EditorUtility.SetDirty(_settings);
             }
             
@@ -59,14 +59,14 @@ namespace LoogaSoft.PrefabBrowser.Editor
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.BeginHorizontal();
             
-            category.isExpanded = EditorGUILayout.Foldout(category.isExpanded, category.name, true);
+            category.IsExpanded = EditorGUILayout.Foldout(category.IsExpanded, category.Name, true);
 
             Color oldColor = GUI.backgroundColor;
             GUI.backgroundColor = new Color(1f, 0.6f, 0.6f);
             if (GUILayout.Button("X", GUILayout.Width(25f)))
             {
                 Undo.RecordObject(_settings, "Remove Category");
-                _settings.categories.RemoveAt(index);
+                _settings.Categories.RemoveAt(index);
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.EndVertical();
                 return;
@@ -76,30 +76,30 @@ namespace LoogaSoft.PrefabBrowser.Editor
             
             EditorGUILayout.EndHorizontal();
             
-            if (category.isExpanded)
+            if (category.IsExpanded)
             {
                 EditorGUI.indentLevel++;
                 
-                string newName = EditorGUILayout.TextField("Category Name", category.name);
-                if (newName != category.name)
+                string newName = EditorGUILayout.TextField("Category Name", category.Name);
+                if (newName != category.Name)
                 {
                     Undo.RecordObject(_settings, "Rename Category");
-                    category.name = newName;
+                    category.Name = newName;
                 }
 
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("Subcategories", EditorStyles.miniBoldLabel);
 
-                for (int i = 0; i < category.subCategories.Count; i++)
+                for (int i = 0; i < category.SubCategories.Count; i++)
                 {
                     EditorGUILayout.BeginHorizontal();
                     
-                    category.subCategories[i] = EditorGUILayout.TextField(category.subCategories[i]);
+                    category.SubCategories[i] = EditorGUILayout.TextField(category.SubCategories[i]);
 
                     if (GUILayout.Button("-", GUILayout.Width(25f)))
                     {
                         Undo.RecordObject(_settings, "Remove Subcategory");
-                        category.subCategories.RemoveAt(i);
+                        category.SubCategories.RemoveAt(i);
                         break;
                     }
                     
@@ -109,7 +109,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 if (GUILayout.Button("Add Subcategory"))
                 {
                     Undo.RecordObject(_settings, "Add Subcategory");
-                    category.subCategories.Add("New Subcategory");
+                    category.SubCategories.Add("New Subcategory");
                 }
                 
                 EditorGUI.indentLevel--;

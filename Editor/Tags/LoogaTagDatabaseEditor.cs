@@ -6,7 +6,7 @@ using UnityEngine;
 namespace LoogaSoft.Tags.Editor
 {
     [CustomEditor(typeof(LoogaTagDatabase))]
-    public class LoogaTagDatabaseEditor : UnityEditor.Editor
+    public sealed class LoogaTagDatabaseEditor : UnityEditor.Editor
     {
         private ReorderableList _list;
         
@@ -14,17 +14,19 @@ namespace LoogaSoft.Tags.Editor
 
         private void OnEnable()
         {
-            _list = new ReorderableList(serializedObject, serializedObject.FindProperty("tags"), true, true, true, true);
+            _list = new ReorderableList(serializedObject, serializedObject.FindProperty("_tags"), true, true, true, true);
             
             _list.drawElementCallback = (rect, index, _, _) =>
             {
-                var element = _list.serializedProperty.GetArrayElementAtIndex(index);
-                var nameProp = element.FindPropertyRelative("name");
-                var colorProp = element.FindPropertyRelative("color");
-                var guidProp = element.FindPropertyRelative("guid");
+                SerializedProperty element = _list.serializedProperty.GetArrayElementAtIndex(index);
+                SerializedProperty nameProp = element.FindPropertyRelative("_name");
+                SerializedProperty colorProp = element.FindPropertyRelative("_color");
+                SerializedProperty guidProp = element.FindPropertyRelative("_guid");
 
                 if (string.IsNullOrEmpty(guidProp.stringValue))
+                {
                     guidProp.stringValue = System.Guid.NewGuid().ToString();
+                }
 
                 float spacing = 5f;
                 float halfWidth = (rect.width - spacing) / 2f;
@@ -45,15 +47,15 @@ namespace LoogaSoft.Tags.Editor
             };
             _list.onAddCallback = list =>
             {
-                var index = list.serializedProperty.arraySize;
+                int index = list.serializedProperty.arraySize;
                 list.serializedProperty.arraySize++;
                 list.index = index;
                 
                 SerializedProperty element = list.serializedProperty.GetArrayElementAtIndex(index);
                 
-                element.FindPropertyRelative("name").stringValue = "New Tag";
-                element.FindPropertyRelative("color").colorValue = Color.gray3;
-                element.FindPropertyRelative("guid").stringValue = System.Guid.NewGuid().ToString();
+                element.FindPropertyRelative("_name").stringValue = "New Tag";
+                element.FindPropertyRelative("_color").colorValue = Color.gray3;
+                element.FindPropertyRelative("_guid").stringValue = System.Guid.NewGuid().ToString();
             };
         }
 
@@ -63,23 +65,25 @@ namespace LoogaSoft.Tags.Editor
             
             SerializedProperty scriptProp = serializedObject.FindProperty("m_Script");
             using (new EditorGUI.DisabledScope(true))
+            {
                 EditorGUILayout.PropertyField(scriptProp);
+            }
             
             EditorGUILayout.Space();
             
             _list.DoLayoutList();
-            serializedObject.ApplyModifiedProperties();
-
-            if (GUI.changed)
-                serializedObject.ApplyModifiedProperties();
-
-            if (serializedObject.ApplyModifiedProperties() || GUILayout.Button("Force Save + Refresh"))
+            bool changed = serializedObject.ApplyModifiedProperties();
+            if (changed || GUILayout.Button("Force Save + Refresh"))
+            {
                 AssetDatabase.SaveAssets();
+            }
 
             if (LoogaTagNavigation.HasHistory)
             {
                 if (GUILayout.Button("<< Back to Previous Inspector"))
+                {
                     LoogaTagNavigation.RestoreSelection();
+                }
             }
         }
     }

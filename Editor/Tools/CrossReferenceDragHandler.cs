@@ -5,7 +5,7 @@ using UnityEngine;
 namespace LoogaSoft.Tools.Editor
 {
     [InitializeOnLoad]
-    public static class CrossReferenceDragHandler
+    internal static class CrossReferenceDragHandler
     {
         static CrossReferenceDragHandler()
         {
@@ -14,39 +14,54 @@ namespace LoogaSoft.Tools.Editor
 
         private static void OnProjectWindowItemGUI(string guid, Rect selectionRect)
         {
-            Event e = Event.current;
-            if (e == null) return;
+            Event currentEvent = Event.current;
+            if (currentEvent == null)
+            {
+                return;
+            }
 
-            if (e.type == EventType.DragUpdated)
+            if (currentEvent.type == EventType.DragUpdated)
+            {
                 UnwrapCrossReference();
+            }
         }
         private static void UnwrapCrossReference()
         {
-            var refs = DragAndDrop.objectReferences;
-            if (refs == null || refs.Length == 0) return;
+            Object[] references = DragAndDrop.objectReferences;
+            if (references == null || references.Length == 0)
+            {
+                return;
+            }
 
             bool needsUnwrap = false;
-            foreach (var refObj in refs)
+            for (int index = 0; index < references.Length; index++)
             {
-                if (refObj is CrossReference cr && cr.reference != null)
+                if (references[index] is CrossReference { Reference: not null })
                 {
                     needsUnwrap = true;
                     break;
                 }
             }
-            
-            if (!needsUnwrap) return;
-            
-            Object[] newRefs = new Object[refs.Length];
-            for (int i = 0; i < refs.Length; i++)
+
+            if (!needsUnwrap)
             {
-                if (refs[i] is CrossReference cr && cr.reference != null)
-                    newRefs[i] = cr.reference;
-                else
-                    newRefs[i] = refs[i];
+                return;
             }
-            
-            DragAndDrop.objectReferences = newRefs;
+
+            Object[] unwrappedReferences = new Object[references.Length];
+            for (int index = 0; index < references.Length; index++)
+            {
+                if (references[index] is CrossReference { Reference: not null } crossReference)
+                {
+                    unwrappedReferences[index] = crossReference.Reference;
+                }
+                else
+                {
+                    unwrappedReferences[index] = references[index];
+                }
+            }
+
+            DragAndDrop.objectReferences = unwrappedReferences;
         }
     }
 }

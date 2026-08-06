@@ -6,7 +6,7 @@ using UnityEngine;
 namespace LoogaSoft.Tools.Editor
 {
     [CustomEditor(typeof(CrossReference))]
-    public class CrossReferenceEditor : UnityEditor.Editor
+    public sealed class CrossReferenceEditor : UnityEditor.Editor
     {
         private UnityEditor.Editor _referenceEditor;
 
@@ -18,7 +18,9 @@ namespace LoogaSoft.Tools.Editor
         private void OnDisable()
         {
             if (_referenceEditor != null)
+            {
                 DestroyImmediate(_referenceEditor);
+            }
         }
 
         public override void OnInspectorGUI()
@@ -26,7 +28,7 @@ namespace LoogaSoft.Tools.Editor
             serializedObject.Update();
             
             EditorGUI.BeginChangeCheck();
-            EditorGUILayout.PropertyField(serializedObject.FindProperty("reference"));
+            EditorGUILayout.PropertyField(serializedObject.FindProperty("_reference"));
             if (EditorGUI.EndChangeCheck())
             {
                 serializedObject.ApplyModifiedProperties();
@@ -53,8 +55,10 @@ namespace LoogaSoft.Tools.Editor
                 DestroyImmediate(_referenceEditor);
                 _referenceEditor = null;
             }
-            if (crossReference?.reference != null)
-                _referenceEditor = CreateEditor(crossReference.reference);
+            if (crossReference?.Reference != null)
+            {
+                _referenceEditor = CreateEditor(crossReference.Reference);
+            }
         }
 
         private void UpdateReferenceIcon()
@@ -62,9 +66,9 @@ namespace LoogaSoft.Tools.Editor
             CrossReference crossReference = target as CrossReference;
             Texture2D icon = null;
 
-            if (crossReference?.reference != null)
+            if (crossReference?.Reference != null)
             {
-                string assetPath = AssetDatabase.GetAssetPath(crossReference.reference);
+                string assetPath = AssetDatabase.GetAssetPath(crossReference.Reference);
                 icon = AssetDatabase.GetCachedIcon(assetPath) as Texture2D;
             }
 

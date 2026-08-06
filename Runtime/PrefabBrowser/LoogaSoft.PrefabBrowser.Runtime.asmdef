@@ -1,8 +1,10 @@
 {
     "name": "LoogaSoft.PrefabBrowser.Runtime",
-    "rootNamespace": "LoogaSoft",
+    "rootNamespace": "LoogaSoft.PrefabBrowser.Runtime",
     "references": [],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

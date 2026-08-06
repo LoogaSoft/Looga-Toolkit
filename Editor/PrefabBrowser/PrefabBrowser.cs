@@ -184,14 +184,14 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 }
             }
             
-            foreach (var category in _browserConfig.categories)
+            foreach (BrowserCategory category in _browserConfig.Categories)
             {
-                bool isSelected = _currentMainCategory == category.name;
-                if (DrawNavButton(category.name, _mainCategoryButtonStyle, ref currentWidth, windowWidth, isSelected))
+                bool isSelected = _currentMainCategory == category.Name;
+                if (DrawNavButton(category.Name, _mainCategoryButtonStyle, ref currentWidth, windowWidth, isSelected))
                 {
                     if (!isSelected)
                     {
-                        _currentMainCategory = category.name;
+                        _currentMainCategory = category.Name;
                         _currentSubCategory = "All";
                         RefreshFilter();
                     }
@@ -201,7 +201,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
             
-            BrowserCategory activeCategory = _browserConfig.categories.FirstOrDefault(c => c.name == _currentMainCategory);
+            BrowserCategory activeCategory = _browserConfig.Categories.Find(category => category.Name == _currentMainCategory);
             
             if (_currentMainCategory != "All" && activeCategory != null)
             {
@@ -222,7 +222,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 }
 
                 List<string> subCategoryOptions = new List<string> { "All" };
-                subCategoryOptions.AddRange(activeCategory.subCategories);
+                subCategoryOptions.AddRange(activeCategory.SubCategories);
 
                 foreach (var subCategory in subCategoryOptions)
                 {
@@ -284,30 +284,30 @@ namespace LoogaSoft.PrefabBrowser.Editor
             if (_prefabDatabase == null)
                 _prefabDatabase = PrefabBrowserDatabase.GetOrCreateDatabase();
 
-            foreach (var data in _prefabDatabase.prefabs)
+            foreach (PrefabData data in _prefabDatabase.Prefabs)
             {
                 // 1. Packages Check
-                if (!_includePackages && data.path.StartsWith("Packages/"))
+                if (!_includePackages && data.Path.StartsWith("Packages/", StringComparison.Ordinal))
                     continue;
 
                 // 2. UI Check
-                if (!_includeUI && data.isUI)
+                if (!_includeUI && data.IsUi)
                     continue;
 
                 // 3. Broken Check
-                if (!_includeBroken && data.isBroken)
+                if (!_includeBroken && data.IsBroken)
                     continue;
 
                 // 4. Main Category Check
                 if (!string.IsNullOrEmpty(_currentMainCategory) && _currentMainCategory != "All")
                 {
-                    if (!data.labels.Contains(_currentMainCategory))
+                    if (!data.Labels.Contains(_currentMainCategory))
                         continue;
                 }
 
                 // 5. SubCategory Check
                 bool matchesSubCategory = _currentSubCategory == "All" || 
-                                          data.labels.Any(l => l.Equals(_currentSubCategory, StringComparison.OrdinalIgnoreCase));
+                                          data.Labels.Exists(label => label.Equals(_currentSubCategory, StringComparison.OrdinalIgnoreCase));
         
                 if (matchesSubCategory)
                     _filteredPrefabs.Add(data);
@@ -320,18 +320,24 @@ namespace LoogaSoft.PrefabBrowser.Editor
         {
             if (string.IsNullOrEmpty(_searchText))
             {
-                _displayedPrefabs = _filteredPrefabs.OrderBy(p => p.path).ToList();
+                _displayedPrefabs.Clear();
+                _displayedPrefabs.AddRange(_filteredPrefabs);
             }
             else
             {
-                string searchTextLower = _searchText.ToLower();
-        
-                _displayedPrefabs = _filteredPrefabs
-                    // Extract the file name from the path for the search string comparison
-                    .Where(p => p.path.Substring(p.path.LastIndexOf('/') + 1).ToLower().Contains(searchTextLower))
-                    .OrderBy(p => p.path)
-                    .ToList();
+                _displayedPrefabs.Clear();
+                for (int index = 0; index < _filteredPrefabs.Count; index++)
+                {
+                    PrefabData prefab = _filteredPrefabs[index];
+                    int fileNameIndex = prefab.Path.LastIndexOf('/') + 1;
+                    if (prefab.Path.IndexOf(_searchText, fileNameIndex, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        _displayedPrefabs.Add(prefab);
+                    }
+                }
             }
+
+            _displayedPrefabs.Sort((left, right) => string.CompareOrdinal(left.Path, right.Path));
         }
 
         private void DrawPrefabScrollView()
@@ -385,7 +391,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
         
         private void DrawPrefab(PrefabData data, float size)
         {
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(data.path);
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(data.Path);
             if (prefab == null) return;
             
             int id = prefab.GetInstanceID();
@@ -471,7 +477,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
             
                     // Convert our selected lightweight data back into real GameObjects for Unity's drag system
                     DragAndDrop.objectReferences = _selectedPrefabs
-                        .Select(p => AssetDatabase.LoadAssetAtPath<GameObject>(p.path))
+                        .Select(p => AssetDatabase.LoadAssetAtPath<GameObject>(p.Path))
                         .ToArray();
                 
                     DragAndDrop.StartDrag($"{_selectedPrefabs.Count} Prefabs");

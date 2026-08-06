@@ -7,61 +7,74 @@ using UnityEngine;
 namespace LoogaSoft.Tools.Editor
 {
     [InitializeOnLoad]
-    public static class CrossReferenceIconOverlay
+    internal static class CrossReferenceIconOverlay
     {
-        private static Dictionary<string, bool> _isCrossReferenceCache = new();
+        private static readonly Dictionary<string, bool> IsCrossReferenceByGuid = new();
+        private static readonly Texture LinkIcon = EditorGUIUtility.IconContent("Linked").image;
 
         static CrossReferenceIconOverlay()
         {
+            EditorApplication.projectChanged -= ClearCache;
+            EditorApplication.projectChanged += ClearCache;
+            EditorApplication.projectWindowItemOnGUI -= DrawLinkOverlay;
             EditorApplication.projectWindowItemOnGUI += DrawLinkOverlay;
         }
 
         private static void DrawLinkOverlay(string guid, Rect selectionRect)
         {
-            if (Event.current.type != EventType.Repaint) return;
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
 
-            if (!_isCrossReferenceCache.TryGetValue(guid, out bool isReference))
+            if (!IsCrossReferenceByGuid.TryGetValue(guid, out bool isReference))
             {
                 string path = AssetDatabase.GUIDToAssetPath(guid);
                 Type assetType = AssetDatabase.GetMainAssetTypeAtPath(path);
-                
                 isReference = assetType == typeof(CrossReference);
-                
-                //limit cache size to save memory
-                if (_isCrossReferenceCache.Count > 100)
-                    _isCrossReferenceCache.Clear();
-                
-                _isCrossReferenceCache[guid] = isReference;
+                IsCrossReferenceByGuid[guid] = isReference;
             }
 
-            if (isReference)
+            if (!isReference || LinkIcon == null)
             {
-                Texture linkIcon = EditorGUIUtility.IconContent("Linked").image;
-                if (linkIcon == null) return;
-
-                bool isGrid = selectionRect.height > 20f;
-                Rect bgRect;
-                Rect iconRect;
-                float padding;
-
-                if (isGrid)
-                {
-                    float bgSize = 24f;
-                    padding = 2f;
-                    bgRect = new Rect(selectionRect.x + 4f, selectionRect.y + 4f, bgSize, bgSize);
-                    iconRect = new Rect(bgRect.x + padding, bgRect.y + padding, bgSize - padding * 2f, bgSize - padding * 2f);
-                }
-                else
-                {
-                    float bgSize = 8f;
-                    padding = 1f;
-                    bgRect = new Rect(selectionRect.x, selectionRect.y + 1f, bgSize, bgSize);
-                    iconRect = new Rect(bgRect.x + padding, bgRect.y + padding, bgSize - padding * 2f, bgSize - padding * 2f);
-                }
-                
-                EditorGUI.DrawRect(bgRect, new Color(0.1f, 0.1f, 0.1f, 0.8f));;
-                GUI.DrawTexture(iconRect, linkIcon);
+                return;
             }
+
+            bool isGrid = selectionRect.height > 20f;
+            Rect backgroundRect;
+            Rect iconRect;
+            float padding;
+
+            if (isGrid)
+            {
+                const float backgroundSize = 24f;
+                padding = 2f;
+                backgroundRect = new Rect(selectionRect.x + 4f, selectionRect.y + 4f, backgroundSize, backgroundSize);
+                iconRect = new Rect(
+                    backgroundRect.x + padding,
+                    backgroundRect.y + padding,
+                    backgroundSize - padding * 2f,
+                    backgroundSize - padding * 2f);
+            }
+            else
+            {
+                const float backgroundSize = 8f;
+                padding = 1f;
+                backgroundRect = new Rect(selectionRect.x, selectionRect.y + 1f, backgroundSize, backgroundSize);
+                iconRect = new Rect(
+                    backgroundRect.x + padding,
+                    backgroundRect.y + padding,
+                    backgroundSize - padding * 2f,
+                    backgroundSize - padding * 2f);
+            }
+
+            EditorGUI.DrawRect(backgroundRect, new Color(0.1f, 0.1f, 0.1f, 0.8f));
+            GUI.DrawTexture(iconRect, LinkIcon);
+        }
+
+        private static void ClearCache()
+        {
+            IsCrossReferenceByGuid.Clear();
         }
     }
 }

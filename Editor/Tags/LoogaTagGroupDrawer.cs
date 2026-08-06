@@ -20,6 +20,7 @@ namespace LoogaSoft.Tags.Editor
         private GUIStyle _pendingTagFieldStyle;
         private Texture2D _pillTexture;
         private LoogaTagDatabase _cachedDb;
+        private readonly HashSet<string> _currentSelection = new();
         private readonly List<EditorWindow> _monitoredWindows = new();
         private UnityEngine.Object _editingTarget;
         private EditorWindow _editingWindow;
@@ -83,12 +84,15 @@ namespace LoogaSoft.Tags.Editor
         {
             Event e = Event.current;
 
-            //tell window to send mouse move events
             if (e.type == EventType.Layout && EditorWindow.mouseOverWindow != null)
+            {
                 EditorWindow.mouseOverWindow.wantsMouseMove = true;
-            //force redraw on mouse move
+            }
+
             if (e.type == EventType.MouseMove && EditorWindow.mouseOverWindow != null)
+            {
                 EditorWindow.mouseOverWindow.Repaint();
+            }
             
             InitStyles();
             
@@ -111,7 +115,7 @@ namespace LoogaSoft.Tags.Editor
             if (hasLabel)
             {
                 Rect buttonRect = new Rect(position.x, currentY, position.width, _singleLineHeight);
-                SerializedProperty listProp = property.FindPropertyRelative("selectedTagGuids");
+                SerializedProperty listProp = property.FindPropertyRelative("_selectedTagGuids");
 
                 using (new EditorGUI.DisabledScope(listProp.arraySize == 0))
                 {
@@ -131,38 +135,40 @@ namespace LoogaSoft.Tags.Editor
             if (_cachedDb == null)
                 _cachedDb = LoogaTagManager.ValidateDatabase();
 
-            SerializedProperty listProp = property.FindPropertyRelative("selectedTagGuids");
+            SerializedProperty listProp = property.FindPropertyRelative("_selectedTagGuids");
 
             float maxWidth = (calculateHeightOnly ? EditorGUIUtility.currentViewWidth - 20f : position.width) - 2f;
             float currentX = 2f;
             float currentY = 0f;
             float totalHeight = 0f;
 
-            HashSet<string> currentSelection = new();
+            _currentSelection.Clear();
             if (listProp != null)
             {
                 for (int i = 0; i < listProp.arraySize; i++)
-                    currentSelection.Add(listProp.GetArrayElementAtIndex(i).stringValue);
+                {
+                    _currentSelection.Add(listProp.GetArrayElementAtIndex(i).stringValue);
+                }
             }
 
             if (_cachedDb != null)
             {
-                foreach (LoogaTag tag in _cachedDb.tags)
+                foreach (LoogaTag tag in _cachedDb.Tags)
                 {
-                    if (string.IsNullOrEmpty(tag.guid)) 
+                    if (string.IsNullOrEmpty(tag.Guid))
+                    {
                         continue;
+                    }
                     
-                    //draw tag button
-                    DrawSinglePill(tag.name, tag.color, tag.guid, ref currentX, ref currentY, maxWidth, position, currentSelection, listProp, calculateHeightOnly, false);
+                    DrawSinglePill(tag.Name, tag.Color, tag.Guid, ref currentX, ref currentY, maxWidth, position, _currentSelection, listProp, calculateHeightOnly, false);
                 }
             }
             
             if (IsCreatingTag(listProp))
                 DrawPendingTagField(ref currentX, ref currentY, maxWidth, position, listProp, calculateHeightOnly);
             else
-                DrawSinglePill("+", Color.gray4, "ADD_BUTTON_ID", ref currentX, ref currentY, maxWidth, position, currentSelection, listProp, calculateHeightOnly, true);
+                DrawSinglePill("+", Color.gray4, "ADD_BUTTON_ID", ref currentX, ref currentY, maxWidth, position, _currentSelection, listProp, calculateHeightOnly, true);
 
-            //add space with buffer
             totalHeight += currentY + PillHeight;
 
             return totalHeight;
@@ -171,7 +177,6 @@ namespace LoogaSoft.Tags.Editor
         private void DrawSinglePill(string name, Color color, string guid, ref float currentX, ref float currentY, float maxWidth, Rect startRect, HashSet<string> selection, SerializedProperty listProp,
             bool calcOnly, bool isAddButton)
         {
-            //temporarily increase font size for add button
             int originalTextSize = _labelStyle.fontSize;
             if (isAddButton) 
                 _labelStyle.fontSize = AddTagFontSize;
@@ -211,7 +216,6 @@ namespace LoogaSoft.Tags.Editor
                 else if (isHovered)
                     outlineColor = Color.gray6;
                 
-                //draw outline and main pill
                 DrawPillRect(outlineRect, outlineColor);
                 DrawPillRect(pillRect, color);
 
@@ -266,7 +270,6 @@ namespace LoogaSoft.Tags.Editor
                 }
             }
             
-            //reset font size for add button
             if (isAddButton) 
                 _labelStyle.fontSize = originalTextSize;
             
@@ -383,7 +386,7 @@ namespace LoogaSoft.Tags.Editor
             int undoGroup = Undo.GetCurrentGroup();
             Undo.SetCurrentGroupName($"Delete Looga Tag '{tagName}'");
             Undo.RecordObject(_cachedDb, "Delete Looga Tag");
-            _cachedDb.tags.RemoveAll(tag => tag.guid == tagGuid);
+            _cachedDb.Tags.RemoveAll(tag => tag.Guid == tagGuid);
             EditorUtility.SetDirty(_cachedDb);
             AssetDatabase.SaveAssetIfDirty(_cachedDb);
 
@@ -555,14 +558,13 @@ namespace LoogaSoft.Tags.Editor
             if (string.IsNullOrEmpty(tagName) || _cachedDb == null)
                 return;
 
-            _cachedDb.tags ??= new List<LoogaTag>();
             string tagGuid = null;
-            foreach (LoogaTag existingTag in _cachedDb.tags)
+            foreach (LoogaTag existingTag in _cachedDb.Tags)
             {
-                if (!string.IsNullOrEmpty(existingTag.guid) &&
-                    string.Equals(existingTag.name, tagName, System.StringComparison.OrdinalIgnoreCase))
+                if (!string.IsNullOrEmpty(existingTag.Guid) &&
+                    string.Equals(existingTag.Name, tagName, System.StringComparison.OrdinalIgnoreCase))
                 {
-                    tagGuid = existingTag.guid;
+                    tagGuid = existingTag.Guid;
                     break;
                 }
             }
@@ -571,11 +573,11 @@ namespace LoogaSoft.Tags.Editor
             {
                 tagGuid = System.Guid.NewGuid().ToString("N");
                 Undo.RecordObject(_cachedDb, "Create Looga Tag");
-                _cachedDb.tags.Add(new LoogaTag
+                _cachedDb.Tags.Add(new LoogaTag
                 {
-                    name = tagName,
-                    color = Color.gray3,
-                    guid = tagGuid
+                    Name = tagName,
+                    Color = Color.gray3,
+                    Guid = tagGuid
                 });
                 EditorUtility.SetDirty(_cachedDb);
                 AssetDatabase.SaveAssetIfDirty(_cachedDb);

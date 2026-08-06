@@ -10,10 +10,14 @@ namespace LoogaSoft.Tags.Runtime
 #if UNITY_EDITOR
     [InitializeOnLoad]
 #endif
+    /// <summary>
+    /// Resolves the project tag database.
+    /// </summary>
     [MovedFrom(true, "LoogaSoft.PolyTags.Runtime", "LoogaSoft.PolyTags.Runtime", "PolyTagManager")]
     public static class LoogaTagManager
     {
         private const string DatabaseResourcePath = "LoogaSoft/LoogaTagDatabase";
+        private static LoogaTagDatabase _database;
 
 #if UNITY_EDITOR
         private const string DatabaseAssetPath = "Assets/Resources/LoogaSoft/LoogaTagDatabase.asset";
@@ -27,19 +31,31 @@ namespace LoogaSoft.Tags.Runtime
             ValidateDatabase();
         }
 
+        /// <summary>
+        /// Gets the project tag database and creates it in the editor when required.
+        /// </summary>
         public static LoogaTagDatabase ValidateDatabase()
         {
-            LoogaTagDatabase database = Resources.Load<LoogaTagDatabase>(DatabaseResourcePath);
+            if (_database != null)
+            {
+                return _database;
+            }
+
+            _database = Resources.Load<LoogaTagDatabase>(DatabaseResourcePath);
 
 #if UNITY_EDITOR
-            if (database == null)
-                database = MigrateLegacyDatabase();
+            if (_database == null)
+            {
+                _database = MigrateLegacyDatabase();
+            }
 
-            if (database == null)
-                database = CreateDatabase();
+            if (_database == null)
+            {
+                _database = CreateDatabase();
+            }
 #endif
 
-            return database;
+            return _database;
         }
 
 #if UNITY_EDITOR
@@ -47,7 +63,9 @@ namespace LoogaSoft.Tags.Runtime
         {
             LoogaTagDatabase database = AssetDatabase.LoadAssetAtPath<LoogaTagDatabase>(LegacyDatabaseAssetPath);
             if (database == null)
+            {
                 return null;
+            }
 
             EnsureDatabaseFolder();
 
@@ -77,10 +95,14 @@ namespace LoogaSoft.Tags.Runtime
         private static void EnsureDatabaseFolder()
         {
             if (!AssetDatabase.IsValidFolder("Assets/Resources"))
+            {
                 AssetDatabase.CreateFolder("Assets", "Resources");
+            }
 
             if (!AssetDatabase.IsValidFolder("Assets/Resources/LoogaSoft"))
+            {
                 AssetDatabase.CreateFolder("Assets/Resources", "LoogaSoft");
+            }
         }
 #endif
     }

@@ -1,20 +1,19 @@
 using System.Collections.Generic;
-using System.Linq;
 using LoogaSoft.PrefabBrowser.Runtime;
 using UnityEditor;
 using UnityEngine;
 
 namespace LoogaSoft.PrefabBrowser.Editor
 {
-    public class PrefabBrowserPostprocessor : AssetPostprocessor
+    public sealed class PrefabBrowserPostprocessor : AssetPostprocessor
     {
         [MenuItem("Window/LoogaSoft/Prefab Browser/Rebuild Database")]
         public static void RebuildDatabase()
         {
-            var db = PrefabBrowserDatabase.GetOrCreateDatabase();
+            PrefabBrowserDatabase db = PrefabBrowserDatabase.GetOrCreateDatabase();
             
             // Clear the old data to ensure there are no ghost references
-            db.prefabs.Clear(); 
+            db.Prefabs.Clear();
 
             // Grab every single prefab in the project
             string[] guids = AssetDatabase.FindAssets("t:Prefab");
@@ -53,7 +52,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
             if (!HasPrefabChanges(importedAssets, deletedAssets, movedAssets))
                 return;
 
-            var db = PrefabBrowserDatabase.GetOrCreateDatabase();
+            PrefabBrowserDatabase db = PrefabBrowserDatabase.GetOrCreateDatabase();
             bool dbChanged = false;
 
             // 1. Handle Deletions
@@ -62,7 +61,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 if (str.EndsWith(".prefab"))
                 {
                     string guid = AssetDatabase.AssetPathToGUID(str);
-                    db.prefabs.RemoveAll(p => p.guid == guid);
+                    db.Prefabs.RemoveAll(prefab => prefab.Guid == guid);
                     dbChanged = true;
                 }
             }
@@ -83,10 +82,10 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 if (movedAssets[i].EndsWith(".prefab"))
                 {
                     string guid = AssetDatabase.AssetPathToGUID(movedAssets[i]);
-                    var existingData = db.prefabs.FirstOrDefault(p => p.guid == guid);
+                    PrefabData existingData = FindPrefab(db, guid);
                     if (existingData != null)
                     {
-                        existingData.path = movedAssets[i];
+                        existingData.Path = movedAssets[i];
                         dbChanged = true;
                     }
                 }
@@ -102,43 +101,71 @@ namespace LoogaSoft.PrefabBrowser.Editor
 
         private static bool HasPrefabChanges(string[] imported, string[] deleted, string[] moved)
         {
-            return imported.Any(p => p.EndsWith(".prefab")) || 
-                   deleted.Any(p => p.EndsWith(".prefab")) || 
-                   moved.Any(p => p.EndsWith(".prefab"));
+            return ContainsPrefab(imported) || ContainsPrefab(deleted) || ContainsPrefab(moved);
         }
 
         private static void ProcessPrefab(string path, PrefabBrowserDatabase db)
         {
             string guid = AssetDatabase.AssetPathToGUID(path);
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-            if (prefab == null) return;
-
-            var data = db.prefabs.FirstOrDefault(p => p.guid == guid);
-            if (data == null)
+            if (prefab == null)
             {
-                data = new PrefabData { guid = guid };
-                db.prefabs.Add(data);
+                return;
             }
 
-            data.path = path;
+            PrefabData data = FindPrefab(db, guid);
+            if (data == null)
+            {
+                data = new PrefabData { Guid = guid };
+                db.Prefabs.Add(data);
+            }
+
+            data.Path = path;
             
             // UI Check
-            data.isUI = prefab.layer == 5 || prefab.GetComponentInChildren<RectTransform>(true) != null;
+            data.IsUi = prefab.layer == 5 || prefab.GetComponentInChildren<RectTransform>(true) != null;
 
             // Broken/Missing Script Check
-            data.isBroken = false;
+            data.IsBroken = false;
             Component[] components = prefab.GetComponentsInChildren<Component>(true);
             for (int c = 0; c < components.Length; c++)
             {
                 if (components[c] == null)
                 {
-                    data.isBroken = true;
+                    data.IsBroken = true;
                     break;
                 }
             }
 
             // Cache Labels
-            data.labels = new List<string>(AssetDatabase.GetLabels(prefab));
+            data.Labels = new List<string>(AssetDatabase.GetLabels(prefab));
+        }
+
+        private static bool ContainsPrefab(string[] paths)
+        {
+            for (int index = 0; index < paths.Length; index++)
+            {
+                if (paths[index].EndsWith(".prefab", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static PrefabData FindPrefab(PrefabBrowserDatabase database, string guid)
+        {
+            for (int index = 0; index < database.Prefabs.Count; index++)
+            {
+                PrefabData prefab = database.Prefabs[index];
+                if (prefab.Guid == guid)
+                {
+                    return prefab;
+                }
+            }
+
+            return null;
         }
     }
 }

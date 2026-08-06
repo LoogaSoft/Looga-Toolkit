@@ -4,6 +4,11 @@
 
 - Renamed the tag assemblies, namespaces, files, types, and database asset from the retired API to Looga Tags.
 - Added serialized type and database-path migration for existing projects.
+- Restricted Prefab Browser data assemblies to the Editor platform.
+- Reduced tag and prefab browser allocations during editor repaint and filtering.
+- Added deterministic hierarchy metadata cleanup and scene-aware legacy migration.
+- Hardened singleton, extension, and cross-reference runtime APIs.
+- Added API documentation and serialization-safe private fields.
 
 ## 1.0.0
 
