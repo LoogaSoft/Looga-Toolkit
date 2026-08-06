@@ -1,0 +1,95 @@
+using UnityEditor;
+using UnityEngine;
+
+namespace LoogaSoft.Hierarchy.Editor
+{
+    /// <summary>
+    /// Stores project-wide hierarchy presentation without adding an asset to the Assets folder.
+    /// </summary>
+    [FilePath(SettingsPath, FilePathAttribute.Location.ProjectFolder)]
+    internal sealed class HierarchyGuideSettings : ScriptableSingleton<HierarchyGuideSettings>
+    {
+        internal const string SettingsPath = "ProjectSettings/LoogaHierarchySettings.asset";
+
+        internal const bool DefaultEnabled = true;
+        internal const bool DefaultShowFavorites = true;
+        internal const bool DefaultShowPresentation = true;
+        internal const bool DefaultShowStatusBadges = true;
+        internal const bool DefaultUseCustomColor = false;
+        internal const float DefaultOpacity = 0.52f;
+        internal const int DefaultThickness = 1;
+
+        private static readonly Color DefaultCustomColor = new(0.48f, 0.52f, 0.58f, 1f);
+
+        [SerializeField]
+        private bool _enabled = DefaultEnabled;
+
+        [SerializeField]
+        private bool _showFavorites = DefaultShowFavorites;
+
+        [SerializeField]
+        private bool _showPresentation = DefaultShowPresentation;
+
+        [SerializeField]
+        private bool _showStatusBadges = DefaultShowStatusBadges;
+
+        [SerializeField]
+        private bool _useCustomColor = DefaultUseCustomColor;
+
+        [SerializeField]
+        private Color _customColor = DefaultCustomColor;
+
+        [SerializeField, Range(0.1f, 1f)]
+        private float _opacity = DefaultOpacity;
+
+        [SerializeField, Range(1, 3)]
+        private int _thickness = DefaultThickness;
+
+        internal bool Enabled => _enabled;
+
+        internal bool ShowFavorites => _showFavorites;
+
+        internal bool ShowPresentation => _showPresentation;
+
+        internal bool ShowStatusBadges => _showStatusBadges;
+
+        internal bool UseCustomColor => _useCustomColor;
+
+        internal Color CustomColor => _customColor;
+
+        internal float Opacity => _opacity;
+
+        internal int Thickness => _thickness;
+
+        internal Color ResolveColor()
+        {
+            Color color = _useCustomColor
+                ? _customColor
+                : EditorGUIUtility.isProSkin
+                    ? new Color(0.48f, 0.52f, 0.58f, 1f)
+                    : new Color(0.30f, 0.34f, 0.39f, 1f);
+
+            color.a *= _opacity;
+            return color;
+        }
+
+        internal void SaveSettings()
+        {
+            Save(true);
+            EditorApplication.RepaintHierarchyWindow();
+        }
+
+        internal void ResetToDefaults()
+        {
+            _enabled = DefaultEnabled;
+            _showFavorites = DefaultShowFavorites;
+            _showPresentation = DefaultShowPresentation;
+            _showStatusBadges = DefaultShowStatusBadges;
+            _useCustomColor = DefaultUseCustomColor;
+            _customColor = DefaultCustomColor;
+            _opacity = DefaultOpacity;
+            _thickness = DefaultThickness;
+            SaveSettings();
+        }
+    }
+}

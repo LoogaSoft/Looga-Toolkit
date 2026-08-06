@@ -1,0 +1,18 @@
+{
+    "name": "LoogaSoft.Tools.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:6f061f1e728548c4a85ec153ea76e0a2"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

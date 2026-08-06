@@ -1,0 +1,12 @@
+.utmp/
+Library/
+Temp/
+Obj/
+Logs/
+.vs/
+.idea/
+*.csproj
+*.sln
+*.user
+*.tmp
+*.log
