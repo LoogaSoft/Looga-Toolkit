@@ -15,10 +15,6 @@ namespace LoogaSoft.Inspector.Editor
         private const string DefaultNoticeActionLabel = "Open";
         private const float NoticeIndicatorSize = 5f;
 
-        private static Color NoticeBackgroundColor => EditorGUIUtility.isProSkin
-            ? new Color(0.225f, 0.225f, 0.225f, 1f)
-            : new Color(0.79f, 0.79f, 0.79f, 1f);
-
         public static int Tabs(Rect position, int selectedIndex, string[] tabNames)
         {
             return LoogaEditorTabs.DrawToolbar(position, selectedIndex, tabNames);
@@ -77,7 +73,7 @@ namespace LoogaSoft.Inspector.Editor
             string actionTooltip = "Open")
         {
             Rect rect = LoogaEditorStyle.PixelSnap(position);
-            EditorGUI.DrawRect(rect, NoticeBackgroundColor);
+            GUI.Box(rect, GUIContent.none, EditorStyles.helpBox);
 
             Rect indicatorRect = new(
                 rect.x + NoticePadding + 1f,

@@ -20,7 +20,7 @@ namespace LoogaSoft.Inspector.Editor
         private const float HeaderArrowSize = 10.5f;
         private const float HeaderArrowLeftNudge = 0f;
         private const float HeaderTextArrowGap = 6f;
-        private const int AccentRailWidth = LoogaEditorStyle.AccentRailWidth;
+        private const int AccentRailWidth = 0;
 
         private static GUIStyle _largeHeader;
         private static GUIStyle _smallHeader;
@@ -36,19 +36,8 @@ namespace LoogaSoft.Inspector.Editor
         private static GUIStyle _smallLayoutFoldoutBox;
         private static GUIStyle _alternateSmallLayoutBox;
         private static GUIStyle _alternateSmallLayoutFoldoutBox;
-        private static Texture2D _flatBoxTexture;
-        private static Texture2D _alternateFlatBoxTexture;
-        private static readonly List<Texture2D> GeneratedTextures = new();
         private static int _boxDepth;
         private static int _containedFoldoutDepth;
-
-        static LoogaEditorFoldouts()
-        {
-            AssemblyReloadEvents.beforeAssemblyReload -= DisposeGeneratedTextures;
-            AssemblyReloadEvents.beforeAssemblyReload += DisposeGeneratedTextures;
-            EditorApplication.quitting -= DisposeGeneratedTextures;
-            EditorApplication.quitting += DisposeGeneratedTextures;
-        }
 
         public static GUIStyle SmallBoxStyle
         {
@@ -531,9 +520,53 @@ namespace LoogaSoft.Inspector.Editor
 
         public static bool LoogaToggleFoldoutSmall(GUIContent label, SerializedProperty toggleProperty, bool expanded, Action content, SerializedProperty property = null)
         {
+            bool enabled = toggleProperty != null && toggleProperty.propertyType == SerializedPropertyType.Boolean && toggleProperty.boolValue;
+            return DrawToggleFoldoutSmall(
+                label,
+                enabled,
+                expanded,
+                content,
+                newValue =>
+                {
+                    if (toggleProperty != null)
+                        toggleProperty.boolValue = newValue;
+                },
+                property,
+                out _);
+        }
+
+        /// <summary>
+        /// Draws a toggle foldout for state that is not stored in a serialized Boolean property.
+        /// The caller remains responsible for recording the changed value.
+        /// </summary>
+        public static bool LoogaToggleFoldoutSmall(
+            GUIContent label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            out bool newEnabled)
+        {
+            return DrawToggleFoldoutSmall(
+                label,
+                enabled,
+                expanded,
+                content,
+                null,
+                null,
+                out newEnabled);
+        }
+
+        private static bool DrawToggleFoldoutSmall(
+            GUIContent label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            Action<bool> applyEnabled,
+            SerializedProperty property,
+            out bool newEnabled)
+        {
             EnsureStyles();
 
-            bool enabled = toggleProperty != null && toggleProperty.propertyType == SerializedPropertyType.Boolean && toggleProperty.boolValue;
             bool show = enabled && expanded;
 
             EditorGUILayout.Space(1f);
@@ -563,10 +596,10 @@ namespace LoogaSoft.Inspector.Editor
                 EditorGUI.BeginProperty(headerRect, label, property);
 
             EditorGUI.BeginChangeCheck();
-            bool newEnabled = EditorGUI.Toggle(toggleRect, enabled);
-            if (EditorGUI.EndChangeCheck() && toggleProperty != null)
+            newEnabled = EditorGUI.Toggle(toggleRect, enabled);
+            if (EditorGUI.EndChangeCheck())
             {
-                toggleProperty.boolValue = newEnabled;
+                applyEnabled?.Invoke(newEnabled);
                 enabled = newEnabled;
                 show = false;
             }
@@ -607,6 +640,7 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space(1f);
 
+            newEnabled = enabled;
             return enabled && show;
         }
         private static void RequestMouseMoveRepaint()
@@ -1126,8 +1160,6 @@ namespace LoogaSoft.Inspector.Editor
                 padding = new RectOffset(0, 0, 0, 2)
             };
 
-            _flatBoxTexture = CreateFlatTexture(GetFlatBoxColor());
-            _alternateFlatBoxTexture = CreateFlatTexture(GetAlternateFlatBoxColor());
             _largeBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, false);
             _largeFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, false);
             _alternateLargeBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, true);
@@ -1144,20 +1176,9 @@ namespace LoogaSoft.Inspector.Editor
 
         public static void DrawHoverRect(Rect rect)
         {
-            Rect hoverRect = rect;
-            hoverRect.xMin += AccentRailWidth;
-            EditorGUI.DrawRect(hoverRect, GetFlatHoverColor());
-            DrawAccentRail(rect);
-        }
-
-        private static void DrawAccentRail(Rect rect)
-        {
-            Rect railRect = new(
-                rect.x,
-                rect.y,
-                AccentRailWidth,
-                rect.height);
-            EditorGUI.DrawRect(railRect, GetAccentRailColor());
+            Color hoverColor = GetFlatHoverColor();
+            hoverColor.a = 0.45f;
+            EditorGUI.DrawRect(rect, hoverColor);
         }
 
         private static Color GetFlatHoverColor()
@@ -1212,85 +1233,13 @@ namespace LoogaSoft.Inspector.Editor
 
         private static GUIStyle CreateFlatBoxStyle(RectOffset padding, bool includeAccentRail, bool alternate)
         {
-            Color boxColor = alternate ? GetAlternateFlatBoxColor() : GetFlatBoxColor();
-            Texture2D texture = includeAccentRail
-                ? CreateFlatTexture(boxColor, true)
-                : alternate ? _alternateFlatBoxTexture : _flatBoxTexture;
-
-            GUIStyle style = new(EditorStyles.label)
+            GUIStyle style = new(EditorStyles.helpBox)
             {
                 margin = new RectOffset((int)BoxHorizontalInset, (int)BoxHorizontalInset, 0, 0),
                 padding = padding,
-                border = includeAccentRail ? new RectOffset(AccentRailWidth, 0, 0, 0) : new RectOffset(0, 0, 0, 0),
                 overflow = new RectOffset(0, 0, 0, 0)
             };
-
-            style.normal.background = texture;
-            style.hover.background = texture;
-            style.active.background = texture;
-            style.focused.background = texture;
             return style;
-        }
-
-        private static Texture2D CreateFlatTexture(Color color)
-        {
-            return CreateFlatTexture(color, false);
-        }
-
-        private static Texture2D CreateFlatTexture(Color color, bool includeAccentRail)
-        {
-            const int width = 8;
-            const int height = 1;
-            Texture2D texture = new(width, height)
-            {
-                hideFlags = HideFlags.HideAndDontSave,
-                filterMode = FilterMode.Point,
-                wrapMode = TextureWrapMode.Clamp
-            };
-
-            Color accentColor = GetAccentRailColor();
-
-            for (int y = 0; y < height; y++)
-            {
-                for (int x = 0; x < width; x++)
-                {
-                    bool isAccentRail = includeAccentRail && x < AccentRailWidth;
-                    Color pixelColor = isAccentRail ? accentColor : color;
-                    texture.SetPixel(x, y, pixelColor);
-                }
-            }
-
-            texture.Apply();
-            GeneratedTextures.Add(texture);
-            return texture;
-        }
-
-        private static void DisposeGeneratedTextures()
-        {
-            for (int i = 0; i < GeneratedTextures.Count; i++)
-            {
-                if (GeneratedTextures[i] != null)
-                    UnityEngine.Object.DestroyImmediate(GeneratedTextures[i]);
-            }
-
-            GeneratedTextures.Clear();
-            _flatBoxTexture = null;
-            _alternateFlatBoxTexture = null;
-        }
-
-        private static Color GetAccentRailColor()
-        {
-            return LoogaEditorStyle.AccentRailColor;
-        }
-
-        private static Color GetFlatBoxColor()
-        {
-            return LoogaEditorStyle.BoxColor;
-        }
-
-        private static Color GetAlternateFlatBoxColor()
-        {
-            return LoogaEditorStyle.AlternateBoxColor;
         }
 
         private static Rect ShrinkBoxRect(Rect rect)

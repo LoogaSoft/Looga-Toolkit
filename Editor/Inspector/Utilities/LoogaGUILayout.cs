@@ -48,6 +48,36 @@ namespace LoogaSoft.Inspector.Editor
             return FoldoutSmall(new GUIContent(label), expanded, content, property);
         }
 
+        public static bool ToggleFoldoutSmall(
+            GUIContent label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            out bool newEnabled)
+        {
+            return LoogaEditorFoldouts.LoogaToggleFoldoutSmall(
+                label,
+                enabled,
+                expanded,
+                content,
+                out newEnabled);
+        }
+
+        public static bool ToggleFoldoutSmall(
+            string label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            out bool newEnabled)
+        {
+            return ToggleFoldoutSmall(
+                new GUIContent(label),
+                enabled,
+                expanded,
+                content,
+                out newEnabled);
+        }
+
         public static void BoxLarge(string title, Action content)
         {
             LoogaEditorFoldouts.LoogaBoxLarge(title, content);

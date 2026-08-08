@@ -9,13 +9,14 @@ namespace LoogaSoft.Inspector.Editor
     public static class LoogaSidebarGUI
     {
         public const float DefaultWidth = 184f;
-        public const float DefaultRowHeight = 42f;
-        public const float GroupRowHeight = 36f;
-        public const float ChildRowHeight = 30f;
+        public const float DefaultRowHeight = 32f;
+        public const float GroupRowHeight = 30f;
+        public const float ChildRowHeight = 24f;
         public const float DividerWidth = 1f;
         public const float ContentPadding = 10f;
 
         private static GUIStyle _buttonStyle;
+        private static GUIStyle _selectedButtonStyle;
         private static GUIStyle _groupStyle;
         private static GUIStyle _headerStyle;
 
@@ -54,20 +55,12 @@ namespace LoogaSoft.Inspector.Editor
                 bool selected = i == selectedIndex;
                 bool hovered = row.Contains(current.mousePosition);
                 EditorGUI.DrawRect(row, selected
-                    ? LoogaEditorStyle.AlternateBoxColor
+                    ? LoogaEditorStyle.SelectionColor
                     : hovered ? LoogaEditorStyle.HoverColor : LoogaEditorStyle.BoxColor);
-
-                if (selected)
-                {
-                    EditorGUI.DrawRect(
-                        new Rect(row.x, row.y, LoogaEditorStyle.AccentRailWidth, row.height),
-                        LoogaEditorStyle.ActionAccentColor);
-                }
-
-                GUI.Label(new Rect(row.x + 14f, row.y, row.width - 22f, row.height), getLabel(i), _buttonStyle);
-                EditorGUI.DrawRect(
-                    new Rect(row.x, row.yMax - LoogaEditorStyle.Pixels(1f), row.width, LoogaEditorStyle.Pixels(1f)),
-                    LoogaEditorStyle.SeparatorColor);
+                GUI.Label(
+                    new Rect(row.x + 12f, row.y, row.width - 20f, row.height),
+                    getLabel(i),
+                    selected ? _selectedButtonStyle : _buttonStyle);
 
                 if (current.type == EventType.MouseDown && current.button == 0 && hovered)
                 {
@@ -166,20 +159,13 @@ namespace LoogaSoft.Inspector.Editor
                     bool selected = string.Equals(item.Id, selectedItemId, StringComparison.Ordinal);
                     bool hovered = itemRect.Contains(current.mousePosition);
                     EditorGUI.DrawRect(itemRect, selected
-                        ? LoogaEditorStyle.AlternateBoxColor
+                        ? LoogaEditorStyle.SelectionColor
                         : hovered ? LoogaEditorStyle.HoverColor : LoogaEditorStyle.BoxColor);
 
-                    if (selected)
-                    {
-                        EditorGUI.DrawRect(
-                            new Rect(itemRect.x, itemRect.y, LoogaEditorStyle.AccentRailWidth, itemRect.height),
-                            LoogaEditorStyle.ActionAccentColor);
-                    }
-
                     GUI.Label(
-                        new Rect(itemRect.x + 32f, itemRect.y, itemRect.width - 40f, itemRect.height),
+                        new Rect(itemRect.x + 30f, itemRect.y, itemRect.width - 38f, itemRect.height),
                         item.Label,
-                        _buttonStyle);
+                        selected ? _selectedButtonStyle : _buttonStyle);
 
                     if (current.type == EventType.MouseDown && current.button == 0 && hovered)
                     {
@@ -210,17 +196,21 @@ namespace LoogaSoft.Inspector.Editor
             _buttonStyle = new GUIStyle(EditorStyles.label)
             {
                 alignment = TextAnchor.MiddleLeft,
-                fontSize = 12,
+                fontSize = EditorStyles.label.fontSize,
                 fontStyle = FontStyle.Normal,
                 padding = new RectOffset(),
                 margin = new RectOffset(),
                 normal = { textColor = LoogaEditorStyle.TextColor }
             };
+            _selectedButtonStyle = new GUIStyle(_buttonStyle)
+            {
+                normal = { textColor = Color.white }
+            };
 
             _groupStyle = new GUIStyle(EditorStyles.foldout)
             {
                 alignment = TextAnchor.MiddleLeft,
-                fontSize = 12,
+                fontSize = EditorStyles.foldout.fontSize,
                 fontStyle = FontStyle.Normal,
                 padding = new RectOffset(EditorStyles.foldout.padding.left, 0, 0, 0),
                 margin = new RectOffset(),
@@ -237,7 +227,7 @@ namespace LoogaSoft.Inspector.Editor
         {
             return new GUIStyle(EditorStyles.boldLabel)
             {
-                fontSize = 18,
+                fontSize = 16,
                 fontStyle = FontStyle.Bold,
                 padding = new RectOffset((int)ContentPadding, 0, 0, 0),
                 normal = { textColor = LoogaEditorStyle.TextColor }

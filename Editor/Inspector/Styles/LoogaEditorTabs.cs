@@ -9,9 +9,6 @@ namespace LoogaSoft.Inspector.Editor
         private const float TabHeight = 24f;
         private const float TabRowGap = 2f;
         private const float TabTextPadding = 24f;
-        private const float TabSeparatorWidth = 1f;
-        private const float SelectedAccentHeight = 2f;
-
         private static readonly Dictionary<string, float> ToolbarWidthCache = new();
         private static GUIStyle _tabLabelStyle;
 
@@ -118,18 +115,12 @@ namespace LoogaSoft.Inspector.Editor
                         localIndex == row.Count - 1 ? rowRect.xMax - (rowRect.x + localIndex * tabWidth) : tabWidth,
                         rowRect.height));
                     bool selected = tabIndex == selectedIndex;
-                    bool hovered = tabRect.Contains(Event.current.mousePosition);
-
-                    if (hovered && Event.current.type == EventType.MouseMove)
-                        RepaintMouseOverWindow();
-
-                    DrawTab(tabRect, tabNames[tabIndex], selected, hovered, localIndex < row.Count - 1);
-
-                    if (Event.current.type == EventType.MouseDown && Event.current.button == 0 && hovered)
-                    {
+                    if (GUI.Toggle(
+                            tabRect,
+                            selected,
+                            new GUIContent(tabNames[tabIndex]),
+                            _tabLabelStyle) && !selected)
                         newSelectedIndex = tabIndex;
-                        Event.current.Use();
-                    }
                 }
             }
 
@@ -143,43 +134,8 @@ namespace LoogaSoft.Inspector.Editor
 
         private static void DrawRowBackground(Rect rect)
         {
-            if (Event.current.type != EventType.Repaint)
-                return;
-
-            EditorGUI.DrawRect(rect, GetTabBarColor());
-        }
-
-        private static void DrawTab(Rect rect, string label, bool selected, bool hovered, bool drawSeparator)
-        {
             if (Event.current.type == EventType.Repaint)
-            {
-                Color color = selected ? GetSelectedTabColor() : GetTabColor();
-                if (hovered && !selected)
-                    color = Color.Lerp(color, GetHoverTabColor(), 0.75f);
-
-                EditorGUI.DrawRect(rect, color);
-
-                if (drawSeparator)
-                {
-                    Rect separatorRect = PixelSnap(new Rect(rect.xMax - Pixels(TabSeparatorWidth), rect.y, Pixels(TabSeparatorWidth), rect.height));
-                    EditorGUI.DrawRect(separatorRect, GetSeparatorColor());
-                }
-
-                if (selected)
-                {
-                    Rect accentRect = PixelSnap(new Rect(rect.x, rect.yMax - Pixels(SelectedAccentHeight), rect.width, Pixels(SelectedAccentHeight)));
-                    EditorGUI.DrawRect(accentRect, GetAccentColor());
-                }
-            }
-
-            Color previousTextColor = _tabLabelStyle.normal.textColor;
-            Color previousHoverTextColor = _tabLabelStyle.hover.textColor;
-            Color textColor = selected ? GetSelectedTextColor() : GetTextColor();
-            _tabLabelStyle.normal.textColor = textColor;
-            _tabLabelStyle.hover.textColor = textColor;
-            GUI.Label(rect, label, _tabLabelStyle);
-            _tabLabelStyle.normal.textColor = previousTextColor;
-            _tabLabelStyle.hover.textColor = previousHoverTextColor;
+                EditorStyles.toolbar.Draw(rect, GUIContent.none, false, false, false, false);
         }
 
         private static List<List<int>> BuildRows(string[] tabNames, float availableWidth)
@@ -240,11 +196,11 @@ namespace LoogaSoft.Inspector.Editor
             if (_tabLabelStyle != null)
                 return;
 
-            _tabLabelStyle = new GUIStyle(EditorStyles.label)
+            _tabLabelStyle = new GUIStyle(EditorStyles.toolbarButton)
             {
                 alignment = TextAnchor.MiddleCenter,
                 clipping = TextClipping.Clip,
-                fontSize = EditorStyles.label.fontSize,
+                fontSize = EditorStyles.toolbarButton.fontSize,
                 fontStyle = FontStyle.Normal,
                 padding = new RectOffset(6, 6, 0, 1)
             };
@@ -265,49 +221,5 @@ namespace LoogaSoft.Inspector.Editor
             return Mathf.Round(value * pixelsPerPoint) / pixelsPerPoint;
         }
 
-        private static float Pixels(float pixelCount)
-        {
-            return pixelCount / EditorGUIUtility.pixelsPerPoint;
-        }
-
-        private static Color GetTabBarColor()
-        {
-            return LoogaEditorStyle.TabBarColor;
-        }
-
-        private static Color GetTabColor()
-        {
-            return LoogaEditorStyle.TabColor;
-        }
-
-        private static Color GetSelectedTabColor()
-        {
-            return LoogaEditorStyle.SelectedTabColor;
-        }
-
-        private static Color GetHoverTabColor()
-        {
-            return LoogaEditorStyle.TabHoverColor;
-        }
-
-        private static Color GetSeparatorColor()
-        {
-            return LoogaEditorStyle.SeparatorColor;
-        }
-
-        private static Color GetAccentColor()
-        {
-            return LoogaEditorStyle.ActionAccentColor;
-        }
-
-        private static Color GetTextColor()
-        {
-            return LoogaEditorStyle.TextColor;
-        }
-
-        private static Color GetSelectedTextColor()
-        {
-            return LoogaEditorStyle.TextColor;
-        }
     }
 }
