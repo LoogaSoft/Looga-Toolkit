@@ -533,7 +533,7 @@ namespace LoogaSoft.Inspector.Editor
                 baseRect.height + boxStyle.padding.top + 2f);
             Rect toggleRect = GetHeaderToggleRect(headerRect);
             Rect arrowRect = GetHeaderArrowRectAfter(headerRect, toggleRect);
-            Rect textRect = GetHeaderTextRectAfter(headerRect, arrowRect, 1f);
+            Rect textRect = GetHeaderTextRectAfter(headerRect, toggleRect, 1f);
 
             Event current = Event.current;
             Rect hoverRect = show ? headerRect : boxRect;
@@ -612,7 +612,7 @@ namespace LoogaSoft.Inspector.Editor
                 baseRect.height + boxStyle.padding.top + 2f);
             Rect toggleRect = GetHeaderToggleRect(headerRect);
             Rect arrowRect = GetHeaderArrowRectAfter(headerRect, toggleRect);
-            Rect textRect = GetHeaderTextRectAfter(headerRect, arrowRect, 1f);
+            Rect textRect = GetHeaderTextRectAfter(headerRect, toggleRect, 1f);
             Rect hoverRect = show ? headerRect : boxRect;
             Event current = Event.current;
 
@@ -727,7 +727,7 @@ namespace LoogaSoft.Inspector.Editor
                 baseRect.height + boxStyle.padding.top + 2f);
             Rect toggleRect = GetHeaderToggleRect(headerRect);
             Rect arrowRect = GetHeaderArrowRectAfter(headerRect, toggleRect);
-            Rect textRect = GetHeaderTextRectAfter(headerRect, arrowRect, 1f);
+            Rect textRect = GetHeaderTextRectAfter(headerRect, toggleRect, 1f);
 
             Event current = Event.current;
             Rect hoverRect = show ? headerRect : ExpandRectBottom(boxRect, SmallLayoutHoverBottomBleed);
@@ -1291,7 +1291,7 @@ namespace LoogaSoft.Inspector.Editor
 
             _largeHeader = new GUIStyle(EditorStyles.boldLabel)
             {
-                fontSize = 13,
+                fontSize = 12,
                 padding = new RectOffset(0, 0, 0, 4)
             };
 

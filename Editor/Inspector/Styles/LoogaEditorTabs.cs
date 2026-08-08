@@ -8,7 +8,7 @@ namespace LoogaSoft.Inspector.Editor
     {
         private const float TabHeight = 24f;
         private const float TabRowGap = 2f;
-        private const float TabGap = 2f;
+        private const float TabGap = 0f;
         private const float TabTextPadding = 24f;
         private static readonly Dictionary<string, float> ToolbarWidthCache = new();
         private static GUIStyle _tabButtonStyle;
