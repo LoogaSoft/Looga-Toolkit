@@ -83,6 +83,26 @@ namespace LoogaSoft.Inspector.Editor
             return property;
         }
 
+        /// <summary>
+        /// Draws one property from another serialized object through the Looga property pipeline.
+        /// </summary>
+        protected SerializedProperty DrawLoogaProperty(SerializedObject owner, string propertyName)
+        {
+            if (owner == null)
+                return null;
+
+            SerializedObject previousObject = _nestedSerializedObject;
+            try
+            {
+                _nestedSerializedObject = owner;
+                return DrawLoogaProperty(propertyName);
+            }
+            finally
+            {
+                _nestedSerializedObject = previousObject;
+            }
+        }
+
         private SerializedObject InspectedSerializedObject => _nestedSerializedObject ?? serializedObject;
         private Object InspectedTarget => InspectedSerializedObject.targetObject;
         private Object[] InspectedTargets => InspectedSerializedObject.targetObjects;
@@ -1274,7 +1294,7 @@ namespace LoogaSoft.Inspector.Editor
 
         private const float ListHeaderHeight = 23f;
         private const float ListHeaderArrowSize = 10.5f;
-        private const float ListHeaderAccentWidth = 4f;
+        private const float ListHeaderAccentWidth = 0f;
         private const float ListHeaderLeftInset = 6f;
         private const float ListHeaderTextArrowGap = 6f;
         private const float ListHeaderButtonSize = 18f;
@@ -1304,7 +1324,7 @@ namespace LoogaSoft.Inspector.Editor
             if (alwaysExpanded)
                 property.isExpanded = true;
             Rect headerRect = EditorGUILayout.GetControlRect(false, ListHeaderHeight);
-            Rect boxRect = new(headerRect.x - 3f, headerRect.y, headerRect.width + 6f, headerRect.height);
+            Rect boxRect = headerRect;
             float headerControlY = Mathf.Round(CenterVertically(boxRect, EditorGUIUtility.singleLineHeight).y);
             Rect sizeRect = new(
                 boxRect.xMax - ListSizeFieldWidth - ListHeaderButtonSize * 2f - ListHeaderButtonGap * 2f - ListSizeFieldRightPadding,
@@ -1384,7 +1404,7 @@ namespace LoogaSoft.Inspector.Editor
 
             float expandedBodyHeight = GetListBodyHeight(property);
             GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.Height(expandedBodyHeight), GUILayout.ExpandWidth(true));
-            Rect bodyRect = new(headerRect.x - 3f, boxRect.yMax, headerRect.width + 6f, expandedBodyHeight);
+            Rect bodyRect = new(headerRect.x, boxRect.yMax, headerRect.width, expandedBodyHeight);
             DrawListBody(property, key, bodyRect);
         }
 

@@ -160,6 +160,77 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUILayout.Space(LargeFoldoutGap);
         }
 
+        /// <summary>
+        /// Draws a large foldout for state owned by the caller.
+        /// </summary>
+        public static bool LoogaFoldoutLarge(
+            GUIContent label,
+            bool expanded,
+            Action content,
+            SerializedProperty property = null)
+        {
+            EnsureStyles();
+
+            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            EditorGUILayout.BeginVertical(boxStyle);
+            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _largeHeader);
+            Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
+            Rect headerRect = new(
+                boxRect.x,
+                boxRect.y,
+                boxRect.width,
+                baseRect.height + boxStyle.padding.top + 2f);
+            Rect hoverRect = expanded ? headerRect : boxRect;
+            Rect textRect = GetHeaderTextRect(headerRect, 1f, boxStyle);
+            Rect arrowRect = GetHeaderArrowRect(headerRect, boxStyle);
+            Event current = Event.current;
+
+            RequestMouseMoveRepaint();
+            if (hoverRect.Contains(current.mousePosition))
+                DrawHoverRect(hoverRect);
+
+            if (property != null)
+                EditorGUI.BeginProperty(hoverRect, label, property);
+
+            GUI.Label(textRect, label, _largeHeader);
+            DrawFoldoutArrow(arrowRect, expanded);
+
+            if (property != null && current.type == EventType.ContextClick && hoverRect.Contains(current.mousePosition))
+            {
+                ShowPropertyContextMenu(property);
+                current.Use();
+            }
+            else if (current.type == EventType.MouseDown
+                && hoverRect.Contains(current.mousePosition)
+                && current.button == 0)
+            {
+                expanded = !expanded;
+                current.Use();
+            }
+
+            if (property != null)
+                EditorGUI.EndProperty();
+
+            if (expanded)
+            {
+                PushBoxDepth();
+                try
+                {
+                    EditorGUILayout.Space(2f);
+                    content?.Invoke();
+                    EditorGUILayout.Space(2f);
+                }
+                finally
+                {
+                    PopBoxDepth();
+                }
+            }
+
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(LargeFoldoutGap);
+            return expanded;
+        }
+
         public static void LoogaBoxLarge(string title, Action content)
         {
             EnsureStyles();
@@ -516,6 +587,81 @@ namespace LoogaSoft.Inspector.Editor
 
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space(LargeFoldoutGap);
+        }
+
+        /// <summary>
+        /// Draws a large toggle foldout for state owned by the caller.
+        /// </summary>
+        public static bool LoogaToggleFoldoutLarge(
+            GUIContent label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            out bool newEnabled)
+        {
+            EnsureStyles();
+
+            bool show = enabled && expanded;
+            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            EditorGUILayout.BeginVertical(boxStyle);
+            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _largeHeader);
+            Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
+            Rect headerRect = new(
+                boxRect.x,
+                boxRect.y,
+                boxRect.width,
+                baseRect.height + boxStyle.padding.top + 2f);
+            Rect toggleRect = GetHeaderToggleRect(headerRect);
+            Rect arrowRect = GetHeaderArrowRectAfter(headerRect, toggleRect);
+            Rect textRect = GetHeaderTextRectAfter(headerRect, arrowRect, 1f);
+            Rect hoverRect = show ? headerRect : boxRect;
+            Event current = Event.current;
+
+            RequestMouseMoveRepaint();
+            if (hoverRect.Contains(current.mousePosition))
+                DrawHoverRect(hoverRect);
+
+            EditorGUI.BeginChangeCheck();
+            newEnabled = EditorGUI.Toggle(toggleRect, enabled);
+            if (EditorGUI.EndChangeCheck())
+            {
+                enabled = newEnabled;
+                show = false;
+            }
+
+            GUI.Label(textRect, label, _largeHeader);
+            if (enabled)
+            {
+                DrawFoldoutArrow(arrowRect, show);
+                if (current.type == EventType.MouseDown
+                    && hoverRect.Contains(current.mousePosition)
+                    && !toggleRect.Contains(current.mousePosition)
+                    && current.button == 0)
+                {
+                    show = !show;
+                    current.Use();
+                }
+            }
+
+            if (enabled && show)
+            {
+                PushBoxDepth();
+                try
+                {
+                    EditorGUILayout.Space(2f);
+                    content?.Invoke();
+                    EditorGUILayout.Space(2f);
+                }
+                finally
+                {
+                    PopBoxDepth();
+                }
+            }
+
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(LargeFoldoutGap);
+            newEnabled = enabled;
+            return enabled && show;
         }
 
         public static bool LoogaToggleFoldoutSmall(GUIContent label, SerializedProperty toggleProperty, bool expanded, Action content, SerializedProperty property = null)

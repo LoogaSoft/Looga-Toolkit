@@ -38,6 +38,24 @@ namespace LoogaSoft.Inspector.Editor
             LoogaEditorFoldouts.LoogaFoldoutLarge(title, stateKey, defaultExpanded, content);
         }
 
+        public static bool FoldoutLarge(
+            GUIContent label,
+            bool expanded,
+            Action content,
+            SerializedProperty property = null)
+        {
+            return LoogaEditorFoldouts.LoogaFoldoutLarge(label, expanded, content, property);
+        }
+
+        public static bool FoldoutLarge(
+            string label,
+            bool expanded,
+            Action content,
+            SerializedProperty property = null)
+        {
+            return FoldoutLarge(new GUIContent(label), expanded, content, property);
+        }
+
         public static bool FoldoutSmall(GUIContent label, bool expanded, Action content, SerializedProperty property = null)
         {
             return LoogaEditorFoldouts.LoogaFoldoutSmall(label, expanded, content, property);
@@ -57,6 +75,36 @@ namespace LoogaSoft.Inspector.Editor
         {
             return LoogaEditorFoldouts.LoogaToggleFoldoutSmall(
                 label,
+                enabled,
+                expanded,
+                content,
+                out newEnabled);
+        }
+
+        public static bool ToggleFoldoutLarge(
+            GUIContent label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            out bool newEnabled)
+        {
+            return LoogaEditorFoldouts.LoogaToggleFoldoutLarge(
+                label,
+                enabled,
+                expanded,
+                content,
+                out newEnabled);
+        }
+
+        public static bool ToggleFoldoutLarge(
+            string label,
+            bool enabled,
+            bool expanded,
+            Action content,
+            out bool newEnabled)
+        {
+            return ToggleFoldoutLarge(
+                new GUIContent(label),
                 enabled,
                 expanded,
                 content,

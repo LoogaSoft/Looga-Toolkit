@@ -122,6 +122,8 @@ namespace LoogaSoft.Inspector.Editor
                             _tabLabelStyle) && !selected)
                         newSelectedIndex = tabIndex;
                 }
+
+                DrawRowTopBorder(rowRect);
             }
 
             return newSelectedIndex;
@@ -136,6 +138,17 @@ namespace LoogaSoft.Inspector.Editor
         {
             if (Event.current.type == EventType.Repaint)
                 EditorStyles.toolbar.Draw(rect, GUIContent.none, false, false, false, false);
+        }
+
+        private static void DrawRowTopBorder(Rect rect)
+        {
+            if (Event.current.type != EventType.Repaint)
+                return;
+
+            float borderHeight = 1f / EditorGUIUtility.pixelsPerPoint;
+            EditorGUI.DrawRect(
+                new Rect(rect.x, rect.y, rect.width, borderHeight),
+                LoogaEditorStyle.SeparatorColor);
         }
 
         private static List<List<int>> BuildRows(string[] tabNames, float availableWidth)
