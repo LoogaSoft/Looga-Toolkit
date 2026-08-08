@@ -40,13 +40,14 @@ namespace LoogaSoft.Inspector.Editor
         public static InspectorPropertyMetadata Create(FieldInfo fieldInfo)
         {
             LabelAttribute labelAttribute = fieldInfo.GetCustomAttribute<LabelAttribute>();
+            TooltipAttribute tooltipAttribute = fieldInfo.GetCustomAttribute<TooltipAttribute>();
             string labelText = labelAttribute == null
                 ? ObjectNames.NicifyVariableName(fieldInfo.Name)
                 : labelAttribute.label;
 
             return new InspectorPropertyMetadata(
                 fieldInfo,
-                PropertyUtils.GetContent(labelText),
+                PropertyUtils.GetContent(labelText, tooltipAttribute?.tooltip),
                 fieldInfo.GetCustomAttribute<LoogaBoxAttribute>(),
                 fieldInfo.GetCustomAttribute<LoogaFoldoutAttribute>(),
                 fieldInfo.GetCustomAttribute<LoogaToggleFoldoutAttribute>(),

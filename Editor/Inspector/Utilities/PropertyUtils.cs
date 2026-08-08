@@ -10,8 +10,15 @@ namespace LoogaSoft.Inspector.Editor
 {
     public static class PropertyUtils
     {
+        private const float IndentWidth = 15f;
+        private const float LabelRightPadding = 2f;
+        private const int MaximumFittedLabelCacheEntries = 1024;
+
         private static readonly Dictionary<AttributeLookupKey, Array> AttributeCache = new();
         private static readonly Dictionary<string, GUIContent> LabelCache = new();
+        private static readonly Dictionary<LabelContentKey, GUIContent> TooltipLabelCache = new();
+        private static readonly Dictionary<FittedLabelKey, GUIContent> FittedLabelCache = new();
+        private static readonly GUIContent MeasurementContent = new();
 
         public static T GetAttribute<T>(SerializedProperty property) where T : class
         {
@@ -63,8 +70,9 @@ namespace LoogaSoft.Inspector.Editor
         public static GUIContent GetLabel(SerializedProperty property)
         {
             LabelAttribute labelAttribute = GetAttribute<LabelAttribute>(property);
+            TooltipAttribute tooltipAttribute = GetAttribute<TooltipAttribute>(property);
             string labelString = labelAttribute == null ? property.displayName : labelAttribute.label;
-            return GetContent(labelString);
+            return GetContent(labelString, tooltipAttribute?.tooltip);
         }
 
         public static GUIContent GetContent(string text)
@@ -76,6 +84,91 @@ namespace LoogaSoft.Inspector.Editor
             content = new GUIContent(text);
             LabelCache.Add(text, content);
             return content;
+        }
+
+        public static GUIContent GetContent(string text, string tooltip)
+        {
+            text ??= string.Empty;
+            tooltip ??= string.Empty;
+            if (string.IsNullOrEmpty(tooltip))
+                return GetContent(text);
+
+            LabelContentKey key = new(text, tooltip);
+            if (TooltipLabelCache.TryGetValue(key, out GUIContent content))
+                return content;
+
+            content = new GUIContent(text, tooltip);
+            TooltipLabelCache.Add(key, content);
+            return content;
+        }
+
+        public static GUIContent GetFittedLabel(GUIContent label)
+        {
+            return GetFittedLabel(label, EditorGUIUtility.labelWidth);
+        }
+
+        public static GUIContent GetFittedLabel(GUIContent label, Rect position)
+        {
+            return GetFittedLabel(label, Mathf.Min(EditorGUIUtility.labelWidth, position.width));
+        }
+
+        private static GUIContent GetFittedLabel(GUIContent label, float labelWidth)
+        {
+            if (label == null || label == GUIContent.none || string.IsNullOrEmpty(label.text))
+                return label;
+
+            float availableWidth = Mathf.Max(
+                0f,
+                labelWidth - EditorGUI.indentLevel * IndentWidth - LabelRightPadding);
+            GUIStyle style = EditorStyles.label;
+            if (MeasureLabel(style, label.text) <= availableWidth)
+                return label;
+
+            int widthInPixels = Mathf.RoundToInt(availableWidth * EditorGUIUtility.pixelsPerPoint);
+            FittedLabelKey key = new(label.text, label.tooltip, widthInPixels);
+            if (FittedLabelCache.TryGetValue(key, out GUIContent fittedLabel))
+                return fittedLabel;
+
+            string shortenedText = TruncateLabel(label.text, availableWidth, style);
+            string tooltip = string.IsNullOrWhiteSpace(label.tooltip)
+                ? label.text
+                : $"{label.text}\n\n{label.tooltip}";
+
+            fittedLabel = new GUIContent(shortenedText, label.image, tooltip);
+            if (FittedLabelCache.Count >= MaximumFittedLabelCacheEntries)
+                FittedLabelCache.Clear();
+
+            FittedLabelCache.Add(key, fittedLabel);
+            return fittedLabel;
+        }
+
+        private static string TruncateLabel(string text, float availableWidth, GUIStyle style)
+        {
+            const string suffix = "...";
+            if (MeasureLabel(style, suffix) > availableWidth)
+                return suffix;
+
+            int low = 0;
+            int high = text.Length;
+            while (low < high)
+            {
+                int midpoint = (low + high + 1) / 2;
+                string candidate = text.Substring(0, midpoint) + suffix;
+                if (MeasureLabel(style, candidate) <= availableWidth)
+                    low = midpoint;
+                else
+                    high = midpoint - 1;
+            }
+
+            return text.Substring(0, low).TrimEnd() + suffix;
+        }
+
+        private static float MeasureLabel(GUIStyle style, string text)
+        {
+            MeasurementContent.text = text;
+            MeasurementContent.image = null;
+            MeasurementContent.tooltip = string.Empty;
+            return style.CalcSize(MeasurementContent).x;
         }
 
         public static void CallOnFieldChangedCallbacks(SerializedProperty property)
@@ -311,6 +404,74 @@ namespace LoogaSoft.Inspector.Editor
                 {
                     return ((_field != null ? _field.GetHashCode() : 0) * 397)
                         ^ (_attributeType != null ? _attributeType.GetHashCode() : 0);
+                }
+            }
+        }
+
+        private readonly struct LabelContentKey : IEquatable<LabelContentKey>
+        {
+            private readonly string _text;
+            private readonly string _tooltip;
+
+            public LabelContentKey(string text, string tooltip)
+            {
+                _text = text;
+                _tooltip = tooltip;
+            }
+
+            public bool Equals(LabelContentKey other)
+            {
+                return string.Equals(_text, other._text, StringComparison.Ordinal)
+                    && string.Equals(_tooltip, other._tooltip, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is LabelContentKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return ((_text != null ? _text.GetHashCode() : 0) * 397)
+                        ^ (_tooltip != null ? _tooltip.GetHashCode() : 0);
+                }
+            }
+        }
+
+        private readonly struct FittedLabelKey : IEquatable<FittedLabelKey>
+        {
+            private readonly string _text;
+            private readonly string _tooltip;
+            private readonly int _widthInPixels;
+
+            public FittedLabelKey(string text, string tooltip, int widthInPixels)
+            {
+                _text = text;
+                _tooltip = tooltip;
+                _widthInPixels = widthInPixels;
+            }
+
+            public bool Equals(FittedLabelKey other)
+            {
+                return _widthInPixels == other._widthInPixels
+                    && string.Equals(_text, other._text, StringComparison.Ordinal)
+                    && string.Equals(_tooltip, other._tooltip, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is FittedLabelKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hashCode = _text != null ? _text.GetHashCode() : 0;
+                    hashCode = (hashCode * 397) ^ (_tooltip != null ? _tooltip.GetHashCode() : 0);
+                    return (hashCode * 397) ^ _widthInPixels;
                 }
             }
         }

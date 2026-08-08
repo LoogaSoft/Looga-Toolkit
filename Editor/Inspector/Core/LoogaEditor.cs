@@ -571,7 +571,7 @@ namespace LoogaSoft.Inspector.Editor
                 else if (isList)
                 {
                     EditorGUI.BeginChangeCheck();
-                    EditorGUILayout.PropertyField(property, GetPropertyLabel(property, metadata), true);
+                    EditorGUILayout.PropertyField(property, GetPropertyFieldLabel(property, metadata), true);
 
                     if (EditorGUI.EndChangeCheck())
                         PropertyUtils.CallOnFieldChangedCallbacks(property);
@@ -636,7 +636,7 @@ namespace LoogaSoft.Inspector.Editor
                             }
                             else
                             {
-                                EditorGUILayout.PropertyField(property, GetPropertyLabel(property, metadata), false);
+                                EditorGUILayout.PropertyField(property, GetPropertyFieldLabel(property, metadata), false);
 
                                 if (!hasCustomDrawer && property.propertyType == SerializedPropertyType.Generic &&
                                     property.hasVisibleChildren && property.isExpanded)
@@ -660,7 +660,7 @@ namespace LoogaSoft.Inspector.Editor
             Type entryType = LoogaCatalogDrawer.GetEntryType(fieldInfo?.FieldType);
             if (!LoogaCatalogDrawer.CanDraw(property, entryType))
             {
-                EditorGUILayout.PropertyField(property, GetPropertyLabel(property, metadata), true);
+                EditorGUILayout.PropertyField(property, GetPropertyFieldLabel(property, metadata), true);
                 return true;
             }
 
@@ -739,7 +739,7 @@ namespace LoogaSoft.Inspector.Editor
                 return;
             }
 
-            EditorGUILayout.PropertyField(property, GetPropertyLabel(property, metadata), true);
+            EditorGUILayout.PropertyField(property, GetPropertyFieldLabel(property, metadata), true);
         }
 
         private void DrawToggleFoldoutProperty(SerializedProperty property, LoogaToggleFoldoutAttribute toggleFoldoutAttribute, InspectorPropertyMetadata metadata = null)
@@ -792,7 +792,7 @@ namespace LoogaSoft.Inspector.Editor
                 return;
             }
 
-            EditorGUILayout.PropertyField(property, GetPropertyLabel(property, metadata), true);
+            EditorGUILayout.PropertyField(property, GetPropertyFieldLabel(property, metadata), true);
         }
 
         private SerializedProperty ResolveToggleProperty(SerializedProperty property, string togglePropertyName)
@@ -835,7 +835,7 @@ namespace LoogaSoft.Inspector.Editor
                 return;
             }
 
-            EditorGUILayout.PropertyField(property, GetPropertyLabel(property, metadata), true);
+            EditorGUILayout.PropertyField(property, GetPropertyFieldLabel(property, metadata), true);
         }
 
         private void DrawStyledGroup(
@@ -1172,7 +1172,7 @@ namespace LoogaSoft.Inspector.Editor
                 return;
             }
 
-            EditorGUI.PropertyField(rect, property, label, true);
+            EditorGUI.PropertyField(rect, property, PropertyUtils.GetFittedLabel(label, rect), true);
         }
 
         private static float GetStructuredPropertyHeight(SerializedProperty property)
@@ -2248,6 +2248,11 @@ namespace LoogaSoft.Inspector.Editor
         private static GUIContent GetPropertyLabel(SerializedProperty property, InspectorPropertyMetadata metadata)
         {
             return metadata?.label ?? PropertyUtils.GetLabel(property);
+        }
+
+        private static GUIContent GetPropertyFieldLabel(SerializedProperty property, InspectorPropertyMetadata metadata)
+        {
+            return PropertyUtils.GetFittedLabel(GetPropertyLabel(property, metadata));
         }
         private static LoogaInspectorMessageAttribute[] GetInspectorMessages(Type inspectedType)
         {

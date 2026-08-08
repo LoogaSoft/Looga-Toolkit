@@ -15,9 +15,10 @@ namespace LoogaSoft.Inspector.Editor
             
             bool enabled = PropertyUtils.IsEnabled(property);
 
-            //disable GUI if enabled is false
+            GUIContent resolvedLabel = GetResolvedLabel(property, label);
+
             using (new EditorGUI.DisabledScope(disabled: !enabled))
-                OnGUI_Internal(position, property, GetResolvedLabel(property, label));
+                OnGUI_Internal(position, property, PropertyUtils.GetFittedLabel(resolvedLabel, position));
             
             if (EditorGUI.EndChangeCheck())
                 PropertyUtils.CallOnFieldChangedCallbacks(property);
