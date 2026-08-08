@@ -6,7 +6,7 @@ namespace LoogaSoft.Inspector.Editor
 {
     public static class LoogaEditorTabs
     {
-        private const float TabHeight = 24f;
+        private const float TabHeight = 22f;
         private const float TabRowGap = 2f;
         private const float TabGap = 0f;
         private const float TabTextPadding = 24f;
