@@ -60,7 +60,6 @@ namespace LoogaSoft.Inspector.Editor
 
             if (IsList(property))
             {
-                menu.AddSeparator(string.Empty);
                 AddListCommands(menu, targets, propertyPath, displayName, property.editable, completed: null);
                 return;
             }
@@ -71,30 +70,25 @@ namespace LoogaSoft.Inspector.Editor
                 case SerializedPropertyType.Vector2:
                 case SerializedPropertyType.Vector3:
                 case SerializedPropertyType.Vector4:
-                    menu.AddSeparator(string.Empty);
                     AddPropertyCommand(menu, "Normalize", property.editable, targets, propertyPath, displayName, NormalizeVector);
                     break;
 
                 case SerializedPropertyType.Float:
-                    menu.AddSeparator(string.Empty);
                     AddPropertyCommand(menu, "Round/Round to Int", property.editable, targets, propertyPath, displayName, value => RoundNumber(value, 0));
                     AddPropertyCommand(menu, "Round/Round to One Decimal", property.editable, targets, propertyPath, displayName, value => RoundNumber(value, 1));
                     AddPropertyCommand(menu, "Round/Round to Two Decimals", property.editable, targets, propertyPath, displayName, value => RoundNumber(value, 2));
                     break;
 
                 case SerializedPropertyType.Color:
-                    menu.AddSeparator(string.Empty);
                     AddPropertyCommand(menu, "Randomize", property.editable, targets, propertyPath, displayName, value => RandomizeColor(value, includeAlpha: false));
                     AddPropertyCommand(menu, "Randomize Including Alpha", property.editable, targets, propertyPath, displayName, value => RandomizeColor(value, includeAlpha: true));
                     break;
 
                 case SerializedPropertyType.Enum when IsFlagsEnum(valueType):
-                    menu.AddSeparator(string.Empty);
                     AddPropertyCommand(menu, "Invert", property.editable, targets, propertyPath, displayName, value => InvertFlags(value, valueType));
                     break;
 
                 case SerializedPropertyType.String:
-                    menu.AddSeparator(string.Empty);
                     AddPropertyCommand(menu, "Uppercase", property.editable, targets, propertyPath, displayName, value => value.stringValue = value.stringValue.ToUpperInvariant());
                     AddPropertyCommand(menu, "Lowercase", property.editable, targets, propertyPath, displayName, value => value.stringValue = value.stringValue.ToLowerInvariant());
                     break;
