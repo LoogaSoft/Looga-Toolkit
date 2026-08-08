@@ -11,6 +11,29 @@ namespace LoogaSoft.Inspector.Editor
     /// </summary>
     public static class LoogaGUILayout
     {
+        /// <summary>
+        /// Draws a serialized property with Looga Inspector label fitting and tooltip handling.
+        /// Use this in custom inspectors instead of EditorGUILayout.PropertyField.
+        /// </summary>
+        public static void PropertyField(SerializedProperty property, bool includeChildren = false)
+        {
+            PropertyField(property, PropertyUtils.GetLabel(property), includeChildren);
+        }
+
+        /// <summary>
+        /// Draws a serialized property with a custom label that fits the current label column.
+        /// </summary>
+        public static void PropertyField(
+            SerializedProperty property,
+            GUIContent label,
+            bool includeChildren = false)
+        {
+            EditorGUILayout.PropertyField(
+                property,
+                PropertyUtils.GetFittedLabel(label ?? PropertyUtils.GetLabel(property)),
+                includeChildren);
+        }
+
         public static int Tabs(int selectedIndex, string[] tabNames, string controlId)
         {
             return LoogaEditorTabs.DrawWrappingToolbar(selectedIndex, tabNames, controlId);
