@@ -15,6 +15,7 @@ namespace LoogaSoft.Inspector.Editor
         private const float SmallBoxGap = 6f;
         private const float SmallLayoutHoverBottomBleed = 4f;
         private const float LargeFoldoutGap = 2f;
+        private const float LargeFoldoutExtraHeight = 4f;
         private const float BoxHorizontalInset = 3f;
         private const float HeaderLeftInset = 6f;
         private const float HeaderArrowSize = 9.45f;
@@ -107,7 +108,7 @@ namespace LoogaSoft.Inspector.Editor
             GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _largeHeader);
+            Rect baseRect = GetLargeFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -172,7 +173,7 @@ namespace LoogaSoft.Inspector.Editor
 
             GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _largeHeader);
+            Rect baseRect = GetLargeFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -282,7 +283,7 @@ namespace LoogaSoft.Inspector.Editor
                     indentedPosition.x,
                     indentedPosition.y + 2f,
                     indentedPosition.width,
-                    lineHeight + boxStyle.padding.top + 2f);
+                    lineHeight + boxStyle.padding.top + 2f + LargeFoldoutExtraHeight);
                 Rect hoverRect = expanded ? headerRect : indentedPosition;
                 Rect textRect = GetHeaderTextRect(headerRect, 1f, boxStyle);
                 Rect arrowRect = GetHeaderArrowRect(headerRect, boxStyle);
@@ -524,7 +525,7 @@ namespace LoogaSoft.Inspector.Editor
             GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _largeHeader);
+            Rect baseRect = GetLargeFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -603,7 +604,7 @@ namespace LoogaSoft.Inspector.Editor
             bool show = enabled && expanded;
             GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _largeHeader);
+            Rect baseRect = GetLargeFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -799,6 +800,18 @@ namespace LoogaSoft.Inspector.Editor
             {
                 window.Repaint();
             }
+        }
+
+        private static Rect GetLargeFoldoutBaseRect()
+        {
+            float height = EditorGUIUtility.singleLineHeight
+                + _largeHeader.padding.vertical
+                + LargeFoldoutExtraHeight;
+
+            return GUILayoutUtility.GetRect(
+                GUIContent.none,
+                _largeHeader,
+                GUILayout.Height(height));
         }
 
         private static Rect ContentToBoxRect(Rect contentRect, GUIStyle boxStyle)
