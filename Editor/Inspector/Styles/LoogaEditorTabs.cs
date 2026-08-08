@@ -8,9 +8,10 @@ namespace LoogaSoft.Inspector.Editor
     {
         private const float TabHeight = 24f;
         private const float TabRowGap = 2f;
+        private const float TabGap = 2f;
         private const float TabTextPadding = 24f;
         private static readonly Dictionary<string, float> ToolbarWidthCache = new();
-        private static GUIStyle _tabLabelStyle;
+        private static GUIStyle _tabButtonStyle;
 
         public static int DrawWrappingToolbar(int selectedIndex, string[] tabNames, string cacheKey)
         {
@@ -100,30 +101,28 @@ namespace LoogaSoft.Inspector.Editor
                     fullRect.width,
                     TabHeight));
                 List<int> row = rows[rowIndex];
-                DrawRowBackground(rowRect);
-
                 if (row.Count == 0)
                     continue;
 
-                float tabWidth = rowRect.width / row.Count;
+                float availableTabWidth = Mathf.Max(1f, rowRect.width - TabGap * (row.Count - 1));
+                float tabWidth = availableTabWidth / row.Count;
                 for (int localIndex = 0; localIndex < row.Count; localIndex++)
                 {
                     int tabIndex = row[localIndex];
+                    float tabX = rowRect.x + localIndex * (tabWidth + TabGap);
                     Rect tabRect = PixelSnap(new Rect(
-                        rowRect.x + localIndex * tabWidth,
+                        tabX,
                         rowRect.y,
-                        localIndex == row.Count - 1 ? rowRect.xMax - (rowRect.x + localIndex * tabWidth) : tabWidth,
+                        localIndex == row.Count - 1 ? rowRect.xMax - tabX : tabWidth,
                         rowRect.height));
                     bool selected = tabIndex == selectedIndex;
                     if (GUI.Toggle(
                             tabRect,
                             selected,
                             new GUIContent(tabNames[tabIndex]),
-                            _tabLabelStyle) && !selected)
+                            _tabButtonStyle) && !selected)
                         newSelectedIndex = tabIndex;
                 }
-
-                DrawRowTopBorder(rowRect);
             }
 
             return newSelectedIndex;
@@ -134,23 +133,6 @@ namespace LoogaSoft.Inspector.Editor
             EditorWindow.mouseOverWindow?.Repaint();
         }
 
-        private static void DrawRowBackground(Rect rect)
-        {
-            if (Event.current.type == EventType.Repaint)
-                EditorStyles.toolbar.Draw(rect, GUIContent.none, false, false, false, false);
-        }
-
-        private static void DrawRowTopBorder(Rect rect)
-        {
-            if (Event.current.type != EventType.Repaint)
-                return;
-
-            float borderHeight = 1f / EditorGUIUtility.pixelsPerPoint;
-            EditorGUI.DrawRect(
-                new Rect(rect.x, rect.y, rect.width, borderHeight),
-                LoogaEditorStyle.SeparatorColor);
-        }
-
         private static List<List<int>> BuildRows(string[] tabNames, float availableWidth)
         {
             EnsureStyles();
@@ -158,7 +140,7 @@ namespace LoogaSoft.Inspector.Editor
             float[] minWidths = new float[tabNames.Length];
             for (int i = 0; i < tabNames.Length; i++)
             {
-                Vector2 size = _tabLabelStyle.CalcSize(PropertyUtils.GetContent(tabNames[i]));
+                Vector2 size = _tabButtonStyle.CalcSize(PropertyUtils.GetContent(tabNames[i]));
                 minWidths[i] = Mathf.Ceil(size.x + TabTextPadding);
             }
 
@@ -170,7 +152,7 @@ namespace LoogaSoft.Inspector.Editor
             {
                 float nextMaxWidth = Mathf.Max(rowMaxWidth, minWidths[i]);
                 int nextCount = currentRow.Count + 1;
-                bool rowWouldFit = nextMaxWidth * nextCount <= availableWidth;
+                bool rowWouldFit = nextMaxWidth * nextCount + TabGap * (nextCount - 1) <= availableWidth;
 
                 if (currentRow.Count > 0 && !rowWouldFit)
                 {
@@ -206,16 +188,16 @@ namespace LoogaSoft.Inspector.Editor
 
         private static void EnsureStyles()
         {
-            if (_tabLabelStyle != null)
+            if (_tabButtonStyle != null)
                 return;
 
-            _tabLabelStyle = new GUIStyle(EditorStyles.toolbarButton)
+            _tabButtonStyle = new GUIStyle(GUI.skin.button)
             {
                 alignment = TextAnchor.MiddleCenter,
                 clipping = TextClipping.Clip,
-                fontSize = EditorStyles.toolbarButton.fontSize,
                 fontStyle = FontStyle.Normal,
-                padding = new RectOffset(6, 6, 0, 1)
+                padding = new RectOffset(6, 6, 0, 1),
+                fixedHeight = 0f
             };
         }
 

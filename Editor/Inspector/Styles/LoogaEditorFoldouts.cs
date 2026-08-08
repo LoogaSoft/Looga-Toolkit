@@ -17,8 +17,7 @@ namespace LoogaSoft.Inspector.Editor
         private const float LargeFoldoutGap = 2f;
         private const float BoxHorizontalInset = 3f;
         private const float HeaderLeftInset = 6f;
-        private const float HeaderArrowSize = 10.5f;
-        private const float HeaderArrowLeftNudge = 0f;
+        private const float HeaderArrowSize = 9.45f;
         private const float HeaderTextArrowGap = 6f;
         private const int AccentRailWidth = 0;
 
@@ -821,13 +820,12 @@ namespace LoogaSoft.Inspector.Editor
         private static Rect GetHeaderTextRect(Rect headerRect, float yOffset, GUIStyle boxStyle)
         {
             Rect arrowRect = GetHeaderArrowRect(headerRect, boxStyle);
-            float x = arrowRect.xMax + HeaderTextArrowGap;
-            float rightInset = GetHeaderSideInset(headerRect);
+            float x = headerRect.x + HeaderLeftInset + AccentRailWidth;
 
             return new Rect(
                 x,
                 GetHeaderTextY(headerRect, yOffset),
-                Mathf.Max(0f, headerRect.xMax - rightInset - x),
+                Mathf.Max(0f, arrowRect.xMin - HeaderTextArrowGap - x),
                 EditorGUIUtility.singleLineHeight);
         }
 
@@ -852,28 +850,25 @@ namespace LoogaSoft.Inspector.Editor
 
         private static Rect GetHeaderArrowRectAfter(Rect headerRect, Rect previousRect)
         {
-            return new Rect(
-                previousRect.xMax + HeaderTextArrowGap,
-                CenterVertically(headerRect, HeaderArrowSize).y,
-                HeaderArrowSize,
-                HeaderArrowSize);
+            return GetHeaderArrowRect(headerRect, null);
         }
 
         private static Rect GetHeaderTextRectAfter(Rect headerRect, Rect previousRect, float yOffset)
         {
             float x = previousRect.xMax + HeaderTextArrowGap;
-            float rightInset = GetHeaderSideInset(headerRect);
+            Rect arrowRect = GetHeaderArrowRect(headerRect, null);
             return new Rect(
                 x,
                 GetHeaderTextY(headerRect, yOffset),
-                Mathf.Max(0f, headerRect.xMax - rightInset - x),
+                Mathf.Max(0f, arrowRect.xMin - HeaderTextArrowGap - x),
                 EditorGUIUtility.singleLineHeight);
         }
 
         private static Rect GetHeaderArrowRect(Rect headerRect, GUIStyle boxStyle)
         {
+            float rightInset = GetHeaderSideInset(headerRect);
             return new Rect(
-                headerRect.x + HeaderLeftInset + AccentRailWidth + HeaderArrowLeftNudge,
+                headerRect.xMax - rightInset - HeaderArrowSize,
                 CenterVertically(headerRect, HeaderArrowSize).y,
                 HeaderArrowSize,
                 HeaderArrowSize);
