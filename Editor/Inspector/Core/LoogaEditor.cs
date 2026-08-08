@@ -1445,66 +1445,17 @@ namespace LoogaSoft.Inspector.Editor
             Object[] targets = InspectedTargets.Where(target => target != null).ToArray();
             string propertyPath = property.propertyPath;
             string displayName = PropertyUtils.GetLabel(property).text;
-            GenericMenu menu = new();
-
-            if (enabled && CanShuffleList(targets, propertyPath))
-            {
-                menu.AddItem(new GUIContent("Shuffle"), false, () =>
+            LoogaPropertyContextMenu.ShowListMenu(
+                targets,
+                propertyPath,
+                displayName,
+                enabled,
+                () =>
                 {
-                    ShuffleList(targets, propertyPath, displayName);
                     _listSelectedIndices.Remove(key);
                     _listSelectionAnchors.Remove(key);
                     Repaint();
                 });
-            }
-            else
-            {
-                menu.AddDisabledItem(new GUIContent("Shuffle"));
-            }
-
-            menu.ShowAsContext();
-        }
-
-        private static bool CanShuffleList(Object[] targets, string propertyPath)
-        {
-            for (int i = 0; i < targets.Length; i++)
-            {
-                SerializedObject owner = new(targets[i]);
-                SerializedProperty list = owner.FindProperty(propertyPath);
-                if (list != null && list.isArray && list.propertyType != SerializedPropertyType.String && list.arraySize > 1)
-                    return true;
-            }
-
-            return false;
-        }
-
-        private static void ShuffleList(Object[] targets, string propertyPath, string displayName)
-        {
-            if (targets.Length == 0)
-                return;
-
-            Undo.RecordObjects(targets, $"Shuffle {displayName}");
-            System.Random random = new();
-
-            for (int targetIndex = 0; targetIndex < targets.Length; targetIndex++)
-            {
-                Object target = targets[targetIndex];
-                SerializedObject owner = new(target);
-                owner.Update();
-                SerializedProperty list = owner.FindProperty(propertyPath);
-                if (list == null || !list.isArray || list.propertyType == SerializedPropertyType.String)
-                    continue;
-
-                for (int elementIndex = list.arraySize - 1; elementIndex > 0; elementIndex--)
-                {
-                    int destinationIndex = random.Next(elementIndex + 1);
-                    if (destinationIndex != elementIndex)
-                        list.MoveArrayElement(elementIndex, destinationIndex);
-                }
-
-                owner.ApplyModifiedPropertiesWithoutUndo();
-                EditorUtility.SetDirty(target);
-            }
         }
 
         private void DrawListBody(SerializedProperty property, string key, Rect bodyRect)

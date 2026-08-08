@@ -564,12 +564,22 @@ These draw common Unity dropdowns:
 
 Use table lists for compact data rows. Complex preview tools, filtering, or deeply nested data should still use a purpose-built editor.
 
-`LoogaListAttribute` opts an array or list into the Looga Inspector list interface. Unmarked collections use Unity's standard list interface. Right-click the list header and select `Shuffle` to randomize the element order.
+`LoogaListAttribute` opts an array or list into the Looga Inspector list interface. Unmarked collections use Unity's standard list interface. Right-click a list header to shuffle, reverse, sort, remove null entries, or remove duplicates. Sort commands only appear for numeric, string, and Unity object-reference lists.
 
 ```csharp
 [LoogaList]
 [SerializeField] private List<RewardEntry> _rewards;
 ```
+
+Serialized field context menus also provide type-specific commands:
+
+- Vectors can be normalized.
+- Floating-point values can be rounded to zero, one, or two decimal places.
+- Colors can randomize RGB with full alpha or randomize all RGBA channels.
+- Flag enums can invert their declared flags.
+- Strings can convert to uppercase or lowercase.
+
+Each command supports Undo and multi-object editing.
 
 Set the list mode to `AlwaysExpanded` to always show the elements and hide the foldout control.
 

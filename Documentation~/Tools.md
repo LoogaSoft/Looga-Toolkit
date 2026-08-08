@@ -6,10 +6,12 @@ The Tools module provides small runtime utilities and focused editor workflows.
 
 - `LoogaSingleton<T>` provides one scene-local component instance. A duplicate destroys its GameObject.
 - `LoogaPersistentSingleton<T>` provides one optional cross-scene component instance.
-- `LoogaExtensions` provides guarded list, transform, distance, and hierarchy helpers.
+- `LoogaExtensions` provides guarded collection, vector, numeric, color, enum, string, transform, distance, and hierarchy helpers.
 - `CrossReference` stores an explicit link to another Unity object.
 
 Singleton instances clear their static reference when Unity destroys the active component. Do not use these base classes as a replacement for dependency injection when a service needs an explicit lifetime or interface contract.
+
+Collection helpers can shuffle, reverse, sort, remove null entries, and remove duplicates. Other helpers normalize vectors, round floating-point values, randomize colors, invert declared enum flags, and change string casing. Mutating collection methods operate on the supplied `IList<T>`.
 
 ## Editor Tools
 
