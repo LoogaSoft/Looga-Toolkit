@@ -553,9 +553,8 @@ namespace LoogaSoft.Inspector.Editor
             bool propertyEnabled = PropertyUtils.IsEnabled(property);
             bool isList = property.isArray && property.propertyType != SerializedPropertyType.String;
             LoogaCatalogAttribute catalogAttribute = PropertyUtils.GetAttribute<LoogaCatalogAttribute>(property);
-            ExpandedListAttribute expandedListAttribute = PropertyUtils.GetAttribute<ExpandedListAttribute>(property);
-            bool useLoogaList = isList && (expandedListAttribute != null
-                || PropertyUtils.GetAttribute<LoogaListAttribute>(property) != null);
+            LoogaListAttribute loogaListAttribute = PropertyUtils.GetAttribute<LoogaListAttribute>(property);
+            bool useLoogaList = isList && loogaListAttribute != null;
 
             // Unity draws decorators for native lists. Looga draws them only when it owns the collection UI.
             if (isList && (useLoogaList || catalogAttribute != null))
@@ -567,7 +566,7 @@ namespace LoogaSoft.Inspector.Editor
                 if (catalogAttribute != null && TryDrawCatalogProperty(property, metadata, catalogAttribute))
                     return;
                 else if (useLoogaList)
-                    DrawLoogaList(property, expandedListAttribute);
+                    DrawLoogaList(property, loogaListAttribute);
                 else if (isList)
                 {
                     EditorGUI.BeginChangeCheck();
@@ -1312,14 +1311,14 @@ namespace LoogaSoft.Inspector.Editor
         private const float ListEmptyRowHeight = 22f;
         private const float ListReorderAnimationSeconds = 0.08f;
 
-        private void DrawLoogaList(SerializedProperty property, ExpandedListAttribute expandedListAttribute)
+        private void DrawLoogaList(SerializedProperty property, LoogaListAttribute listAttribute)
         {
             FieldInfo field = ReflectionUtils.GetField(InspectedTarget.GetType(), property.name);
             DrawListValidation(property, field);
 
             Event e = Event.current;
             string key = property.propertyPath;
-            bool alwaysExpanded = expandedListAttribute != null;
+            bool alwaysExpanded = listAttribute.Mode == LoogaListMode.AlwaysExpanded;
             if (alwaysExpanded)
                 property.isExpanded = true;
             Rect headerRect = EditorGUILayout.GetControlRect(false, ListHeaderHeight);
@@ -1353,6 +1352,12 @@ namespace LoogaSoft.Inspector.Editor
                 EditorGUIUtility.AddCursorRect(toggleRect, MouseCursor.Arrow);
             if (e.type == EventType.MouseMove && fullRect.Contains(e.mousePosition))
                 Repaint();
+
+            if (e.type == EventType.MouseDown && boxRect.Contains(e.mousePosition) && e.button == 1)
+            {
+                ShowListContextMenu(property, key, GUI.enabled);
+                e.Use();
+            }
 
             HandleListDragAndDrop(property, boxRect, field);
             DrawListHeaderBackground(boxRect, toggleRect);
@@ -1434,6 +1439,74 @@ namespace LoogaSoft.Inspector.Editor
                     DeleteSelectedListElements(property, key);
             }
         }
+
+        private void ShowListContextMenu(SerializedProperty property, string key, bool enabled)
+        {
+            Object[] targets = InspectedTargets.Where(target => target != null).ToArray();
+            string propertyPath = property.propertyPath;
+            string displayName = PropertyUtils.GetLabel(property).text;
+            GenericMenu menu = new();
+
+            if (enabled && CanShuffleList(targets, propertyPath))
+            {
+                menu.AddItem(new GUIContent("Shuffle"), false, () =>
+                {
+                    ShuffleList(targets, propertyPath, displayName);
+                    _listSelectedIndices.Remove(key);
+                    _listSelectionAnchors.Remove(key);
+                    Repaint();
+                });
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Shuffle"));
+            }
+
+            menu.ShowAsContext();
+        }
+
+        private static bool CanShuffleList(Object[] targets, string propertyPath)
+        {
+            for (int i = 0; i < targets.Length; i++)
+            {
+                SerializedObject owner = new(targets[i]);
+                SerializedProperty list = owner.FindProperty(propertyPath);
+                if (list != null && list.isArray && list.propertyType != SerializedPropertyType.String && list.arraySize > 1)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static void ShuffleList(Object[] targets, string propertyPath, string displayName)
+        {
+            if (targets.Length == 0)
+                return;
+
+            Undo.RecordObjects(targets, $"Shuffle {displayName}");
+            System.Random random = new();
+
+            for (int targetIndex = 0; targetIndex < targets.Length; targetIndex++)
+            {
+                Object target = targets[targetIndex];
+                SerializedObject owner = new(target);
+                owner.Update();
+                SerializedProperty list = owner.FindProperty(propertyPath);
+                if (list == null || !list.isArray || list.propertyType == SerializedPropertyType.String)
+                    continue;
+
+                for (int elementIndex = list.arraySize - 1; elementIndex > 0; elementIndex--)
+                {
+                    int destinationIndex = random.Next(elementIndex + 1);
+                    if (destinationIndex != elementIndex)
+                        list.MoveArrayElement(elementIndex, destinationIndex);
+                }
+
+                owner.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(target);
+            }
+        }
+
         private void DrawListBody(SerializedProperty property, string key, Rect bodyRect)
         {
             Event e = Event.current;

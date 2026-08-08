@@ -564,17 +564,17 @@ These draw common Unity dropdowns:
 
 Use table lists for compact data rows. Complex preview tools, filtering, or deeply nested data should still use a purpose-built editor.
 
-`LoogaListAttribute` opts an array or list into Looga Inspector's modern, collapsible list interface. Unmarked collections use Unity's standard list interface.
+`LoogaListAttribute` opts an array or list into the Looga Inspector list interface. Unmarked collections use Unity's standard list interface. Right-click the list header and select `Shuffle` to randomize the element order.
 
 ```csharp
 [LoogaList]
 [SerializeField] private List<RewardEntry> _rewards;
 ```
 
-`ExpandedListAttribute` uses the same modern list interface but always shows its elements and does not expose a foldout arrow.
+Set the list mode to `AlwaysExpanded` to always show the elements and hide the foldout control.
 
 ```csharp
-[ExpandedList]
+[LoogaList(LoogaListMode.AlwaysExpanded)]
 [SerializeField] private List<RewardEntry> _rewards;
 ```
 
