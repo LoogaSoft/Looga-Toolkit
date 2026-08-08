@@ -10,6 +10,7 @@ namespace LoogaSoft.Inspector.Editor
     public static class LoogaEditorStyle
     {
         public const int AccentRailWidth = 4;
+        public const float FoldoutTriangleSize = 9.45f;
 
         public static Color BoxColor => SkinColor(
             new Color(0.220f, 0.220f, 0.220f, 1f),
@@ -101,6 +102,40 @@ namespace LoogaSoft.Inspector.Editor
         public static float Pixels(float pixelCount)
         {
             return pixelCount / EditorGUIUtility.pixelsPerPoint;
+        }
+
+        /// <summary>
+        /// Draws the canonical triangle used by Looga foldouts and expandable collection headers.
+        /// </summary>
+        public static void DrawFoldoutTriangle(Rect rect, bool expanded)
+        {
+            if (Event.current.type != EventType.Repaint)
+                return;
+
+            Color previousColor = Handles.color;
+            Handles.color = ArrowColor;
+
+            Vector2 center = rect.center;
+            float radius = FoldoutTriangleSize * 0.5f;
+            float verticalRadius = radius * Mathf.Sqrt(3f) * 0.5f;
+            Vector3[] points = expanded
+                ? new[]
+                {
+                    new Vector3(center.x - radius, center.y - verticalRadius * 0.75f, 0f),
+                    new Vector3(center.x + radius, center.y - verticalRadius * 0.75f, 0f),
+                    new Vector3(center.x, center.y + verticalRadius * 0.75f, 0f)
+                }
+                : new[]
+                {
+                    new Vector3(center.x - verticalRadius * 0.5f, center.y - radius, 0f),
+                    new Vector3(center.x - verticalRadius * 0.5f, center.y + radius, 0f),
+                    new Vector3(center.x + verticalRadius, center.y, 0f)
+                };
+
+            Handles.BeginGUI();
+            Handles.DrawAAConvexPolygon(points);
+            Handles.EndGUI();
+            Handles.color = previousColor;
         }
 
         private static Color SkinColor(Color pro, Color personal)

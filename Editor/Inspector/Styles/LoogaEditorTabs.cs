@@ -6,12 +6,31 @@ namespace LoogaSoft.Inspector.Editor
 {
     public static class LoogaEditorTabs
     {
-        private const float TabHeight = 22f;
+        public const float SegmentedButtonHeight = 22f;
+
         private const float TabRowGap = 2f;
         private const float TabGap = 0f;
         private const float TabTextPadding = 24f;
         private static readonly Dictionary<string, float> ToolbarWidthCache = new();
         private static GUIStyle _tabButtonStyle;
+
+        /// <summary>
+        /// Draws a selected-state button with the same style as a Looga tab.
+        /// </summary>
+        public static bool DrawSegmentedToggle(Rect position, bool selected, GUIContent content)
+        {
+            EnsureStyles();
+            return GUI.Toggle(PixelSnap(position), selected, content, _tabButtonStyle);
+        }
+
+        /// <summary>
+        /// Draws a command button with the same style as a Looga tab.
+        /// </summary>
+        public static bool DrawSegmentedButton(Rect position, GUIContent content)
+        {
+            EnsureStyles();
+            return GUI.Button(PixelSnap(position), content, _tabButtonStyle);
+        }
 
         public static int DrawWrappingToolbar(int selectedIndex, string[] tabNames, string cacheKey)
         {
@@ -57,7 +76,7 @@ namespace LoogaSoft.Inspector.Editor
 
             if (drawRightControl != null)
             {
-                Rect controlRect = new(fullRect.xMax - rightControlWidth, fullRect.y, rightControlWidth, TabHeight);
+                Rect controlRect = new(fullRect.xMax - rightControlWidth, fullRect.y, rightControlWidth, SegmentedButtonHeight);
                 GUILayout.BeginArea(controlRect);
                 drawRightControl();
                 GUILayout.EndArea();
@@ -97,9 +116,9 @@ namespace LoogaSoft.Inspector.Editor
             {
                 Rect rowRect = PixelSnap(new Rect(
                     fullRect.x,
-                    fullRect.y + rowIndex * (TabHeight + TabRowGap),
+                    fullRect.y + rowIndex * (SegmentedButtonHeight + TabRowGap),
                     fullRect.width,
-                    TabHeight));
+                    SegmentedButtonHeight));
                 List<int> row = rows[rowIndex];
                 if (row.Count == 0)
                     continue;
@@ -183,7 +202,7 @@ namespace LoogaSoft.Inspector.Editor
             if (rowCount <= 0)
                 return 0f;
 
-            return rowCount * TabHeight + (rowCount - 1) * TabRowGap;
+            return rowCount * SegmentedButtonHeight + (rowCount - 1) * TabRowGap;
         }
 
         private static void EnsureStyles()

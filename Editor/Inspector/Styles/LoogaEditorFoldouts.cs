@@ -18,7 +18,6 @@ namespace LoogaSoft.Inspector.Editor
         private const float LargeFoldoutExtraHeight = 4f;
         private const float BoxHorizontalInset = 3f;
         private const float HeaderLeftInset = 6f;
-        private const float HeaderArrowSize = 9.45f;
         private const float HeaderTextArrowGap = 6f;
         private const int AccentRailWidth = 0;
 
@@ -881,10 +880,10 @@ namespace LoogaSoft.Inspector.Editor
         {
             float rightInset = GetHeaderSideInset(headerRect);
             return new Rect(
-                headerRect.xMax - rightInset - HeaderArrowSize,
-                CenterVertically(headerRect, HeaderArrowSize).y,
-                HeaderArrowSize,
-                HeaderArrowSize);
+                headerRect.xMax - rightInset - LoogaEditorStyle.FoldoutTriangleSize,
+                CenterVertically(headerRect, LoogaEditorStyle.FoldoutTriangleSize).y,
+                LoogaEditorStyle.FoldoutTriangleSize,
+                LoogaEditorStyle.FoldoutTriangleSize);
         }
 
         private static float GetHeaderTextY(Rect headerRect, float yOffset)
@@ -909,38 +908,12 @@ namespace LoogaSoft.Inspector.Editor
 
         private static float GetHeaderSideInset(Rect headerRect)
         {
-            return Mathf.Max(2f, (headerRect.height - HeaderArrowSize) * 0.5f);
+            return Mathf.Max(2f, (headerRect.height - LoogaEditorStyle.FoldoutTriangleSize) * 0.5f);
         }
 
         private static void DrawFoldoutArrow(Rect arrowRect, bool expanded)
         {
-            if (Event.current.type != EventType.Repaint)
-                return;
-
-            Color previousColor = Handles.color;
-            Handles.color = LoogaEditorStyle.ArrowColor;
-
-            Vector2 center = arrowRect.center;
-            float radius = HeaderArrowSize * 0.5f;
-            float verticalRadius = radius * Mathf.Sqrt(3f) * 0.5f;
-            Vector3[] points = expanded
-                ? new[]
-                {
-                    new Vector3(center.x - radius, center.y - verticalRadius * 0.75f, 0f),
-                    new Vector3(center.x + radius, center.y - verticalRadius * 0.75f, 0f),
-                    new Vector3(center.x, center.y + verticalRadius * 0.75f, 0f)
-                }
-                : new[]
-                {
-                    new Vector3(center.x - verticalRadius * 0.5f, center.y - radius, 0f),
-                    new Vector3(center.x - verticalRadius * 0.5f, center.y + radius, 0f),
-                    new Vector3(center.x + verticalRadius, center.y, 0f)
-                };
-
-            Handles.BeginGUI();
-            Handles.DrawAAConvexPolygon(points);
-            Handles.EndGUI();
-            Handles.color = previousColor;
+            LoogaEditorStyle.DrawFoldoutTriangle(arrowRect, expanded);
         }
 
         private sealed class ContainedFoldoutScopeInstance : IDisposable

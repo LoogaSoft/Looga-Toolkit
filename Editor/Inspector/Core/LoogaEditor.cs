@@ -1293,7 +1293,6 @@ namespace LoogaSoft.Inspector.Editor
         }
 
         private const float ListHeaderHeight = 23f;
-        private const float ListHeaderArrowSize = 10.5f;
         private const float ListHeaderAccentWidth = 0f;
         private const float ListHeaderLeftInset = 6f;
         private const float ListHeaderTextArrowGap = 6f;
@@ -1368,9 +1367,9 @@ namespace LoogaSoft.Inspector.Editor
 
             Rect arrowRect = new(
                 boxRect.x + ListHeaderLeftInset + ListHeaderAccentWidth,
-                CenterVertically(boxRect, ListHeaderArrowSize).y,
-                ListHeaderArrowSize,
-                ListHeaderArrowSize);
+                CenterVertically(boxRect, LoogaEditorStyle.FoldoutTriangleSize).y,
+                LoogaEditorStyle.FoldoutTriangleSize,
+                LoogaEditorStyle.FoldoutTriangleSize);
             float labelX = alwaysExpanded ? arrowRect.x : arrowRect.xMax + ListHeaderTextArrowGap;
             Rect labelRect = new(
                 labelX,
@@ -1665,33 +1664,7 @@ namespace LoogaSoft.Inspector.Editor
         }
         private static void DrawListFoldoutArrow(Rect rect, bool expanded)
         {
-            if (Event.current.type != EventType.Repaint)
-                return;
-
-            Color previousColor = Handles.color;
-            Handles.color = LoogaEditorStyle.ArrowColor;
-
-            Vector2 center = rect.center;
-            float radius = ListHeaderArrowSize * 0.5f;
-            float verticalRadius = radius * Mathf.Sqrt(3f) * 0.5f;
-            Vector3[] points = expanded
-                ? new[]
-                {
-                    new Vector3(center.x - radius, center.y - verticalRadius * 0.75f, 0f),
-                    new Vector3(center.x + radius, center.y - verticalRadius * 0.75f, 0f),
-                    new Vector3(center.x, center.y + verticalRadius * 0.75f, 0f)
-                }
-                : new[]
-                {
-                    new Vector3(center.x - verticalRadius * 0.5f, center.y - radius, 0f),
-                    new Vector3(center.x - verticalRadius * 0.5f, center.y + radius, 0f),
-                    new Vector3(center.x + verticalRadius, center.y, 0f)
-                };
-
-            Handles.BeginGUI();
-            Handles.DrawAAConvexPolygon(points);
-            Handles.EndGUI();
-            Handles.color = previousColor;
+            LoogaEditorStyle.DrawFoldoutTriangle(rect, expanded);
         }
 
         private static float GetListBodyHeight(SerializedProperty property)
