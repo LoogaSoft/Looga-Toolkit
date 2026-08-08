@@ -246,7 +246,14 @@ namespace LoogaSoft.Inspector.Editor
                 Rect statusRect = EditorGUILayout.GetControlRect(false, LoogaGUI.GetNoticeHeight(message));
                 bool hasAction = !string.IsNullOrWhiteSpace(notice.AssetPath) || !string.IsNullOrWhiteSpace(notice.MenuPath);
                 string tooltip = string.IsNullOrWhiteSpace(notice.ActionTooltip) ? "Open" : notice.ActionTooltip;
-                if (LoogaGUI.Notice(statusRect, message, notice.Type, hasAction, notice.ButtonLabel, tooltip))
+                if (LoogaGUI.Notice(
+                        statusRect,
+                        message,
+                        notice.Type,
+                        hasAction,
+                        notice.ButtonLabel,
+                        tooltip,
+                        notice.ShowBackground))
                     ExecuteNoticeAction(notice, !string.IsNullOrWhiteSpace(notice.AssetPath));
                 EditorGUILayout.Space(1f);
             }

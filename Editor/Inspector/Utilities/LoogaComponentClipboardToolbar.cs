@@ -38,7 +38,7 @@ namespace LoogaSoft.Inspector.Editor
         private static readonly List<InspectorToolbarContainer> Containers = new();
         private static readonly System.Type InspectorWindowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
         private static readonly FieldInfo AllInspectorsField = InspectorWindowType?.GetField("m_AllInspectors", BindingFlags.NonPublic | BindingFlags.Static);
-        private static readonly Color ToolbarColor = LoogaEditorStyle.BoxColor;
+        private static readonly Color ToolbarColor = LoogaEditorStyle.ComponentToolbarColor;
         private static readonly Color ButtonIdleColor = LoogaEditorStyle.ListRowColor;
         private static readonly Color ButtonHoverColor = LoogaEditorStyle.ListHoverColor;
         private static readonly Color ComponentSelectedColor = LoogaEditorStyle.SelectionColor;

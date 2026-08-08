@@ -16,6 +16,10 @@ namespace LoogaSoft.Inspector.Editor
             new Color(0.220f, 0.220f, 0.220f, 1f),
             new Color(0.820f, 0.820f, 0.820f, 1f));
 
+        public static Color ComponentToolbarColor => SkinColor(
+            new Color(0.175f, 0.175f, 0.175f, 1f),
+            new Color(0.760f, 0.760f, 0.760f, 1f));
+
         public static Color AlternateBoxColor => SkinColor(
             new Color(0.255f, 0.255f, 0.255f, 1f),
             new Color(0.860f, 0.860f, 0.860f, 1f));

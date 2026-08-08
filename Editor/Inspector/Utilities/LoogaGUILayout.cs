@@ -169,10 +169,11 @@ namespace LoogaSoft.Inspector.Editor
             LoogaNoticeType type = LoogaNoticeType.Info,
             bool hasAction = false,
             string actionLabel = "",
-            string actionTooltip = "Open")
+            string actionTooltip = "Open",
+            bool showBackground = true)
         {
             Rect rect = EditorGUILayout.GetControlRect(false, LoogaGUI.GetNoticeHeight(message));
-            return LoogaGUI.Notice(rect, message, type, hasAction, actionLabel, actionTooltip);
+            return LoogaGUI.Notice(rect, message, type, hasAction, actionLabel, actionTooltip, showBackground);
         }
     }
 }

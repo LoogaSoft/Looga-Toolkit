@@ -23,6 +23,7 @@ namespace LoogaSoft.Inspector.Runtime
         public string AssetPath { get; set; } = string.Empty;
         public string MenuPath { get; set; } = string.Empty;
         public string ActionTooltip { get; set; } = string.Empty;
+        public bool ShowBackground { get; set; } = true;
 
         public NoticeAttribute(string message, LoogaNoticeType type = LoogaNoticeType.Info)
         {

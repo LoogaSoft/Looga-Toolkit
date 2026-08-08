@@ -14,7 +14,11 @@ namespace LoogaSoft.Inspector.Editor
             if (noticeHeight > 0f)
             {
                 Rect noticeRect = new(position.x, position.y, position.width, noticeHeight);
-                LoogaGUI.Notice(noticeRect, ResolveMessage(property, noticeAttribute), noticeAttribute.Type);
+                LoogaGUI.Notice(
+                    noticeRect,
+                    ResolveMessage(property, noticeAttribute),
+                    noticeAttribute.Type,
+                    showBackground: noticeAttribute.ShowBackground);
                 position.y += noticeHeight + EditorGUIUtility.standardVerticalSpacing;
                 position.height -= noticeHeight + EditorGUIUtility.standardVerticalSpacing;
             }

@@ -70,10 +70,12 @@ namespace LoogaSoft.Inspector.Editor
             LoogaNoticeType type = LoogaNoticeType.Info,
             bool hasAction = false,
             string actionLabel = "",
-            string actionTooltip = "Open")
+            string actionTooltip = "Open",
+            bool showBackground = true)
         {
             Rect rect = LoogaEditorStyle.PixelSnap(position);
-            GUI.Box(rect, GUIContent.none, EditorStyles.helpBox);
+            if (showBackground)
+                GUI.Box(rect, GUIContent.none, EditorStyles.helpBox);
 
             Rect indicatorRect = new(
                 rect.x + NoticePadding + 1f,
