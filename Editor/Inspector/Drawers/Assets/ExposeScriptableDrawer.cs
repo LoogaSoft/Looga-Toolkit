@@ -151,15 +151,15 @@ namespace LoogaSoft.Inspector.Editor
                         Mathf.Max(0f, createButtonWidth - CreateButtonHorizontalInset * 2f),
                         LineHeight)
                     : default;
-                Rect rightLimitRect = canCreateAsset
-                    ? createButtonRect
-                    : new Rect(headerRect.xMax, headerRect.y, 0f, headerRect.height);
                 float labelWidth = Mathf.Clamp(EditorGUIUtility.labelWidth * 0.65f, 90f, contentLineRect.width * 0.5f);
                 Rect labelRect = new(contentLineRect.x, contentLineRect.y, labelWidth, contentLineRect.height);
+                float fieldRight = canCreateAsset
+                    ? createButtonRect.xMin - HeaderFieldGap
+                    : contentLineRect.xMax;
                 Rect fieldRect = new(
                     labelRect.xMax + HeaderFieldGap,
                     contentLineRect.y,
-                    Mathf.Max(0f, rightLimitRect.x - labelRect.xMax - GetFieldRightGap(canCreateAsset)),
+                    Mathf.Max(0f, fieldRight - labelRect.xMax - HeaderFieldGap),
                     contentLineRect.height);
 
                 Event current = Event.current;

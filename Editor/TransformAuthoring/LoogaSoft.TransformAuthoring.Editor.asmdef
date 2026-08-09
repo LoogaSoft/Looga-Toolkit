@@ -1,0 +1,16 @@
+{
+  "name": "LoogaSoft.TransformAuthoring.Editor",
+  "rootNamespace": "LoogaSoft.Toolkit.TransformAuthoring",
+  "references": [],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

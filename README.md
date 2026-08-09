@@ -9,6 +9,8 @@ Looga Toolkit combines Looga Inspector, Looga Hierarchy, Looga Tags, Prefab Brow
 - **Tags** provides project-defined, color-coded tags that can be assigned to GameObjects and queried at runtime.
 - **Prefab Browser** provides categorized prefab browsing, project-owned configuration, asset labels, and a generated prefab index.
 - **Tools** provides Curve Sketcher, assembly-definition helpers, cross-reference authoring, and shared runtime utilities.
+- **Physics Placement** settles scene objects with Edit Mode physics and provides reversible collider generation and baking.
+- **Transform Authoring** adds local and world editing, vector clipboard actions, real-world size inspection, and Scene view measurements.
 
 ## Assemblies
 
@@ -24,6 +26,8 @@ Toolkit exposes these feature assemblies:
 - `LoogaSoft.PrefabBrowser.Editor`
 - `LoogaSoft.Tools.Runtime`
 - `LoogaSoft.Tools.Editor`
+- `LoogaSoft.PhysicsPlacement.Editor`
+- `LoogaSoft.TransformAuthoring.Editor`
 
 Looga Tags uses `LoogaSoft.Tags` namespaces and `LoogaTag*` public types. Unity migration metadata preserves existing serialized tag components and databases when upgrading from the retired tag API.
 
@@ -34,6 +38,8 @@ Looga Tags uses `LoogaSoft.Tags` namespaces and `LoogaTag*` public types. Unity 
 - [Looga Tags reference](Documentation~/Tags.md)
 - [Prefab Browser reference](Documentation~/Prefab-Browser.md)
 - [Tools reference](Documentation~/Tools.md)
+- [Physics Placement reference](Documentation~/Physics-Placement.md)
+- [Transform Authoring reference](Documentation~/Transform-Authoring.md)
 - [Migration guide](Documentation~/Migration.md)
 
 ## Installation
