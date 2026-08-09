@@ -24,6 +24,7 @@ namespace LoogaSoft.Inspector.Editor
         private const float ActionButtonWidth = 28f;
         private const float ActionRowHeight = 20f;
         private const float ButtonGap = 2f;
+        private const float ComponentButtonGap = 1f;
         private const float IconSize = 13f;
         private const float ComponentButtonHeight = 21f;
         private const float ComponentButtonHorizontalPadding = 6f;
@@ -503,7 +504,7 @@ namespace LoogaSoft.Inspector.Editor
                     while (index < buttons.Count)
                     {
                         float nextWidth = buttons[index].MinWidth;
-                        float projectedWidth = rowWidth <= 0f ? nextWidth : rowWidth + ButtonGap + nextWidth;
+                        float projectedWidth = rowWidth <= 0f ? nextWidth : rowWidth + ComponentButtonGap + nextWidth;
                         if (projectedWidth > availableWidth && index > rowStart)
                             break;
 
@@ -522,13 +523,13 @@ namespace LoogaSoft.Inspector.Editor
                 for (int i = startIndex; i < endIndex; i++)
                     widthTotal += buttons[i].MinWidth;
 
-                float gapTotal = ButtonGap * Mathf.Max(0, count - 1);
+                float gapTotal = ComponentButtonGap * Mathf.Max(0, count - 1);
                 float extraPerButton = fillRow && count > 0 ? Mathf.Max(0f, availableWidth - widthTotal - gapTotal) / count : 0f;
 
                 VisualElement row = new();
                 row.style.flexDirection = FlexDirection.Row;
                 row.style.height = ComponentButtonHeight;
-                row.style.marginTop = _componentRows.childCount == 0 ? ComponentRowsTopPadding : ButtonGap;
+                row.style.marginTop = _componentRows.childCount == 0 ? ComponentRowsTopPadding : ComponentButtonGap;
 
                 for (int i = startIndex; i < endIndex; i++)
                 {
@@ -536,7 +537,7 @@ namespace LoogaSoft.Inspector.Editor
                     float width = Mathf.Floor(info.MinWidth + extraPerButton);
                     Button button = CreateComponentButton(info, width);
                     if (i < endIndex - 1)
-                        button.style.marginRight = ButtonGap;
+                        button.style.marginRight = ComponentButtonGap;
 
                     row.Add(button);
                 }
