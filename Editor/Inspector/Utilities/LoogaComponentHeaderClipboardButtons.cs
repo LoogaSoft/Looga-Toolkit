@@ -65,6 +65,7 @@ namespace LoogaSoft.Inspector.Editor
             EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             AssemblyReloadEvents.beforeAssemblyReload -= Dispose;
             AssemblyReloadEvents.beforeAssemblyReload += Dispose;
+            EditorApplication.delayCall += DestroyOrphanedBuiltInEditors;
         }
 
         private static void Dispose()
@@ -75,6 +76,7 @@ namespace LoogaSoft.Inspector.Editor
             Undo.undoRedoPerformed -= RequestRefresh;
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
             AssemblyReloadEvents.beforeAssemblyReload -= Dispose;
+            DestroyOrphanedBuiltInEditors();
             RemoveInjectedContainers();
             DestroyGeneratedTexture(ref _generatedPasteIcon);
             DestroyGeneratedTexture(ref _checkIcon);
@@ -166,6 +168,9 @@ namespace LoogaSoft.Inspector.Editor
             string typeName = editorType?.FullName;
             return typeName is "UnityEditor.GameObjectInspector"
                 or "UnityEditor.TransformInspector"
+                or "UnityEditor.RectTransformEditor"
+                or "UnityEditor.UI.SelectableEditor"
+                or "UnityEditor.UI.ButtonEditor"
                 or "UnityEngine.InputSystem.UI.Editor.InputSystemUIInputModuleEditor";
         }
 
