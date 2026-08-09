@@ -20,10 +20,12 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
             "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/copy.png";
         private const string PasteIconPath =
             "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/clipboard-paste.png";
+        private const string ResetIconPath =
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/refresh-line.png";
         private const float ActionButtonSize = 18f;
         private const float ActionButtonGap = 1f;
         private const float FieldActionGap = 3f;
-        private const float ActionIconSize = 16f;
+        private const float ActionIconSize = 12f;
 
         private static readonly string[] SpaceOptions = { "Local", "World" };
         private static readonly Color XAxisColor = new(0.95f, 0.3f, 0.3f);
@@ -36,7 +38,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
 
         private Texture2D _copyIcon;
         private Texture2D _pasteIcon;
-        private GUIContent _resetIcon;
+        private Texture2D _resetIcon;
         private bool _worldSpace;
 
         private void OnEnable()
@@ -44,7 +46,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
             _worldSpace = SessionState.GetBool(WorldSpaceSessionKey, false);
             _copyIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(CopyIconPath);
             _pasteIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(PasteIconPath);
-            _resetIcon = EditorGUIUtility.IconContent(EditorGUIUtility.isProSkin ? "d_Refresh" : "Refresh");
+            _resetIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(ResetIconPath);
         }
 
         public override void OnInspectorGUI()
@@ -176,7 +178,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
         private void DrawResetButton(Rect rect, TransformProperty property, string label)
         {
             Vector3 resetValue = property == TransformProperty.Scale ? Vector3.one : Vector3.zero;
-            if (DrawActionButton(rect, _resetIcon.image, $"Reset {label}"))
+            if (DrawActionButton(rect, _resetIcon, $"Reset {label}"))
                 ApplyValue(property, resetValue, $"Reset Transform {label}");
         }
 
