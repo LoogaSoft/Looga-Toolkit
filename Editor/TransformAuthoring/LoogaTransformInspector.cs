@@ -17,8 +17,12 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
 
         private const string WorldSpaceSessionKey = "LoogaSoft.TransformAuthoring.WorldSpace";
         private const string CopyIconPath =
-            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/copy.png";
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/copy.svg";
         private const string PasteIconPath =
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/clipboard-paste.svg";
+        private const string CopyFallbackIconPath =
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/copy.png";
+        private const string PasteFallbackIconPath =
             "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/clipboard-paste.png";
         private const float ActionButtonSize = 18f;
         private const float ActionButtonGap = 1f;
@@ -34,16 +38,22 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
         private static GUIStyle _yLabelStyle;
         private static GUIStyle _zLabelStyle;
 
+        private Object _copyIconAsset;
+        private Object _pasteIconAsset;
         private Texture2D _copyIcon;
         private Texture2D _pasteIcon;
         private GUIContent _resetIcon;
+        private bool _copyIconResolved;
+        private bool _pasteIconResolved;
         private bool _worldSpace;
 
         private void OnEnable()
         {
             _worldSpace = SessionState.GetBool(WorldSpaceSessionKey, false);
-            _copyIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(CopyIconPath);
-            _pasteIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(PasteIconPath);
+            _copyIconAsset = AssetDatabase.LoadAssetAtPath<Object>(CopyIconPath);
+            _pasteIconAsset = AssetDatabase.LoadAssetAtPath<Object>(PasteIconPath);
+            _copyIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(CopyFallbackIconPath);
+            _pasteIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(PasteFallbackIconPath);
             _resetIcon = EditorGUIUtility.IconContent(EditorGUIUtility.isProSkin ? "d_Refresh" : "Refresh");
         }
 
@@ -53,6 +63,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
             if (first == null)
                 return;
 
+            ResolveRemixIconPreviews();
             DrawSpaceSelector();
             DrawTransformRow("Position", TransformProperty.Position, first);
             DrawTransformRow("Rotation", TransformProperty.Rotation, first);
@@ -80,7 +91,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
                 int selected = GUILayout.Toolbar(
                     _worldSpace ? 1 : 0,
                     SpaceOptions,
-                    EditorStyles.toolbarButton,
+                    GUI.skin.button,
                     GUILayout.Width(120f));
                 bool useWorldSpace = selected == 1;
                 if (useWorldSpace == _worldSpace)
@@ -193,6 +204,31 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
                 ActionIconSize);
             GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
             return clicked;
+        }
+
+        private void ResolveRemixIconPreviews()
+        {
+            ResolveRemixIconPreview(_copyIconAsset, ref _copyIcon, ref _copyIconResolved);
+            ResolveRemixIconPreview(_pasteIconAsset, ref _pasteIcon, ref _pasteIconResolved);
+        }
+
+        private void ResolveRemixIconPreview(Object iconAsset, ref Texture2D icon, ref bool resolved)
+        {
+            if (resolved || iconAsset == null)
+                return;
+
+            Texture2D preview = AssetPreview.GetAssetPreview(iconAsset);
+            if (preview != null)
+            {
+                icon = preview;
+                resolved = true;
+                return;
+            }
+
+            if (AssetPreview.IsLoadingAssetPreview(iconAsset.GetInstanceID()))
+                Repaint();
+            else
+                resolved = true;
         }
 
         private Vector3 ReadValue(Transform transform, TransformProperty property)
