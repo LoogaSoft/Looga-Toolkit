@@ -457,6 +457,7 @@ namespace LoogaSoft.Inspector.Editor
                     GameObject gameObject = ResolveGameObject(_inspectingObject);
                     RefreshComponentRows(gameObject);
                     ApplyComponentFilter(gameObject);
+                    ScheduleComponentRowResize();
                 });
 
                 actionRow.Add(copyButton);
@@ -496,7 +497,8 @@ namespace LoogaSoft.Inspector.Editor
                 if (buttons.Count == 0)
                     return;
 
-                float availableWidth = ResolveComponentLayoutWidth();
+                float wrapWidth = ResolveComponentWrapWidth();
+                float fillWidth = ResolveCurrentComponentWidth();
                 int index = 0;
                 while (index < buttons.Count)
                 {
@@ -506,14 +508,14 @@ namespace LoogaSoft.Inspector.Editor
                     {
                         float nextWidth = buttons[index].MinWidth;
                         float projectedWidth = rowWidth <= 0f ? nextWidth : rowWidth + ComponentButtonGap + nextWidth;
-                        if (projectedWidth > availableWidth && index > rowStart)
+                        if (projectedWidth > wrapWidth && index > rowStart)
                             break;
 
                         rowWidth = projectedWidth;
                         index++;
                     }
 
-                    AddComponentButtonRow(buttons, rowStart, index, availableWidth, index < buttons.Count);
+                    AddComponentButtonRow(buttons, rowStart, index, fillWidth, index < buttons.Count);
                 }
             }
 
@@ -546,7 +548,7 @@ namespace LoogaSoft.Inspector.Editor
                 _componentRows.Add(row);
             }
 
-            private float ResolveComponentLayoutWidth()
+            private float ResolveComponentWrapWidth()
             {
                 float windowWidth = Window?.rootVisualElement.layout.width ?? 0f;
                 float editorListWidth = _editorList?.layout.width ?? 0f;
@@ -554,6 +556,11 @@ namespace LoogaSoft.Inspector.Editor
                     _maximumEditorListInset = Mathf.Max(_maximumEditorListInset, windowWidth - editorListWidth);
 
                 return Mathf.Max(1f, windowWidth - _maximumEditorListInset - ToolbarPadding * 2f);
+            }
+
+            private float ResolveCurrentComponentWidth()
+            {
+                return Mathf.Max(1f, (_editorList?.layout.width ?? 0f) - ToolbarPadding * 2f);
             }
 
             private Button CreateComponentButton(ComponentButtonInfo info, float width)
@@ -571,6 +578,7 @@ namespace LoogaSoft.Inspector.Editor
                     GameObject gameObject = ResolveGameObject(_inspectingObject);
                     RefreshComponentRows(gameObject);
                     ApplyComponentFilter(gameObject);
+                    ScheduleComponentRowResize();
                 })
                 {
                     tooltip = info.FullLabel
@@ -653,7 +661,7 @@ namespace LoogaSoft.Inspector.Editor
                 System.Text.StringBuilder builder = new(components.Length * 24);
                 builder.Append(_searchText);
                 builder.Append('|');
-                builder.Append(Mathf.RoundToInt(Window?.rootVisualElement.layout.width ?? 0f));
+                builder.Append(Mathf.RoundToInt(_editorList?.layout.width ?? 0f));
                 builder.Append('|');
                 builder.Append(_selectedComponentIds.Count);
                 builder.Append('|');
@@ -708,6 +716,16 @@ namespace LoogaSoft.Inspector.Editor
                     bool show = MatchesSelection(component) && MatchesSearch(component);
                     element.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
                 }
+            }
+
+            private void ScheduleComponentRowResize()
+            {
+                // Wait one layout pass so Unity can update the inspector scrollbar.
+                _componentRows?.schedule.Execute(() =>
+                {
+                    _componentSignature = string.Empty;
+                    RefreshComponentRows(ResolveGameObject(_inspectingObject));
+                });
             }
 
             private bool MatchesSelection(Component component)
