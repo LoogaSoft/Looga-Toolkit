@@ -310,6 +310,7 @@ namespace LoogaSoft.Inspector.Editor
             private Object _inspectingObject;
             private string _componentSignature;
             private string _searchText = string.Empty;
+            private float _maximumEditorListInset;
             private bool _wasLocked;
 
             public InspectorToolbarContainer(EditorWindow window)
@@ -495,7 +496,7 @@ namespace LoogaSoft.Inspector.Editor
                 if (buttons.Count == 0)
                     return;
 
-                float availableWidth = Mathf.Max(1f, _editorList != null ? _editorList.layout.width - ToolbarPadding * 2f : 1f);
+                float availableWidth = ResolveComponentLayoutWidth();
                 int index = 0;
                 while (index < buttons.Count)
                 {
@@ -543,6 +544,16 @@ namespace LoogaSoft.Inspector.Editor
                 }
 
                 _componentRows.Add(row);
+            }
+
+            private float ResolveComponentLayoutWidth()
+            {
+                float windowWidth = Window?.rootVisualElement.layout.width ?? 0f;
+                float editorListWidth = _editorList?.layout.width ?? 0f;
+                if (windowWidth > 1f && editorListWidth > 1f)
+                    _maximumEditorListInset = Mathf.Max(_maximumEditorListInset, windowWidth - editorListWidth);
+
+                return Mathf.Max(1f, windowWidth - _maximumEditorListInset - ToolbarPadding * 2f);
             }
 
             private Button CreateComponentButton(ComponentButtonInfo info, float width)
@@ -642,7 +653,7 @@ namespace LoogaSoft.Inspector.Editor
                 System.Text.StringBuilder builder = new(components.Length * 24);
                 builder.Append(_searchText);
                 builder.Append('|');
-                builder.Append(Mathf.RoundToInt(_editorList != null ? _editorList.layout.width : 0f));
+                builder.Append(Mathf.RoundToInt(Window?.rootVisualElement.layout.width ?? 0f));
                 builder.Append('|');
                 builder.Append(_selectedComponentIds.Count);
                 builder.Append('|');
