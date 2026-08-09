@@ -547,8 +547,6 @@ namespace LoogaSoft.Inspector.Editor
             private Button CreateComponentButton(ComponentButtonInfo info, float width)
             {
                 bool selected = IsComponentButtonSelected(info.ComponentId);
-                Color idleColor = selected ? ComponentSelectedColor : ButtonIdleColor;
-                Color hoverColor = selected ? ComponentSelectedColor : ButtonHoverColor;
 
                 Button button = new(() =>
                 {
@@ -578,9 +576,8 @@ namespace LoogaSoft.Inspector.Editor
                 button.style.flexDirection = FlexDirection.Row;
                 button.style.alignItems = Align.Center;
                 button.style.justifyContent = Justify.Center;
-                button.style.backgroundColor = idleColor;
-                ClearBorderAndRadius(button);
-                RegisterHover(button, idleColor, hoverColor);
+                if (selected)
+                    button.style.backgroundColor = ComponentSelectedColor;
 
                 if (info.Icon != null)
                 {
