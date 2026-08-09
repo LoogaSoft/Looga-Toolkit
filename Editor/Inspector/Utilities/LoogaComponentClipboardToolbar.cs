@@ -311,6 +311,7 @@ namespace LoogaSoft.Inspector.Editor
             private string _componentSignature;
             private string _searchText = string.Empty;
             private float _maximumEditorListInset;
+            private bool _listGeometryCallbackRegistered;
             private bool _wasLocked;
 
             public InspectorToolbarContainer(EditorWindow window)
@@ -344,6 +345,7 @@ namespace LoogaSoft.Inspector.Editor
                 if (_editorList == null)
                     return;
 
+                RegisterListGeometryCallback();
                 RemoveDuplicateToolbar();
                 if (_toolbar == null)
                     CreateToolbar();
@@ -361,7 +363,29 @@ namespace LoogaSoft.Inspector.Editor
 
             public void RemoveToolbar()
             {
+                if (_listGeometryCallbackRegistered && _editorList != null)
+                    _editorList.UnregisterCallback<GeometryChangedEvent>(OnEditorListGeometryChanged);
+
+                _listGeometryCallbackRegistered = false;
                 _toolbar?.RemoveFromHierarchy();
+            }
+
+            private void RegisterListGeometryCallback()
+            {
+                if (_listGeometryCallbackRegistered)
+                    return;
+
+                _editorList.RegisterCallback<GeometryChangedEvent>(OnEditorListGeometryChanged);
+                _listGeometryCallbackRegistered = true;
+            }
+
+            private void OnEditorListGeometryChanged(GeometryChangedEvent evt)
+            {
+                if (Mathf.RoundToInt(evt.oldRect.width) == Mathf.RoundToInt(evt.newRect.width))
+                    return;
+
+                _componentSignature = string.Empty;
+                RefreshComponentRows(ResolveGameObject(_inspectingObject));
             }
 
             private void RefreshSelectionIfNeeded()
@@ -457,7 +481,6 @@ namespace LoogaSoft.Inspector.Editor
                     GameObject gameObject = ResolveGameObject(_inspectingObject);
                     RefreshComponentRows(gameObject);
                     ApplyComponentFilter(gameObject);
-                    ScheduleComponentRowResize();
                 });
 
                 actionRow.Add(copyButton);
@@ -578,7 +601,6 @@ namespace LoogaSoft.Inspector.Editor
                     GameObject gameObject = ResolveGameObject(_inspectingObject);
                     RefreshComponentRows(gameObject);
                     ApplyComponentFilter(gameObject);
-                    ScheduleComponentRowResize();
                 })
                 {
                     tooltip = info.FullLabel
@@ -716,16 +738,6 @@ namespace LoogaSoft.Inspector.Editor
                     bool show = MatchesSelection(component) && MatchesSearch(component);
                     element.style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
                 }
-            }
-
-            private void ScheduleComponentRowResize()
-            {
-                // Wait one layout pass so Unity can update the inspector scrollbar.
-                _componentRows?.schedule.Execute(() =>
-                {
-                    _componentSignature = string.Empty;
-                    RefreshComponentRows(ResolveGameObject(_inspectingObject));
-                });
             }
 
             private bool MatchesSelection(Component component)
