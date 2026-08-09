@@ -23,6 +23,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
         private const float ActionButtonSize = 18f;
         private const float ActionButtonGap = 1f;
         private const float FieldActionGap = 3f;
+        private const float ActionIconSize = 16f;
 
         private static readonly string[] SpaceOptions = { "Local", "World" };
         private static readonly Color XAxisColor = new(0.95f, 0.3f, 0.3f);
@@ -72,9 +73,9 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
 
         private void DrawSpaceSelector()
         {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
+            using (new EditorGUILayout.HorizontalScope())
             {
-                GUILayout.Label("Space", EditorStyles.miniLabel);
+                GUILayout.Label("Space", EditorStyles.label);
                 GUILayout.FlexibleSpace();
                 int selected = GUILayout.Toolbar(
                     _worldSpace ? 1 : 0,
@@ -158,8 +159,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
 
         private void DrawCopyButton(Rect rect, Vector3 value, string label)
         {
-            GUIContent content = new(_copyIcon, $"Copy {label}");
-            if (GUI.Button(rect, content, EditorStyles.miniButton))
+            if (DrawActionButton(rect, _copyIcon, $"Copy {label}"))
                 TransformVectorClipboard.Copy(value);
         }
 
@@ -168,8 +168,7 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
             bool canPaste = TransformVectorClipboard.TryRead(out Vector3 value);
             using (new EditorGUI.DisabledScope(!canPaste))
             {
-                GUIContent content = new(_pasteIcon, $"Paste {label}");
-                if (GUI.Button(rect, content, EditorStyles.miniButton))
+                if (DrawActionButton(rect, _pasteIcon, $"Paste {label}"))
                     ApplyValue(property, value, $"Paste Transform {label}");
             }
         }
@@ -177,9 +176,23 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
         private void DrawResetButton(Rect rect, TransformProperty property, string label)
         {
             Vector3 resetValue = property == TransformProperty.Scale ? Vector3.one : Vector3.zero;
-            GUIContent content = new(_resetIcon.image, $"Reset {label}");
-            if (GUI.Button(rect, content, EditorStyles.miniButton))
+            if (DrawActionButton(rect, _resetIcon.image, $"Reset {label}"))
                 ApplyValue(property, resetValue, $"Reset Transform {label}");
+        }
+
+        private static bool DrawActionButton(Rect rect, Texture icon, string tooltip)
+        {
+            bool clicked = GUI.Button(rect, new GUIContent(string.Empty, tooltip), EditorStyles.miniButton);
+            if (Event.current.type != EventType.Repaint || icon == null)
+                return clicked;
+
+            Rect iconRect = new(
+                rect.x + Mathf.Floor((rect.width - ActionIconSize) * 0.5f),
+                rect.y + Mathf.Floor((rect.height - ActionIconSize) * 0.5f),
+                ActionIconSize,
+                ActionIconSize);
+            GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+            return clicked;
         }
 
         private Vector3 ReadValue(Transform transform, TransformProperty property)
