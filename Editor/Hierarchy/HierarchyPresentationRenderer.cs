@@ -122,11 +122,13 @@ namespace LoogaSoft.Hierarchy.Editor
             string label,
             Color accent,
             bool hovered,
-            bool selected)
+            bool selected,
+            bool drawAccentRail = true,
+            Color? backgroundOverride = null)
         {
             EnsureStyle();
 
-            Color background = ResolveBackground(hovered);
+            Color background = backgroundOverride ?? ResolveBackground(hovered);
             if (selected)
             {
                 Color selectedTint = accent;
@@ -136,12 +138,18 @@ namespace LoogaSoft.Hierarchy.Editor
 
             EditorGUI.DrawRect(rowRect, background);
 
-            Color railColor = accent;
-            railColor.a = 0.95f;
-            EditorGUI.DrawRect(new Rect(rowRect.x, rowRect.y, AccentWidth, rowRect.height), railColor);
-
             Rect contentRect = rowRect;
-            contentRect.xMin += AccentWidth + ContentSpacing;
+            if (drawAccentRail)
+            {
+                Color railColor = accent;
+                railColor.a = 0.95f;
+                EditorGUI.DrawRect(new Rect(rowRect.x, rowRect.y, AccentWidth, rowRect.height), railColor);
+                contentRect.xMin += AccentWidth + ContentSpacing;
+            }
+            else
+            {
+                contentRect.xMin += ContentSpacing;
+            }
 
             if (icon.image != null)
             {

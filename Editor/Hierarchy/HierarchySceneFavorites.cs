@@ -313,7 +313,9 @@ namespace LoogaSoft.Hierarchy.Editor
                     StripMarker(gameObject.name),
                     new Color(1f, 0.72f, 0.18f, 0.95f),
                     hovered,
-                    false);
+                    false,
+                    drawAccentRail: false,
+                    backgroundOverride: ResolveFavoritesBackground(hovered));
                 return;
             }
 
@@ -367,6 +369,20 @@ namespace LoogaSoft.Hierarchy.Editor
             return hovered
                 ? new Color(0.86f, 0.86f, 0.86f, 0.96f)
                 : new Color(0.90f, 0.90f, 0.90f, 0.92f);
+        }
+
+        private static Color ResolveFavoritesBackground(bool hovered)
+        {
+            if (EditorGUIUtility.isProSkin)
+            {
+                return hovered
+                    ? new Color(0.32f, 0.32f, 0.32f, 1f)
+                    : new Color(0.28f, 0.28f, 0.28f, 1f);
+            }
+
+            return hovered
+                ? new Color(0.84f, 0.84f, 0.84f, 1f)
+                : new Color(0.80f, 0.80f, 0.80f, 1f);
         }
 
         private static GUIContent ResolveIcon(GameObject gameObject, bool isRoot)
