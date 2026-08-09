@@ -40,8 +40,6 @@ namespace LoogaSoft.Inspector.Editor
         private static readonly System.Type InspectorWindowType = typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.InspectorWindow");
         private static readonly FieldInfo AllInspectorsField = InspectorWindowType?.GetField("m_AllInspectors", BindingFlags.NonPublic | BindingFlags.Static);
         private static readonly Color ToolbarColor = LoogaEditorStyle.ComponentToolbarColor;
-        private static readonly Color ButtonIdleColor = LoogaEditorStyle.ListRowColor;
-        private static readonly Color ButtonHoverColor = LoogaEditorStyle.ListHoverColor;
         private static readonly Color ComponentSelectedColor = LoogaEditorStyle.SelectionColor;
         private static readonly Color IconTintColor = new(0.78f, 0.78f, 0.78f, 1f);
         private static readonly Color DividerColor = new(0.09f, 0.09f, 0.09f, 1f);
@@ -271,30 +269,7 @@ namespace LoogaSoft.Inspector.Editor
             button.style.paddingBottom = 0f;
             button.style.alignItems = Align.Center;
             button.style.justifyContent = Justify.Center;
-            button.style.backgroundColor = ButtonIdleColor;
-            ClearBorderAndRadius(button);
-            RegisterHover(button, ButtonIdleColor, ButtonHoverColor);
             return button;
-        }
-
-        private static void RegisterHover(VisualElement element, Color idleColor, Color hoverColor)
-        {
-            element.RegisterCallback<MouseEnterEvent>(_ => element.style.backgroundColor = hoverColor);
-            element.RegisterCallback<MouseLeaveEvent>(_ => element.style.backgroundColor = idleColor);
-            element.RegisterCallback<MouseDownEvent>(_ => element.style.backgroundColor = idleColor);
-            element.RegisterCallback<MouseUpEvent>(_ => element.style.backgroundColor = hoverColor);
-        }
-
-        private static void ClearBorderAndRadius(VisualElement element)
-        {
-            element.style.borderTopWidth = 0f;
-            element.style.borderRightWidth = 0f;
-            element.style.borderBottomWidth = 0f;
-            element.style.borderLeftWidth = 0f;
-            element.style.borderTopLeftRadius = 0f;
-            element.style.borderTopRightRadius = 0f;
-            element.style.borderBottomLeftRadius = 0f;
-            element.style.borderBottomRightRadius = 0f;
         }
 
         private sealed class InspectorToolbarContainer
