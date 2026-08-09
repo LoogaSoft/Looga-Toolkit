@@ -56,6 +56,15 @@ namespace LoogaSoft.Inspector.Editor
             }
         }
 
+        public static GUIStyle LargeFoldoutBoxStyle
+        {
+            get
+            {
+                EnsureStyles();
+                return GetLargeFoldoutBoxStyle();
+            }
+        }
+
         /// <summary>
         /// Begins the canonical compact foldout layout while leaving header contents to the caller.
         /// Use this for foldout headers that contain controls in addition to a label.
@@ -97,6 +106,63 @@ namespace LoogaSoft.Inspector.Editor
         {
             EnsureStyles();
             return GetHeaderArrowRect(headerRect, GetSmallLayoutFoldoutBoxStyle());
+        }
+
+        /// <summary>
+        /// Begins the canonical large foldout layout while leaving header contents to the caller.
+        /// Use this for large headers that contain fields or buttons.
+        /// </summary>
+        public static IDisposable BeginLargeFoldoutLayout(
+            bool expanded,
+            out Rect headerRect,
+            out Rect clickRect)
+        {
+            EnsureStyles();
+
+            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            EditorGUILayout.BeginVertical(boxStyle);
+
+            Rect baseRect = GetLargeFoldoutBaseRect();
+            Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
+            headerRect = new Rect(
+                boxRect.x,
+                boxRect.y,
+                boxRect.width,
+                baseRect.height + boxStyle.padding.top + 2f);
+            clickRect = expanded ? headerRect : boxRect;
+
+            return new LargeFoldoutLayoutScopeInstance();
+        }
+
+        public static Rect GetLargeFoldoutHeaderContentRect(Rect headerRect, bool includeArrow)
+        {
+            EnsureStyles();
+            float x = headerRect.x + HeaderLeftInset + AccentRailWidth;
+            float right = includeArrow
+                ? GetHeaderArrowRect(headerRect, GetLargeFoldoutBoxStyle()).xMin - HeaderTextArrowGap
+                : headerRect.xMax - HeaderLeftInset;
+
+            return new Rect(
+                x,
+                CenterVertically(headerRect, EditorGUIUtility.singleLineHeight).y,
+                Mathf.Max(0f, right - x),
+                EditorGUIUtility.singleLineHeight);
+        }
+
+        public static Rect GetLargeFoldoutArrowRect(Rect headerRect)
+        {
+            EnsureStyles();
+            return GetHeaderArrowRect(headerRect, GetLargeFoldoutBoxStyle());
+        }
+
+        public static float GetLargeFoldoutHeaderHeight()
+        {
+            EnsureStyles();
+            return EditorGUIUtility.singleLineHeight
+                + _largeHeader.padding.vertical
+                + LargeFoldoutExtraHeight
+                + GetLargeFoldoutBoxStyle().padding.top
+                + 2f;
         }
 
         public static void LoogaFoldoutLarge(string title, string prefKey, bool defaultShow, Action content)
@@ -936,6 +1002,21 @@ namespace LoogaSoft.Inspector.Editor
                 _disposed = true;
                 EditorGUILayout.EndVertical();
                 EditorGUILayout.Space(1f);
+            }
+        }
+
+        private sealed class LargeFoldoutLayoutScopeInstance : IDisposable
+        {
+            private bool _disposed;
+
+            public void Dispose()
+            {
+                if (_disposed)
+                    return;
+
+                _disposed = true;
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.Space(LargeFoldoutGap);
             }
         }
 

@@ -10,11 +10,6 @@ namespace LoogaSoft.Hierarchy.Editor
 
         internal static void Draw(GameObject gameObject, Rect rowRect, bool reserveStatusBadges)
         {
-            if (HierarchySceneFavorites.IsSynthetic(gameObject))
-            {
-                return;
-            }
-
             bool favorite = HierarchyFavoriteStore.instance.Contains(gameObject);
             bool hovered = rowRect.Contains(Event.current.mousePosition);
             if (!favorite && !hovered)

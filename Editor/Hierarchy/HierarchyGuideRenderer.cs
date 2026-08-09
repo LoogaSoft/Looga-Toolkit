@@ -30,11 +30,6 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            if (HierarchySceneFavorites.Draw(gameObject, rowRect))
-            {
-                return;
-            }
-
             if (settings.ShowPresentation && HierarchyPresentationRenderer.Draw(gameObject, rowRect))
             {
                 return;

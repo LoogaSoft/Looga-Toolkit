@@ -8,6 +8,8 @@ namespace LoogaSoft.Hierarchy.Editor
     {
         private const int GradientResolution = 64;
         private const float GradientOpacity = 0.20f;
+        private const float AccentWidth = 3f;
+        private const float ContentSpacing = 4f;
 
         private static readonly Dictionary<Color32, Texture2D> Gradients = new();
 
@@ -30,8 +32,8 @@ namespace LoogaSoft.Hierarchy.Editor
             if (Event.current.type == EventType.Repaint)
             {
                 float decorationX = rowRect.x -
-                    HierarchyHeaderStyle.AccentWidth -
-                    HierarchyHeaderStyle.ContentSpacing;
+                    AccentWidth -
+                    ContentSpacing;
 
                 Rect gradientRect = new(
                     decorationX,
@@ -52,7 +54,7 @@ namespace LoogaSoft.Hierarchy.Editor
                     new Rect(
                         decorationX,
                         rowRect.y,
-                        HierarchyHeaderStyle.AccentWidth,
+                        AccentWidth,
                         rowRect.height),
                     accent);
             }
@@ -104,99 +106,4 @@ namespace LoogaSoft.Hierarchy.Editor
         }
     }
 
-    /// <summary>
-    /// Shared flat header treatment used by favorites and other synthetic hierarchy rows.
-    /// </summary>
-    internal static class HierarchyHeaderStyle
-    {
-        internal const float AccentWidth = 3f;
-        internal const float ContentSpacing = 4f;
-
-        private const float IconSize = 14f;
-
-        private static GUIStyle _labelStyle;
-
-        internal static void Draw(
-            Rect rowRect,
-            GUIContent icon,
-            string label,
-            Color accent,
-            bool hovered,
-            bool selected,
-            bool drawAccentRail = true,
-            Color? backgroundOverride = null)
-        {
-            EnsureStyle();
-
-            Color background = backgroundOverride ?? ResolveBackground(hovered);
-            if (selected)
-            {
-                Color selectedTint = accent;
-                selectedTint.a = 1f;
-                background = Color.Lerp(background, selectedTint, 0.24f);
-            }
-
-            EditorGUI.DrawRect(rowRect, background);
-
-            Rect contentRect = rowRect;
-            if (drawAccentRail)
-            {
-                Color railColor = accent;
-                railColor.a = 0.95f;
-                EditorGUI.DrawRect(new Rect(rowRect.x, rowRect.y, AccentWidth, rowRect.height), railColor);
-                contentRect.xMin += AccentWidth + ContentSpacing;
-            }
-            else
-            {
-                contentRect.xMin += ContentSpacing;
-            }
-
-            if (icon.image != null)
-            {
-                Rect iconRect = new(
-                    contentRect.x,
-                    contentRect.y + Mathf.Floor((contentRect.height - IconSize) * 0.5f),
-                    IconSize,
-                    IconSize);
-
-                Color previousColor = GUI.color;
-                GUI.color = accent;
-                GUI.DrawTexture(iconRect, icon.image, ScaleMode.ScaleToFit, true);
-                GUI.color = previousColor;
-                contentRect.xMin = iconRect.xMax + ContentSpacing;
-            }
-
-            GUI.Label(contentRect, label, _labelStyle);
-        }
-
-        private static Color ResolveBackground(bool hovered)
-        {
-            if (EditorGUIUtility.isProSkin)
-            {
-                return hovered
-                    ? new Color(0.175f, 0.175f, 0.175f, 1f)
-                    : new Color(0.135f, 0.135f, 0.135f, 1f);
-            }
-
-            return hovered
-                ? new Color(0.70f, 0.70f, 0.70f, 1f)
-                : new Color(0.76f, 0.76f, 0.76f, 1f);
-        }
-
-        private static void EnsureStyle()
-        {
-            if (_labelStyle != null)
-            {
-                return;
-            }
-
-            _labelStyle = new GUIStyle(EditorStyles.boldLabel)
-            {
-                alignment = TextAnchor.MiddleLeft,
-                clipping = TextClipping.Clip
-            };
-
-            _labelStyle.normal.textColor = EditorStyles.label.normal.textColor;
-        }
-    }
 }

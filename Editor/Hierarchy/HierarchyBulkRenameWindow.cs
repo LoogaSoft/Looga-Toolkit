@@ -284,7 +284,7 @@ namespace LoogaSoft.Hierarchy.Editor
             for (int index = 0; index < selection.Length; index++)
             {
                 GameObject gameObject = selection[index];
-                if (gameObject != null && !HierarchySceneFavorites.IsSynthetic(gameObject))
+                if (gameObject != null)
                 {
                     selectionIds.Add(gameObject.GetInstanceID());
                 }

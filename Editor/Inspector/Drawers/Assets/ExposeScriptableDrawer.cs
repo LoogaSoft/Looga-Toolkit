@@ -14,12 +14,7 @@ namespace LoogaSoft.Inspector.Editor
     {
         private static readonly float LineHeight = EditorGUIUtility.singleLineHeight;
         private const float MinCreateButtonWidth = 58f;
-        private const float HeaderHeight = 23f;
-        private const float HeaderLeftInset = 6f;
-        private const float HeaderAccentRailWidth = 4f;
         private const float HeaderFieldGap = 6f;
-        private const float HeaderArrowSize = 10.5f;
-        private const float HeaderArrowLeftNudge = 0f;
         private const float CreateButtonPadding = 2f;
         private const float CreateButtonHorizontalInset = 1f;
         
@@ -43,12 +38,12 @@ namespace LoogaSoft.Inspector.Editor
                 boxRect.x,
                 boxRect.y,
                 boxRect.width,
-                HeaderHeight);
-            Rect contentLineRect = CenterVertically(headerRect, LineHeight);
-            contentLineRect.x = headerRect.x + HeaderLeftInset + HeaderAccentRailWidth;
-            contentLineRect.width = Mathf.Max(0f, headerRect.width - HeaderLeftInset - HeaderAccentRailWidth);
+                LoogaEditorFoldouts.GetLargeFoldoutHeaderHeight());
+            Rect contentLineRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(
+                headerRect,
+                objectValid);
             Rect arrowRect = objectValid
-                ? GetHeaderArrowRect(headerRect)
+                ? LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect)
                 : default;
             Rect createButtonRect = canCreateAsset
                 ? new Rect(
@@ -59,10 +54,9 @@ namespace LoogaSoft.Inspector.Editor
                 : default;
             Rect rightLimitRect = canCreateAsset
                 ? createButtonRect
-                : new Rect(headerRect.xMax, headerRect.y, 0f, headerRect.height);
+                : new Rect(contentLineRect.xMax, headerRect.y, 0f, headerRect.height);
             float labelWidth = Mathf.Clamp(EditorGUIUtility.labelWidth * 0.65f, 90f, contentLineRect.width * 0.5f);
-            float labelX = objectValid ? arrowRect.xMax + HeaderFieldGap : contentLineRect.x;
-            Rect labelRect = new(labelX, contentLineRect.y, labelWidth, contentLineRect.height);
+            Rect labelRect = new(contentLineRect.x, contentLineRect.y, labelWidth, contentLineRect.height);
             Rect fieldRect = new(
                 labelRect.xMax + HeaderFieldGap,
                 contentLineRect.y,
@@ -133,16 +127,16 @@ namespace LoogaSoft.Inspector.Editor
                     property.isExpanded = true;
             }
 
-            using (LoogaEditorFoldouts.BeginSmallFoldoutLayout(
+            using (LoogaEditorFoldouts.BeginLargeFoldoutLayout(
                        property.isExpanded,
                        out Rect headerRect,
                        out Rect clickRect))
             {
-                Rect contentLineRect = LoogaEditorFoldouts.GetSmallFoldoutHeaderContentRect(
+                Rect contentLineRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(
                     headerRect,
                     objectValid);
                 Rect arrowRect = objectValid
-                    ? LoogaEditorFoldouts.GetSmallFoldoutArrowRect(headerRect)
+                    ? LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect)
                     : default;
                 Rect createButtonRect = canCreateAsset
                     ? new Rect(
@@ -226,7 +220,7 @@ namespace LoogaSoft.Inspector.Editor
 
         private static void DrawFoldoutBackground(Rect boxRect, Rect headerRect, bool expanded)
         {
-            GUI.Box(boxRect, GUIContent.none, LoogaEditorFoldouts.SmallFoldoutBoxStyle);
+            GUI.Box(boxRect, GUIContent.none, LoogaEditorFoldouts.LargeFoldoutBoxStyle);
 
             Rect hoverRect = expanded ? headerRect : boxRect;
             Event current = Event.current;
@@ -249,30 +243,9 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             if (current.type == EventType.Repaint)
-                DrawFoldoutArrow(arrowRect, expanded);
+                LoogaEditorStyle.DrawFoldoutTriangle(arrowRect, expanded);
 
             return newExpanded;
-        }
-
-        private static Rect GetHeaderArrowRect(Rect headerRect)
-        {
-            return new Rect(
-                headerRect.x + HeaderLeftInset + HeaderAccentRailWidth + HeaderArrowLeftNudge,
-                CenterVertically(headerRect, HeaderArrowSize).y,
-                HeaderArrowSize,
-                HeaderArrowSize);
-        }
-
-        private static Rect CenterVertically(Rect container, float height)
-        {
-            float y = SnapToPixel(container.y + (container.height - height) * 0.5f);
-            return new Rect(container.x, y, container.width, height);
-        }
-
-        private static float SnapToPixel(float value)
-        {
-            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
-            return Mathf.Floor(value * pixelsPerPoint + 0.5f) / pixelsPerPoint;
         }
 
         private static float GetFieldRightGap(bool hasCreateButton)
@@ -331,34 +304,6 @@ namespace LoogaSoft.Inspector.Editor
 
             EditorGUI.indentLevel = oldIndent;
             serializedObject.ApplyModifiedProperties();
-        }
-
-        private static void DrawFoldoutArrow(Rect arrowRect, bool expanded)
-        {
-            Color previousColor = Handles.color;
-            Handles.color = LoogaEditorStyle.ArrowColor;
-
-            Vector2 center = arrowRect.center;
-            float radius = HeaderArrowSize * 0.5f;
-            float verticalRadius = radius * Mathf.Sqrt(3f) * 0.5f;
-            Vector3[] points = expanded
-                ? new[]
-                {
-                    new Vector3(center.x - radius, center.y - verticalRadius * 0.75f, 0f),
-                    new Vector3(center.x + radius, center.y - verticalRadius * 0.75f, 0f),
-                    new Vector3(center.x, center.y + verticalRadius * 0.75f, 0f)
-                }
-                : new[]
-                {
-                    new Vector3(center.x - verticalRadius * 0.5f, center.y - radius, 0f),
-                    new Vector3(center.x - verticalRadius * 0.5f, center.y + radius, 0f),
-                    new Vector3(center.x + verticalRadius, center.y, 0f)
-                };
-
-            Handles.BeginGUI();
-            Handles.DrawAAConvexPolygon(points);
-            Handles.EndGUI();
-            Handles.color = previousColor;
         }
 
         private static void ShowCreateMenu(SerializedProperty property, Type scriptableObjectType)
@@ -476,7 +421,7 @@ namespace LoogaSoft.Inspector.Editor
 
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
-            float height = HeaderHeight;
+            float height = LoogaEditorFoldouts.GetLargeFoldoutHeaderHeight();
 
             if (property.isExpanded && property.objectReferenceValue != null)
                 height += GetInlineScriptableObjectHeight(property.objectReferenceValue, ((ExposeScriptableAttribute)attribute).showScriptField)

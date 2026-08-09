@@ -215,10 +215,8 @@ namespace LoogaSoft.Hierarchy.Editor
 
             for (int index = 0; index < selection.Length; index++)
             {
-                if (!HierarchySceneFavorites.IsSynthetic(selection[index]))
-                {
+                if (selection[index] != null)
                     editable.Add(selection[index]);
-                }
             }
 
             return editable.ToArray();
