@@ -44,13 +44,13 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
         private void OnEnable()
         {
             _worldSpace = SessionState.GetBool(WorldSpaceSessionKey, false);
-            _copyIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(CopyIconPath);
-            _pasteIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(PasteIconPath);
-            _resetIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(ResetIconPath);
+            EnsureIconsLoaded();
         }
 
         public override void OnInspectorGUI()
         {
+            EnsureIconsLoaded();
+
             Transform first = GetFirstTransform();
             if (first == null)
                 return;
@@ -60,6 +60,13 @@ namespace LoogaSoft.Toolkit.TransformAuthoring
             DrawTransformRow("Rotation", TransformProperty.Rotation, first);
             DrawTransformRow("Scale", TransformProperty.Scale, first);
             DrawSizeRow(first);
+        }
+
+        private void EnsureIconsLoaded()
+        {
+            _copyIcon ??= AssetDatabase.LoadAssetAtPath<Texture2D>(CopyIconPath);
+            _pasteIcon ??= AssetDatabase.LoadAssetAtPath<Texture2D>(PasteIconPath);
+            _resetIcon ??= AssetDatabase.LoadAssetAtPath<Texture2D>(ResetIconPath);
         }
 
         private void OnSceneGUI()
