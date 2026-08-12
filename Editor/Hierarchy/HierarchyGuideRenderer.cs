@@ -107,10 +107,11 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (VisibleParentIds.Contains(gameObject.GetInstanceID()))
             {
-                DrawVertical(currentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                float parentElbowX = AlignParentElbow(currentGuideX, pixelsPerPoint);
+                DrawVertical(parentElbowX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
                 DrawHorizontal(
-                    currentGuideX,
-                    currentGuideX + ParentElbowLength,
+                    parentElbowX,
+                    parentElbowX + ParentElbowLength,
                     centerY,
                     thickness,
                     color,
@@ -291,10 +292,11 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (item == target.Parent)
             {
-                DrawVertical(parentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                float parentElbowX = AlignParentElbow(parentGuideX, pixelsPerPoint);
+                DrawVertical(parentElbowX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
                 DrawHorizontal(
-                    parentGuideX,
-                    parentGuideX + ParentElbowLength,
+                    parentElbowX,
+                    parentElbowX + ParentElbowLength,
                     centerY,
                     thickness,
                     color,
@@ -399,6 +401,11 @@ namespace LoogaSoft.Hierarchy.Editor
                 ? IndentWidth
                 : ParentElbowLength;
             return rowRect.x - reservedFoldoutSpace;
+        }
+
+        private static float AlignParentElbow(float guideX, float pixelsPerPoint)
+        {
+            return guideX - (1f / pixelsPerPoint);
         }
 
         private static bool HasFollowingSibling(Transform item)
