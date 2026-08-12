@@ -17,7 +17,9 @@ namespace LoogaSoft.Hierarchy.Editor
         private static readonly List<BranchTarget> SelectedBranches = new();
 
         private static BranchTarget _hoveredBranch;
+        private static BranchTarget _pendingHoveredBranch;
         private static Vector2 _lastHierarchyMousePosition = new(float.NaN, float.NaN);
+        private static bool _hoverCommitScheduled;
 
         static HierarchyGuideRenderer()
         {
@@ -110,7 +112,7 @@ namespace LoogaSoft.Hierarchy.Editor
                     itemDepth,
                     rowRect,
                     _hoveredBranch,
-                    thickness + (0.5f / pixelsPerPoint),
+                    thickness + (1f / pixelsPerPoint),
                     settings.ResolveHoverColor(),
                     pixelsPerPoint);
             }
@@ -156,11 +158,12 @@ namespace LoogaSoft.Hierarchy.Editor
             Event currentEvent = Event.current;
             if (currentEvent.type == EventType.MouseLeaveWindow)
             {
+                _pendingHoveredBranch = default;
                 SetHoveredBranch(default);
                 return;
             }
 
-            if (currentEvent.type != EventType.MouseMove && currentEvent.type != EventType.Repaint)
+            if (currentEvent.type != EventType.MouseMove)
             {
                 return;
             }
@@ -170,13 +173,32 @@ namespace LoogaSoft.Hierarchy.Editor
                 (mousePosition - _lastHierarchyMousePosition).sqrMagnitude > 0.01f)
             {
                 _lastHierarchyMousePosition = mousePosition;
-                SetHoveredBranch(default);
+                _pendingHoveredBranch = default;
+                ScheduleHoverCommit();
             }
 
             if (rowRect.Contains(mousePosition))
             {
-                SetHoveredBranch(new BranchTarget(gameObject.transform));
+                _pendingHoveredBranch = new BranchTarget(gameObject.transform);
+                ScheduleHoverCommit();
             }
+        }
+
+        private static void ScheduleHoverCommit()
+        {
+            if (_hoverCommitScheduled)
+            {
+                return;
+            }
+
+            _hoverCommitScheduled = true;
+            EditorApplication.delayCall += CommitHoveredBranch;
+        }
+
+        private static void CommitHoveredBranch()
+        {
+            _hoverCommitScheduled = false;
+            SetHoveredBranch(_pendingHoveredBranch);
         }
 
         private static void SetHoveredBranch(BranchTarget branch)
