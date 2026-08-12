@@ -12,14 +12,18 @@ namespace LoogaSoft.Hierarchy.Editor
     {
         // Unity 6 Hierarchy rows advance one tree level by 14 points.
         private const float IndentWidth = 14f;
+        private const float ParentElbowLength = IndentWidth * 0.5f;
 
         private static readonly HashSet<int> SelectedInstanceIds = new();
         private static readonly List<BranchTarget> SelectedBranches = new();
+        private static readonly HashSet<int> VisibleParentIds = new();
+        private static readonly HashSet<int> PendingVisibleParentIds = new();
 
         private static BranchTarget _hoveredBranch;
         private static BranchTarget _pendingHoveredBranch;
         private static Vector2 _lastHierarchyMousePosition = new(float.NaN, float.NaN);
         private static bool _hoverCommitScheduled;
+        private static bool _visibleParentsCommitScheduled;
 
         static HierarchyGuideRenderer()
         {
@@ -45,6 +49,7 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             TrackHoveredRow(gameObject, rowRect, settings);
+            TrackVisibleParent(gameObject);
 
             if (settings.ShowPresentation && HierarchyPresentationRenderer.Draw(gameObject, rowRect))
             {
@@ -81,7 +86,9 @@ namespace LoogaSoft.Hierarchy.Editor
             Transform item = gameObject.transform;
             float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
             float thickness = settings.Thickness / pixelsPerPoint;
-            float currentGuideX = SnapToPixel(rowRect.x - IndentWidth, pixelsPerPoint);
+            float currentGuideX = SnapToPixel(
+                rowRect.x - IndentWidth - ParentElbowLength,
+                pixelsPerPoint);
             float centerY = SnapToPixel(rowRect.center.y, pixelsPerPoint);
             Color color = settings.ResolveColor();
 
@@ -92,6 +99,18 @@ namespace LoogaSoft.Hierarchy.Editor
                     item,
                     rowRect,
                     currentGuideX,
+                    centerY,
+                    thickness,
+                    color,
+                    pixelsPerPoint);
+            }
+
+            if (VisibleParentIds.Contains(gameObject.GetInstanceID()))
+            {
+                DrawVertical(currentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                DrawHorizontal(
+                    currentGuideX,
+                    currentGuideX + ParentElbowLength,
                     centerY,
                     thickness,
                     color,
@@ -163,7 +182,7 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            if (currentEvent.type != EventType.MouseMove)
+            if (currentEvent.type != EventType.MouseMove && currentEvent.type != EventType.Repaint)
             {
                 return;
             }
@@ -181,6 +200,43 @@ namespace LoogaSoft.Hierarchy.Editor
             {
                 _pendingHoveredBranch = new BranchTarget(gameObject.transform);
                 ScheduleHoverCommit();
+            }
+        }
+
+        private static void TrackVisibleParent(GameObject gameObject)
+        {
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            Transform parent = gameObject.transform.parent;
+            if (parent != null)
+            {
+                PendingVisibleParentIds.Add(parent.gameObject.GetInstanceID());
+            }
+
+            if (_visibleParentsCommitScheduled)
+            {
+                return;
+            }
+
+            _visibleParentsCommitScheduled = true;
+            EditorApplication.delayCall += CommitVisibleParents;
+        }
+
+        private static void CommitVisibleParents()
+        {
+            _visibleParentsCommitScheduled = false;
+            bool changed = !VisibleParentIds.SetEquals(PendingVisibleParentIds);
+
+            VisibleParentIds.Clear();
+            VisibleParentIds.UnionWith(PendingVisibleParentIds);
+            PendingVisibleParentIds.Clear();
+
+            if (changed)
+            {
+                EditorApplication.RepaintHierarchyWindow();
             }
         }
 
@@ -228,12 +284,20 @@ namespace LoogaSoft.Hierarchy.Editor
 
             float parentGuideX = rowRect.x -
                                  (IndentWidth * (itemDepth - target.Depth)) -
-                                 (IndentWidth * 2f);
+                                 (IndentWidth * 2f) -
+                                 ParentElbowLength;
             float centerY = rowRect.center.y;
 
             if (item == target.Parent)
             {
                 DrawVertical(parentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                DrawHorizontal(
+                    parentGuideX,
+                    parentGuideX + ParentElbowLength,
+                    centerY,
+                    thickness,
+                    color,
+                    pixelsPerPoint);
                 return;
             }
 
@@ -315,15 +379,15 @@ namespace LoogaSoft.Hierarchy.Editor
             float parentGuideX = currentGuideX - IndentWidth;
             float top = rowRect.yMin;
 
-            // The first child completes the connector from its parent's row center.
-            if (item.GetSiblingIndex() == 0)
-            {
-                top -= rowRect.height * 0.5f;
-            }
-
             float bottom = HasFollowingSibling(item) ? rowRect.yMax : centerY;
             DrawVertical(parentGuideX, top, bottom, thickness, color, pixelsPerPoint);
-            DrawHorizontal(parentGuideX, currentGuideX, centerY, thickness, color, pixelsPerPoint);
+            DrawHorizontal(
+                parentGuideX,
+                currentGuideX + ParentElbowLength,
+                centerY,
+                thickness,
+                color,
+                pixelsPerPoint);
         }
 
         private static bool HasFollowingSibling(Transform item)
