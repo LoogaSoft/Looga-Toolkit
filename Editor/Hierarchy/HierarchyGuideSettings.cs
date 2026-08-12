@@ -84,8 +84,8 @@ namespace LoogaSoft.Hierarchy.Editor
         internal Color ResolveHoverColor()
         {
             return ResolveEmphasisColor(
-                EditorGUIUtility.isProSkin ? 1.25f : 1.12f,
-                1.25f);
+                EditorGUIUtility.isProSkin ? 1.4f : 1.2f,
+                1.45f);
         }
 
         internal Color ResolveSelectedColor()

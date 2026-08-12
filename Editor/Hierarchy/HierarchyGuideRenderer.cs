@@ -14,6 +14,10 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float IndentWidth = 14f;
 
         private static readonly HashSet<int> SelectedInstanceIds = new();
+        private static readonly List<BranchTarget> SelectedBranches = new();
+
+        private static BranchTarget _hoveredBranch;
+        private static Vector2 _lastHierarchyMousePosition = new(float.NaN, float.NaN);
 
         static HierarchyGuideRenderer()
         {
@@ -21,6 +25,8 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorApplication.hierarchyWindowItemOnGUI += DrawRow;
             Selection.selectionChanged -= CacheSelection;
             Selection.selectionChanged += CacheSelection;
+            EditorApplication.hierarchyChanged -= CacheSelection;
+            EditorApplication.hierarchyChanged += CacheSelection;
             CacheSelection();
         }
 
@@ -35,6 +41,8 @@ namespace LoogaSoft.Hierarchy.Editor
             {
                 return;
             }
+
+            TrackHoveredRow(gameObject, rowRect, settings);
 
             if (settings.ShowPresentation && HierarchyPresentationRenderer.Draw(gameObject, rowRect))
             {
@@ -69,53 +77,184 @@ namespace LoogaSoft.Hierarchy.Editor
         {
 
             Transform item = gameObject.transform;
-            if (item.parent == null)
-            {
-                return;
-            }
-
             float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
             float thickness = settings.Thickness / pixelsPerPoint;
             float currentGuideX = SnapToPixel(rowRect.x - IndentWidth, pixelsPerPoint);
             float centerY = SnapToPixel(rowRect.center.y, pixelsPerPoint);
             Color color = settings.ResolveColor();
-            float connectorThickness = thickness;
-            Color connectorColor = color;
 
-            if (settings.HighlightInteractiveBranches)
+            if (item.parent != null)
             {
-                if (SelectedInstanceIds.Contains(gameObject.GetInstanceID()))
-                {
-                    connectorThickness += 1f / pixelsPerPoint;
-                    connectorColor = settings.ResolveSelectedColor();
-                }
-                else if (rowRect.Contains(Event.current.mousePosition))
-                {
-                    connectorColor = settings.ResolveHoverColor();
-                }
+                DrawAncestorContinuations(item, rowRect, currentGuideX, thickness, color, pixelsPerPoint);
+                DrawParentConnector(
+                    item,
+                    rowRect,
+                    currentGuideX,
+                    centerY,
+                    thickness,
+                    color,
+                    pixelsPerPoint);
             }
 
-            DrawAncestorContinuations(item, rowRect, currentGuideX, thickness, color, pixelsPerPoint);
-            DrawParentConnector(
-                item,
-                rowRect,
-                currentGuideX,
-                centerY,
-                connectorThickness,
-                connectorColor,
-                pixelsPerPoint);
+            if (!settings.HighlightInteractiveBranches)
+            {
+                return;
+            }
+
+            int itemDepth = GetDepth(item);
+            int hoveredId = _hoveredBranch.InstanceId;
+            if (_hoveredBranch.IsValid && !SelectedInstanceIds.Contains(hoveredId))
+            {
+                DrawInteractiveBranchSegment(
+                    item,
+                    itemDepth,
+                    rowRect,
+                    _hoveredBranch,
+                    thickness + (0.5f / pixelsPerPoint),
+                    settings.ResolveHoverColor(),
+                    pixelsPerPoint);
+            }
+
+            for (int i = 0; i < SelectedBranches.Count; i++)
+            {
+                DrawInteractiveBranchSegment(
+                    item,
+                    itemDepth,
+                    rowRect,
+                    SelectedBranches[i],
+                    thickness + (1f / pixelsPerPoint),
+                    settings.ResolveSelectedColor(),
+                    pixelsPerPoint);
+            }
         }
 
         private static void CacheSelection()
         {
             SelectedInstanceIds.Clear();
+            SelectedBranches.Clear();
             GameObject[] selectedObjects = Selection.gameObjects;
             for (int i = 0; i < selectedObjects.Length; i++)
             {
-                SelectedInstanceIds.Add(selectedObjects[i].GetInstanceID());
+                GameObject selectedObject = selectedObjects[i];
+                SelectedInstanceIds.Add(selectedObject.GetInstanceID());
+                SelectedBranches.Add(new BranchTarget(selectedObject.transform));
             }
 
             EditorApplication.RepaintHierarchyWindow();
+        }
+
+        private static void TrackHoveredRow(
+            GameObject gameObject,
+            Rect rowRect,
+            HierarchyGuideSettings settings)
+        {
+            if (!settings.HighlightInteractiveBranches)
+            {
+                return;
+            }
+
+            Event currentEvent = Event.current;
+            if (currentEvent.type == EventType.MouseLeaveWindow)
+            {
+                SetHoveredBranch(default);
+                return;
+            }
+
+            if (currentEvent.type != EventType.MouseMove && currentEvent.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            Vector2 mousePosition = currentEvent.mousePosition;
+            if (float.IsNaN(_lastHierarchyMousePosition.x) ||
+                (mousePosition - _lastHierarchyMousePosition).sqrMagnitude > 0.01f)
+            {
+                _lastHierarchyMousePosition = mousePosition;
+                SetHoveredBranch(default);
+            }
+
+            if (rowRect.Contains(mousePosition))
+            {
+                SetHoveredBranch(new BranchTarget(gameObject.transform));
+            }
+        }
+
+        private static void SetHoveredBranch(BranchTarget branch)
+        {
+            if (_hoveredBranch.InstanceId == branch.InstanceId)
+            {
+                return;
+            }
+
+            _hoveredBranch = branch;
+            EditorApplication.RepaintHierarchyWindow();
+        }
+
+        private static void DrawInteractiveBranchSegment(
+            Transform item,
+            int itemDepth,
+            Rect rowRect,
+            BranchTarget target,
+            float thickness,
+            Color color,
+            float pixelsPerPoint)
+        {
+            if (!target.IsValid)
+            {
+                return;
+            }
+
+            float parentGuideX = rowRect.x -
+                                 (IndentWidth * (itemDepth - target.Depth)) -
+                                 (IndentWidth * 2f);
+            float centerY = rowRect.center.y;
+
+            if (item == target.Parent)
+            {
+                DrawVertical(parentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                return;
+            }
+
+            if (item == target.Item)
+            {
+                float currentGuideX = rowRect.x - IndentWidth;
+                DrawVertical(parentGuideX, rowRect.yMin, centerY, thickness, color, pixelsPerPoint);
+                DrawHorizontal(parentGuideX, currentGuideX, centerY, thickness, color, pixelsPerPoint);
+                return;
+            }
+
+            if (IsInPrecedingSiblingSubtree(item, target.Parent, target.SiblingIndex))
+            {
+                DrawVertical(parentGuideX, rowRect.yMin, rowRect.yMax, thickness, color, pixelsPerPoint);
+            }
+        }
+
+        private static bool IsInPrecedingSiblingSubtree(
+            Transform item,
+            Transform targetParent,
+            int targetSiblingIndex)
+        {
+            Transform branch = item;
+            while (branch != null && branch.parent != targetParent)
+            {
+                branch = branch.parent;
+            }
+
+            return branch != null &&
+                   branch.parent == targetParent &&
+                   branch.GetSiblingIndex() < targetSiblingIndex;
+        }
+
+        private static int GetDepth(Transform item)
+        {
+            int depth = 0;
+            while (item.parent != null)
+            {
+                depth++;
+                item = item.parent;
+            }
+
+            return depth;
         }
 
         private static void DrawAncestorContinuations(
@@ -201,6 +340,30 @@ namespace LoogaSoft.Hierarchy.Editor
         private static float SnapToPixel(float value, float pixelsPerPoint)
         {
             return Mathf.Round(value * pixelsPerPoint) / pixelsPerPoint;
+        }
+
+        private readonly struct BranchTarget
+        {
+            public BranchTarget(Transform item)
+            {
+                Item = item;
+                Parent = item != null ? item.parent : null;
+                SiblingIndex = item != null ? item.GetSiblingIndex() : -1;
+                Depth = item != null ? GetDepth(item) : 0;
+                InstanceId = item != null ? item.gameObject.GetInstanceID() : 0;
+            }
+
+            public Transform Item { get; }
+
+            public Transform Parent { get; }
+
+            public int SiblingIndex { get; }
+
+            public int Depth { get; }
+
+            public int InstanceId { get; }
+
+            public bool IsValid => Item != null && Parent != null;
         }
     }
 }
