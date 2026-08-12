@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,10 +13,15 @@ namespace LoogaSoft.Hierarchy.Editor
         // Unity 6 Hierarchy rows advance one tree level by 14 points.
         private const float IndentWidth = 14f;
 
+        private static readonly HashSet<int> SelectedInstanceIds = new();
+
         static HierarchyGuideRenderer()
         {
             EditorApplication.hierarchyWindowItemOnGUI -= DrawRow;
             EditorApplication.hierarchyWindowItemOnGUI += DrawRow;
+            Selection.selectionChanged -= CacheSelection;
+            Selection.selectionChanged += CacheSelection;
+            CacheSelection();
         }
 
         private static void DrawRow(int instanceId, Rect rowRect)
@@ -73,9 +79,43 @@ namespace LoogaSoft.Hierarchy.Editor
             float currentGuideX = SnapToPixel(rowRect.x - IndentWidth, pixelsPerPoint);
             float centerY = SnapToPixel(rowRect.center.y, pixelsPerPoint);
             Color color = settings.ResolveColor();
+            float connectorThickness = thickness;
+            Color connectorColor = color;
+
+            if (settings.HighlightInteractiveBranches)
+            {
+                if (SelectedInstanceIds.Contains(gameObject.GetInstanceID()))
+                {
+                    connectorThickness += 1f / pixelsPerPoint;
+                    connectorColor = settings.ResolveSelectedColor();
+                }
+                else if (rowRect.Contains(Event.current.mousePosition))
+                {
+                    connectorColor = settings.ResolveHoverColor();
+                }
+            }
 
             DrawAncestorContinuations(item, rowRect, currentGuideX, thickness, color, pixelsPerPoint);
-            DrawParentConnector(item, rowRect, currentGuideX, centerY, thickness, color, pixelsPerPoint);
+            DrawParentConnector(
+                item,
+                rowRect,
+                currentGuideX,
+                centerY,
+                connectorThickness,
+                connectorColor,
+                pixelsPerPoint);
+        }
+
+        private static void CacheSelection()
+        {
+            SelectedInstanceIds.Clear();
+            GameObject[] selectedObjects = Selection.gameObjects;
+            for (int i = 0; i < selectedObjects.Length; i++)
+            {
+                SelectedInstanceIds.Add(selectedObjects[i].GetInstanceID());
+            }
+
+            EditorApplication.RepaintHierarchyWindow();
         }
 
         private static void DrawAncestorContinuations(

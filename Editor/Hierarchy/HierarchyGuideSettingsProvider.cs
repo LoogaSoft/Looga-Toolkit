@@ -8,6 +8,7 @@ namespace LoogaSoft.Hierarchy.Editor
     {
         private SerializedObject _serializedSettings;
         private SerializedProperty _enabled;
+        private SerializedProperty _highlightInteractiveBranches;
         private SerializedProperty _showFavorites;
         private SerializedProperty _showPresentation;
         private SerializedProperty _showStatusBadges;
@@ -62,6 +63,11 @@ namespace LoogaSoft.Hierarchy.Editor
 
                 EditorGUILayout.Slider(_opacity, 0.1f, 1f, new GUIContent("Opacity"));
                 EditorGUILayout.IntSlider(_thickness, 1, 3, new GUIContent("Thickness", "Physical pixels."));
+                EditorGUILayout.PropertyField(
+                    _highlightInteractiveBranches,
+                    new GUIContent(
+                        "Interactive Branch Highlights",
+                        "Emphasize the direct parent connector for hovered and selected objects."));
             }
 
             EditorGUILayout.Space(6f);
@@ -89,6 +95,7 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             _serializedSettings = new SerializedObject(HierarchyGuideSettings.instance);
             _enabled = _serializedSettings.FindProperty("_enabled");
+            _highlightInteractiveBranches = _serializedSettings.FindProperty("_highlightInteractiveBranches");
             _showFavorites = _serializedSettings.FindProperty("_showFavorites");
             _showPresentation = _serializedSettings.FindProperty("_showPresentation");
             _showStatusBadges = _serializedSettings.FindProperty("_showStatusBadges");

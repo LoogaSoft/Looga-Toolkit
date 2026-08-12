@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace LoogaSoft.Hierarchy.Editor
 {
@@ -12,6 +13,7 @@ namespace LoogaSoft.Hierarchy.Editor
         internal const string SettingsPath = "ProjectSettings/LoogaHierarchySettings.asset";
 
         internal const bool DefaultEnabled = true;
+        internal const bool DefaultHighlightInteractiveBranches = true;
         internal const bool DefaultShowFavorites = true;
         internal const bool DefaultShowPresentation = true;
         internal const bool DefaultShowStatusBadges = true;
@@ -23,6 +25,10 @@ namespace LoogaSoft.Hierarchy.Editor
 
         [SerializeField]
         private bool _enabled = DefaultEnabled;
+
+        [FormerlySerializedAs("_highlightHoveredBranch")]
+        [SerializeField]
+        private bool _highlightInteractiveBranches = DefaultHighlightInteractiveBranches;
 
         [SerializeField]
         private bool _showFavorites = DefaultShowFavorites;
@@ -46,6 +52,8 @@ namespace LoogaSoft.Hierarchy.Editor
         private int _thickness = DefaultThickness;
 
         internal bool Enabled => _enabled;
+
+        internal bool HighlightInteractiveBranches => _highlightInteractiveBranches;
 
         internal bool ShowFavorites => _showFavorites;
 
@@ -73,6 +81,20 @@ namespace LoogaSoft.Hierarchy.Editor
             return color;
         }
 
+        internal Color ResolveHoverColor()
+        {
+            return ResolveEmphasisColor(
+                EditorGUIUtility.isProSkin ? 1.25f : 1.12f,
+                1.25f);
+        }
+
+        internal Color ResolveSelectedColor()
+        {
+            return ResolveEmphasisColor(
+                EditorGUIUtility.isProSkin ? 1.55f : 1.28f,
+                1.65f);
+        }
+
         internal void SaveSettings()
         {
             Save(true);
@@ -82,6 +104,7 @@ namespace LoogaSoft.Hierarchy.Editor
         internal void ResetToDefaults()
         {
             _enabled = DefaultEnabled;
+            _highlightInteractiveBranches = DefaultHighlightInteractiveBranches;
             _showFavorites = DefaultShowFavorites;
             _showPresentation = DefaultShowPresentation;
             _showStatusBadges = DefaultShowStatusBadges;
@@ -90,6 +113,16 @@ namespace LoogaSoft.Hierarchy.Editor
             _opacity = DefaultOpacity;
             _thickness = DefaultThickness;
             SaveSettings();
+        }
+
+        private Color ResolveEmphasisColor(float brightness, float opacity)
+        {
+            Color color = ResolveColor();
+            color.r = Mathf.Min(1f, color.r * brightness);
+            color.g = Mathf.Min(1f, color.g * brightness);
+            color.b = Mathf.Min(1f, color.b * brightness);
+            color.a = Mathf.Min(1f, color.a * opacity);
+            return color;
         }
     }
 }
