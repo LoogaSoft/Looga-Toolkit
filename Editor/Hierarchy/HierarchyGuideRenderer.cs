@@ -198,8 +198,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (rowRect.Contains(mousePosition))
             {
-                _pendingHoveredBranch = new BranchTarget(gameObject.transform);
-                ScheduleHoverCommit();
+                BranchTarget hoveredBranch = new(gameObject.transform);
+                _pendingHoveredBranch = hoveredBranch;
+                SetHoveredBranch(hoveredBranch);
             }
         }
 
