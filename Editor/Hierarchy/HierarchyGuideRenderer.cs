@@ -303,7 +303,7 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (item == target.Item)
             {
-                float currentGuideX = rowRect.x - IndentWidth;
+                float currentGuideX = ResolveObjectConnectorEnd(item, rowRect);
                 DrawVertical(parentGuideX, rowRect.yMin, centerY, thickness, color, pixelsPerPoint);
                 DrawHorizontal(parentGuideX, currentGuideX, centerY, thickness, color, pixelsPerPoint);
                 return;
@@ -383,11 +383,21 @@ namespace LoogaSoft.Hierarchy.Editor
             DrawVertical(parentGuideX, top, bottom, thickness, color, pixelsPerPoint);
             DrawHorizontal(
                 parentGuideX,
-                currentGuideX + ParentElbowLength,
+                ResolveObjectConnectorEnd(item, rowRect),
                 centerY,
                 thickness,
                 color,
                 pixelsPerPoint);
+        }
+
+        private static float ResolveObjectConnectorEnd(Transform item, Rect rowRect)
+        {
+            // Unity reserves a foldout column for every row. Leaf objects have no triangle, so use
+            // half of that empty column while keeping branch rows clear of their foldout control.
+            float reservedFoldoutSpace = item.childCount > 0
+                ? IndentWidth
+                : ParentElbowLength;
+            return rowRect.x - reservedFoldoutSpace;
         }
 
         private static bool HasFollowingSibling(Transform item)
