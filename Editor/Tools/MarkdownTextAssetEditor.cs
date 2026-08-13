@@ -29,7 +29,7 @@ namespace LoogaSoft.Tools.Editor
         private static GUIStyle BodyStyle => MarkdownStyles.Body;
         private static GUIStyle CodeStyle => MarkdownStyles.Code;
 
-        public override void OnHeaderGUI()
+        protected override void OnHeaderGUI()
         {
             // The asset importer already draws the file header.
         }
