@@ -8,9 +8,9 @@ using UnityEngine;
 
 namespace LoogaSoft.Tools.Editor
 {
-    /// <summary>Renders Markdown text assets without changing how Unity imports them.</summary>
-    [CustomEditor(typeof(TextAsset))]
-    public sealed class MarkdownTextAssetEditor : UnityEditor.Editor
+    /// <summary>Renders Markdown inside Unity's native text importer inspector.</summary>
+    [CustomEditor(typeof(AssetImporter), true, isFallback = true)]
+    public sealed class MarkdownTextAssetEditor : AssetImporterEditor
     {
         private const int HorizontalInset = 4;
         private const float ImageMaximumHeight = 360f;
@@ -24,40 +24,25 @@ namespace LoogaSoft.Tools.Editor
             RegexOptions.Compiled);
 
         private readonly Dictionary<string, Texture2D> _imageCache = new(StringComparer.Ordinal);
-        private bool _showSource;
 
         private static GUIStyle BodyStyle => MarkdownStyles.Body;
         private static GUIStyle CodeStyle => MarkdownStyles.Code;
 
-        protected override void OnHeaderGUI()
-        {
-            // The asset importer already draws the file header.
-        }
+        public override bool showImportedObject => !IsMarkdownImporter;
 
         public override void OnInspectorGUI()
         {
-            TextAsset textAsset = target as TextAsset;
-            if (textAsset == null)
+            if (!TryGetMarkdown(out TextAsset textAsset, out string assetPath))
+            {
+                base.OnInspectorGUI();
                 return;
+            }
 
             bool wasEnabled = GUI.enabled;
             GUI.enabled = true;
             try
             {
-                string assetPath = AssetDatabase.GetAssetPath(textAsset);
-                if (!string.Equals(Path.GetExtension(assetPath), ".md", StringComparison.OrdinalIgnoreCase))
-                {
-                    DrawPlainText(textAsset.text);
-                    return;
-                }
-
-                DrawViewSelector();
-                EditorGUILayout.Space(4f);
-
-                if (_showSource)
-                    DrawPlainText(textAsset.text);
-                else
-                    DrawMarkdown(textAsset.text, assetPath);
+                DrawMarkdown(textAsset.text, assetPath);
             }
             finally
             {
@@ -65,23 +50,30 @@ namespace LoogaSoft.Tools.Editor
             }
         }
 
-        private void DrawViewSelector()
+        private bool IsMarkdownImporter
         {
-            int selected = _showSource ? 1 : 0;
-            int next = GUILayout.Toolbar(selected, new[] { "Preview", "Source" });
-            _showSource = next == 1;
+            get
+            {
+                if (target is not AssetImporter importer)
+                    return false;
+
+                return string.Equals(
+                    Path.GetExtension(importer.assetPath),
+                    ".md",
+                    StringComparison.OrdinalIgnoreCase);
+            }
         }
 
-        private static void DrawPlainText(string text)
+        private bool TryGetMarkdown(out TextAsset textAsset, out string assetPath)
         {
-            GUIContent content = new(text ?? string.Empty);
-            float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 32f);
-            float height = Math.Max(120f, MarkdownStyles.Source.CalcHeight(content, width));
-            EditorGUILayout.SelectableLabel(
-                content.text,
-                MarkdownStyles.Source,
-                GUILayout.MinHeight(height),
-                GUILayout.ExpandWidth(true));
+            textAsset = null;
+            assetPath = string.Empty;
+            if (!IsMarkdownImporter || target is not AssetImporter importer)
+                return false;
+
+            assetPath = importer.assetPath;
+            textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
+            return textAsset != null;
         }
 
         private void DrawMarkdown(string markdown, string assetPath)
@@ -497,12 +489,6 @@ namespace LoogaSoft.Tools.Editor
                 font = EditorStyles.textArea.font,
                 padding = new RectOffset(0, 0, 0, 0)
             };
-            public static readonly GUIStyle Source = new(EditorStyles.textArea)
-            {
-                wordWrap = true,
-                richText = false
-            };
-
             private static GUIStyle CreateLabel(
                 GUIStyle source,
                 int fontSizeIncrease,
