@@ -242,12 +242,14 @@ namespace LoogaSoft.Tools.Editor
             int depth = Math.Min(4, spaces / 2);
             string marker = ordered.Success ? $"{match.Groups[2].Value}." : "\u2022";
             string content = ordered.Success ? match.Groups[3].Value : match.Groups[2].Value;
+            float markerWidth = ordered.Success ? 28f : 14f;
+            float indentation = HorizontalInset + depth * 14f;
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                GUILayout.Space(HorizontalInset + depth * 14f);
-                GUILayout.Label(marker, MarkdownStyles.ListMarker, GUILayout.Width(ordered.Success ? 28f : 14f));
-                DrawRichLabel(content, BodyStyle, false);
+                GUILayout.Space(indentation);
+                GUILayout.Label(marker, MarkdownStyles.ListMarker, GUILayout.Width(markerWidth));
+                DrawRichLabel(content, BodyStyle, false, indentation + markerWidth);
             }
 
             index++;
@@ -283,12 +285,16 @@ namespace LoogaSoft.Tools.Editor
                    index + 1 < lines.Length && line.Contains('|') && TableDividerPattern.IsMatch(lines[index + 1]);
         }
 
-        private static void DrawRichLabel(string markdown, GUIStyle style, bool expandWidth = true)
+        private static void DrawRichLabel(
+            string markdown,
+            GUIStyle style,
+            bool expandWidth = true,
+            float reservedHorizontalSpace = 0f)
         {
             string richText = FormatInline(markdown, out string link);
             GUIContent content = new(richText, string.IsNullOrWhiteSpace(link) ? string.Empty : link);
-            float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 38f);
-            float height = Math.Max(EditorGUIUtility.singleLineHeight, style.CalcHeight(content, width));
+            float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 38f - reservedHorizontalSpace);
+            float height = Math.Max(EditorGUIUtility.singleLineHeight, Mathf.Ceil(style.CalcHeight(content, width)) + 2f);
             Rect rect = GUILayoutUtility.GetRect(content, style, GUILayout.Height(height), GUILayout.ExpandWidth(expandWidth));
             GUI.Label(rect, content, style);
 
