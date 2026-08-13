@@ -357,9 +357,11 @@ namespace LoogaSoft.Tools.Editor
             escaped = LinkPattern.Replace(
                 escaped,
                 match => $"<color=#{ColorUtility.ToHtmlStringRGB(MarkdownStyles.LinkColor)}>{match.Groups[1].Value}</color>");
-            escaped = Regex.Replace(escaped, @"`([^`]+)`", "<color=#B8C7D9><b>$1</b></color>");
-            escaped = Regex.Replace(escaped, @"\*\*(.+?)\*\*", "<b>$1</b>");
-            escaped = Regex.Replace(escaped, @"__(.+?)__", "<b>$1</b>");
+            string codeColor = ColorUtility.ToHtmlStringRGB(MarkdownStyles.InlineCodeColor);
+            string emphasisColor = ColorUtility.ToHtmlStringRGB(MarkdownStyles.EmphasisColor);
+            escaped = Regex.Replace(escaped, @"`([^`]+)`", $"<color=#{codeColor}><b>$1</b></color>");
+            escaped = Regex.Replace(escaped, @"\*\*(.+?)\*\*", $"<color=#{emphasisColor}><b>$1</b></color>");
+            escaped = Regex.Replace(escaped, @"__(.+?)__", $"<color=#{emphasisColor}><b>$1</b></color>");
             escaped = Regex.Replace(escaped, @"(?<!\*)\*([^*]+)\*(?!\*)", "<i>$1</i>");
             escaped = Regex.Replace(escaped, @"(?<!_)_([^_]+)_(?!_)", "<i>$1</i>");
             escaped = Regex.Replace(escaped, @"~~(.+?)~~", "<s>$1</s>");
@@ -449,6 +451,12 @@ namespace LoogaSoft.Tools.Editor
             public static readonly Color LinkColor = EditorGUIUtility.isProSkin
                 ? new Color(0.40f, 0.68f, 0.96f)
                 : new Color(0.05f, 0.36f, 0.72f);
+            public static readonly Color InlineCodeColor = EditorGUIUtility.isProSkin
+                ? new Color(0.52f, 0.76f, 1f)
+                : new Color(0.04f, 0.32f, 0.60f);
+            public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
+                ? new Color(0.92f, 0.92f, 0.92f)
+                : new Color(0.15f, 0.15f, 0.15f);
             public static readonly Color QuoteColor = EditorGUIUtility.isProSkin
                 ? new Color(0.32f, 0.55f, 0.78f)
                 : new Color(0.16f, 0.40f, 0.66f);
