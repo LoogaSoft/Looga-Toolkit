@@ -9,7 +9,7 @@ using Object = UnityEngine.Object;
 
 namespace LoogaSoft.Inspector.Editor
 {
-    [CustomEditor(typeof(Object), true)]
+    [CustomEditor(typeof(Object), true, isFallback = true)]
     [CanEditMultipleObjects]
     public class LoogaEditor : UnityEditor.Editor
     {
@@ -110,7 +110,10 @@ namespace LoogaSoft.Inspector.Editor
         private void DrawInspectorContents(bool showScriptField, bool invokeCustomHooks)
         {
             SerializedObject inspectedObject = InspectedSerializedObject;
-            Object inspectedTarget = InspectedTarget;
+            if (inspectedObject == null || inspectedObject.targetObject == null)
+                return;
+
+            Object inspectedTarget = inspectedObject.targetObject;
             inspectedObject.Update();
 
             var rootProperties = GetSerializedProperties();
