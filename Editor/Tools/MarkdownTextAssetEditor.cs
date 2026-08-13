@@ -452,8 +452,8 @@ namespace LoogaSoft.Tools.Editor
                 ? new Color(0.40f, 0.68f, 0.96f)
                 : new Color(0.05f, 0.36f, 0.72f);
             public static readonly Color InlineCodeColor = EditorGUIUtility.isProSkin
-                ? new Color(0.84f, 0.80f, 0.72f)
-                : new Color(0.32f, 0.29f, 0.25f);
+                ? new Color(0.66f, 0.80f, 0.68f)
+                : new Color(0.16f, 0.38f, 0.20f);
             public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
                 ? new Color(0.92f, 0.92f, 0.92f)
                 : new Color(0.15f, 0.15f, 0.15f);
