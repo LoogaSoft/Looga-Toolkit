@@ -291,6 +291,12 @@ namespace LoogaSoft.Tools.Editor
             bool expandWidth = true,
             float reservedHorizontalSpace = 0f)
         {
+            if (markdown.IndexOf('`') >= 0)
+            {
+                DrawInlineFlow(markdown, style, expandWidth, reservedHorizontalSpace);
+                return;
+            }
+
             string richText = FormatInline(markdown, out string link);
             GUIContent content = new(richText, string.IsNullOrWhiteSpace(link) ? string.Empty : link);
             float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 38f - reservedHorizontalSpace);
@@ -308,6 +314,217 @@ namespace LoogaSoft.Tools.Editor
                 OpenLink(link);
                 current.Use();
             }
+        }
+
+        private static void DrawInlineFlow(
+            string markdown,
+            GUIStyle sourceStyle,
+            bool expandWidth,
+            float reservedHorizontalSpace)
+        {
+            List<InlineToken> tokens = ParseInlineTokens(markdown);
+            GUIStyle flowStyle = new(sourceStyle)
+            {
+                wordWrap = false,
+                clipping = TextClipping.Clip,
+                margin = new RectOffset(),
+                padding = new RectOffset()
+            };
+
+            float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 38f - reservedHorizontalSpace);
+            float lineHeight = Math.Max(EditorGUIUtility.singleLineHeight, flowStyle.lineHeight) + 2f;
+            int lineCount = MeasureInlineLines(tokens, flowStyle, width);
+            Rect rect = GUILayoutUtility.GetRect(
+                1f,
+                lineCount * lineHeight + 2f,
+                GUILayout.ExpandWidth(expandWidth));
+
+            float availableWidth = Math.Max(1f, rect.width);
+            float x = rect.x;
+            float y = rect.y + 1f;
+            Event current = Event.current;
+            for (int index = 0; index < tokens.Count; index++)
+            {
+                InlineToken token = tokens[index];
+                bool whitespace = string.IsNullOrWhiteSpace(token.PlainText);
+                float textWidth = flowStyle.CalcSize(new GUIContent(token.RichText)).x;
+                float tokenWidth = textWidth + (token.IsCode ? MarkdownStyles.InlineCodeHorizontalPadding * 2f : 0f);
+
+                if (!whitespace && x > rect.x && x + tokenWidth > rect.x + availableWidth)
+                {
+                    x = rect.x;
+                    y += lineHeight;
+                }
+
+                if (whitespace && Mathf.Approximately(x, rect.x))
+                    continue;
+
+                Rect tokenRect = new(x, y, tokenWidth, lineHeight);
+                if (token.IsCode)
+                {
+                    Rect backgroundRect = new(
+                        tokenRect.x,
+                        tokenRect.y + 1f,
+                        tokenRect.width,
+                        Math.Max(1f, tokenRect.height - 2f));
+                    EditorGUI.DrawRect(backgroundRect, MarkdownStyles.InlineCodeBackground);
+                    tokenRect.xMin += MarkdownStyles.InlineCodeHorizontalPadding;
+                    tokenRect.xMax -= MarkdownStyles.InlineCodeHorizontalPadding;
+                }
+
+                GUI.Label(tokenRect, token.RichText, flowStyle);
+                if (!string.IsNullOrWhiteSpace(token.Link))
+                {
+                    EditorGUIUtility.AddCursorRect(tokenRect, MouseCursor.Link);
+                    if (current.type == EventType.MouseUp && current.button == 0 && tokenRect.Contains(current.mousePosition))
+                    {
+                        OpenLink(token.Link);
+                        current.Use();
+                    }
+                }
+
+                x += tokenWidth;
+            }
+        }
+
+        private static int MeasureInlineLines(IReadOnlyList<InlineToken> tokens, GUIStyle style, float width)
+        {
+            int lineCount = 1;
+            float x = 0f;
+            for (int index = 0; index < tokens.Count; index++)
+            {
+                InlineToken token = tokens[index];
+                bool whitespace = string.IsNullOrWhiteSpace(token.PlainText);
+                float tokenWidth = style.CalcSize(new GUIContent(token.RichText)).x +
+                                   (token.IsCode ? MarkdownStyles.InlineCodeHorizontalPadding * 2f : 0f);
+                if (!whitespace && x > 0f && x + tokenWidth > width)
+                {
+                    lineCount++;
+                    x = 0f;
+                }
+
+                if (whitespace && Mathf.Approximately(x, 0f))
+                    continue;
+
+                x += tokenWidth;
+            }
+
+            return lineCount;
+        }
+
+        private static List<InlineToken> ParseInlineTokens(string markdown)
+        {
+            List<InlineToken> tokens = new();
+            int index = 0;
+            while (index < markdown.Length)
+            {
+                if (markdown[index] == '`')
+                {
+                    int end = markdown.IndexOf('`', index + 1);
+                    if (end > index + 1)
+                    {
+                        string code = markdown[(index + 1)..end];
+                        tokens.Add(new InlineToken(EscapeRichText(code), code, true, string.Empty));
+                        index = end + 1;
+                        continue;
+                    }
+                }
+
+                Match link = LinkPattern.Match(markdown, index);
+                if (link.Success && link.Index == index)
+                {
+                    string label = link.Groups[1].Value;
+                    string color = ColorUtility.ToHtmlStringRGB(MarkdownStyles.LinkColor);
+                    AddWordTokens(tokens, label, $"<color=#{color}>", "</color>", link.Groups[2].Value.Trim());
+                    index += link.Length;
+                    continue;
+                }
+
+                if (TryReadDelimited(markdown, ref index, "**", "**", "<b>", "</b>", tokens) ||
+                    TryReadDelimited(markdown, ref index, "__", "__", "<b>", "</b>", tokens) ||
+                    TryReadDelimited(markdown, ref index, "~~", "~~", "<s>", "</s>", tokens) ||
+                    TryReadDelimited(markdown, ref index, "*", "*", "<i>", "</i>", tokens) ||
+                    TryReadDelimited(markdown, ref index, "_", "_", "<i>", "</i>", tokens))
+                {
+                    continue;
+                }
+
+                int next = FindNextInlineMarker(markdown, index + 1);
+                AddWordTokens(tokens, markdown[index..next], string.Empty, string.Empty, string.Empty);
+                index = next;
+            }
+
+            return tokens;
+        }
+
+        private static bool TryReadDelimited(
+            string markdown,
+            ref int index,
+            string opening,
+            string closing,
+            string richOpening,
+            string richClosing,
+            ICollection<InlineToken> tokens)
+        {
+            if (!markdown.AsSpan(index).StartsWith(opening, StringComparison.Ordinal))
+                return false;
+
+            int contentStart = index + opening.Length;
+            int end = markdown.IndexOf(closing, contentStart, StringComparison.Ordinal);
+            if (end <= contentStart)
+                return false;
+
+            AddWordTokens(tokens, markdown[contentStart..end], richOpening, richClosing, string.Empty);
+            index = end + closing.Length;
+            return true;
+        }
+
+        private static int FindNextInlineMarker(string markdown, int start)
+        {
+            for (int index = start; index < markdown.Length; index++)
+            {
+                char character = markdown[index];
+                if (character is '`' or '[' or '*' or '_' or '~')
+                    return index;
+            }
+
+            return markdown.Length;
+        }
+
+        private static void AddWordTokens(
+            ICollection<InlineToken> tokens,
+            string text,
+            string richOpening,
+            string richClosing,
+            string link)
+        {
+            MatchCollection parts = Regex.Matches(text, @"\s+|\S+");
+            for (int index = 0; index < parts.Count; index++)
+            {
+                string part = parts[index].Value;
+                string escaped = EscapeRichText(part);
+                tokens.Add(new InlineToken(
+                    $"{richOpening}{escaped}{richClosing}",
+                    part,
+                    false,
+                    link));
+            }
+        }
+
+        private readonly struct InlineToken
+        {
+            public InlineToken(string richText, string plainText, bool isCode, string link)
+            {
+                RichText = richText;
+                PlainText = plainText;
+                IsCode = isCode;
+                Link = link;
+            }
+
+            public string RichText { get; }
+            public string PlainText { get; }
+            public bool IsCode { get; }
+            public string Link { get; }
         }
 
         private static void DrawSelectableBlock(string text, GUIStyle style)
@@ -357,9 +574,8 @@ namespace LoogaSoft.Tools.Editor
             escaped = LinkPattern.Replace(
                 escaped,
                 match => $"<color=#{ColorUtility.ToHtmlStringRGB(MarkdownStyles.LinkColor)}>{match.Groups[1].Value}</color>");
-            string codeColor = ColorUtility.ToHtmlStringRGB(MarkdownStyles.InlineCodeColor);
             string emphasisColor = ColorUtility.ToHtmlStringRGB(MarkdownStyles.EmphasisColor);
-            escaped = Regex.Replace(escaped, @"`([^`]+)`", $"<color=#{codeColor}><b>$1</b></color>");
+            escaped = Regex.Replace(escaped, @"`([^`]+)`", "$1");
             escaped = Regex.Replace(escaped, @"\*\*(.+?)\*\*", $"<color=#{emphasisColor}><b>$1</b></color>");
             escaped = Regex.Replace(escaped, @"__(.+?)__", $"<color=#{emphasisColor}><b>$1</b></color>");
             escaped = Regex.Replace(escaped, @"(?<!\*)\*([^*]+)\*(?!\*)", "<i>$1</i>");
@@ -451,9 +667,10 @@ namespace LoogaSoft.Tools.Editor
             public static readonly Color LinkColor = EditorGUIUtility.isProSkin
                 ? new Color(0.40f, 0.68f, 0.96f)
                 : new Color(0.05f, 0.36f, 0.72f);
-            public static readonly Color InlineCodeColor = EditorGUIUtility.isProSkin
-                ? new Color(0.66f, 0.80f, 0.68f)
-                : new Color(0.16f, 0.38f, 0.20f);
+            public const float InlineCodeHorizontalPadding = 4f;
+            public static readonly Color InlineCodeBackground = EditorGUIUtility.isProSkin
+                ? new Color(0.17f, 0.17f, 0.18f)
+                : new Color(0.78f, 0.78f, 0.80f);
             public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
                 ? new Color(0.92f, 0.92f, 0.92f)
                 : new Color(0.15f, 0.15f, 0.15f);
