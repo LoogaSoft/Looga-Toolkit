@@ -12,7 +12,7 @@ namespace LoogaSoft.Tools.Editor
     [CustomEditor(typeof(TextAsset))]
     public sealed class MarkdownTextAssetEditor : UnityEditor.Editor
     {
-        private const float HorizontalInset = 4f;
+        private const int HorizontalInset = 4;
         private const float ImageMaximumHeight = 360f;
 
         private static readonly Regex LinkPattern = new(@"\[([^\]]+)\]\(([^)]+)\)", RegexOptions.Compiled);
