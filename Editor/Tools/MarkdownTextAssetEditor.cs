@@ -29,26 +29,40 @@ namespace LoogaSoft.Tools.Editor
         private static GUIStyle BodyStyle => MarkdownStyles.Body;
         private static GUIStyle CodeStyle => MarkdownStyles.Code;
 
+        public override void OnHeaderGUI()
+        {
+            // The asset importer already draws the file header.
+        }
+
         public override void OnInspectorGUI()
         {
             TextAsset textAsset = target as TextAsset;
             if (textAsset == null)
                 return;
 
-            string assetPath = AssetDatabase.GetAssetPath(textAsset);
-            if (!string.Equals(Path.GetExtension(assetPath), ".md", StringComparison.OrdinalIgnoreCase))
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = true;
+            try
             {
-                DrawPlainText(textAsset.text);
-                return;
+                string assetPath = AssetDatabase.GetAssetPath(textAsset);
+                if (!string.Equals(Path.GetExtension(assetPath), ".md", StringComparison.OrdinalIgnoreCase))
+                {
+                    DrawPlainText(textAsset.text);
+                    return;
+                }
+
+                DrawViewSelector();
+                EditorGUILayout.Space(4f);
+
+                if (_showSource)
+                    DrawPlainText(textAsset.text);
+                else
+                    DrawMarkdown(textAsset.text, assetPath);
             }
-
-            DrawViewSelector();
-            EditorGUILayout.Space(4f);
-
-            if (_showSource)
-                DrawPlainText(textAsset.text);
-            else
-                DrawMarkdown(textAsset.text, assetPath);
+            finally
+            {
+                GUI.enabled = wasEnabled;
+            }
         }
 
         private void DrawViewSelector()
