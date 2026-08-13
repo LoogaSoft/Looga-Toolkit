@@ -9,9 +9,110 @@ using UnityEngine;
 
 namespace LoogaSoft.Tools.Editor
 {
-    /// <summary>Renders Markdown inside Unity's native text importer inspector.</summary>
-    [CustomEditor(typeof(AssetImporter), true, isFallback = true)]
-    public sealed class MarkdownTextAssetEditor : AssetImporterEditor
+    /// <summary>Assigns the Markdown importer to project Markdown files.</summary>
+    [InitializeOnLoad]
+    internal static class MarkdownTextAssetImporterRegistration
+    {
+        private const string ProjectAssetPrefix = "Assets/";
+
+        private static readonly HashSet<string> PendingPaths = new(StringComparer.OrdinalIgnoreCase);
+
+        static MarkdownTextAssetImporterRegistration()
+        {
+            EditorApplication.delayCall += RegisterExistingMarkdown;
+        }
+
+        private static void RegisterExistingMarkdown()
+        {
+            foreach (string assetPath in AssetDatabase.GetAllAssetPaths())
+            {
+                QueueIfMarkdown(assetPath);
+            }
+
+            ApplyPendingOverrides();
+        }
+
+        internal static void QueueImportedAssets(IEnumerable<string> assetPaths)
+        {
+            foreach (string assetPath in assetPaths)
+            {
+                QueueIfMarkdown(assetPath);
+            }
+
+            if (PendingPaths.Count == 0)
+            {
+                return;
+            }
+
+            EditorApplication.delayCall -= ApplyPendingOverrides;
+            EditorApplication.delayCall += ApplyPendingOverrides;
+        }
+
+        private static void QueueIfMarkdown(string assetPath)
+        {
+            if (assetPath.StartsWith(ProjectAssetPrefix, StringComparison.Ordinal) &&
+                string.Equals(Path.GetExtension(assetPath), ".md", StringComparison.OrdinalIgnoreCase) &&
+                AssetDatabase.GetImporterOverride(assetPath) != typeof(MarkdownTextAssetImporter))
+            {
+                PendingPaths.Add(assetPath);
+            }
+        }
+
+        private static void ApplyPendingOverrides()
+        {
+            if (PendingPaths.Count == 0)
+            {
+                return;
+            }
+
+            string[] assetPaths = new string[PendingPaths.Count];
+            PendingPaths.CopyTo(assetPaths);
+            PendingPaths.Clear();
+
+            foreach (string assetPath in assetPaths)
+            {
+                if (AssetDatabase.GetImporterOverride(assetPath) != typeof(MarkdownTextAssetImporter))
+                {
+                    AssetDatabase.SetImporterOverride<MarkdownTextAssetImporter>(assetPath);
+                }
+            }
+        }
+    }
+
+    /// <summary>Assigns the Markdown importer to Markdown files added during this editor session.</summary>
+    internal sealed class MarkdownTextAssetPostprocessor : AssetPostprocessor
+    {
+        private static void OnPostprocessAllAssets(
+            string[] importedAssets,
+            string[] deletedAssets,
+            string[] movedAssets,
+            string[] movedFromAssetPaths)
+        {
+            MarkdownTextAssetImporterRegistration.QueueImportedAssets(importedAssets);
+            MarkdownTextAssetImporterRegistration.QueueImportedAssets(movedAssets);
+        }
+    }
+
+    /// <summary>Imports Markdown as a normal text asset so references remain compatible.</summary>
+    [ScriptedImporter(1, null, new[] { "md" }, AllowCaching = true)]
+    public sealed class MarkdownTextAssetImporter : ScriptedImporter
+    {
+        public override void OnImportAsset(AssetImportContext context)
+        {
+            string markdown = File.ReadAllText(context.assetPath);
+            TextAsset asset = new(markdown)
+            {
+                name = Path.GetFileNameWithoutExtension(context.assetPath)
+            };
+
+            context.AddObjectToAsset("Markdown", asset);
+            context.SetMainObject(asset);
+        }
+    }
+
+    /// <summary>Renders formatted Markdown without Unity's nested imported-object inspector.</summary>
+    [CustomEditor(typeof(MarkdownTextAssetImporter))]
+    public sealed class MarkdownTextAssetEditor : ScriptedImporterEditor
     {
         private const int HorizontalInset = 4;
         private const float ImageMaximumHeight = 360f;
@@ -29,52 +130,29 @@ namespace LoogaSoft.Tools.Editor
         private static GUIStyle BodyStyle => MarkdownStyles.Body;
         private static GUIStyle CodeStyle => MarkdownStyles.Code;
 
-        public override bool showImportedObject => !IsMarkdownImporter;
+        public override bool showImportedObject => false;
+        protected override bool needsApplyRevert => false;
+
+        public override void OnEnable()
+        {
+            base.OnEnable();
+        }
 
         public override void OnInspectorGUI()
         {
-            if (!TryGetMarkdown(out TextAsset textAsset, out string assetPath))
-            {
-                base.OnInspectorGUI();
-                return;
-            }
+            string assetPath = ((MarkdownTextAssetImporter)target).assetPath;
+            string markdown = File.Exists(assetPath) ? File.ReadAllText(assetPath) : string.Empty;
 
             bool wasEnabled = GUI.enabled;
             GUI.enabled = true;
             try
             {
-                DrawMarkdown(textAsset.text, assetPath);
+                DrawMarkdown(markdown, assetPath);
             }
             finally
             {
                 GUI.enabled = wasEnabled;
             }
-        }
-
-        private bool IsMarkdownImporter
-        {
-            get
-            {
-                if (target is not AssetImporter importer)
-                    return false;
-
-                return string.Equals(
-                    Path.GetExtension(importer.assetPath),
-                    ".md",
-                    StringComparison.OrdinalIgnoreCase);
-            }
-        }
-
-        private bool TryGetMarkdown(out TextAsset textAsset, out string assetPath)
-        {
-            textAsset = null;
-            assetPath = string.Empty;
-            if (!IsMarkdownImporter || target is not AssetImporter importer)
-                return false;
-
-            assetPath = importer.assetPath;
-            textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(assetPath);
-            return textAsset != null;
         }
 
         private void DrawMarkdown(string markdown, string assetPath)
