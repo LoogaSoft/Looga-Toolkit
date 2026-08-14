@@ -674,8 +674,8 @@ namespace LoogaSoft.Tools.Editor
                 : new Color(0.05f, 0.36f, 0.72f);
             public const float InlineCodeHorizontalPadding = 4f;
             public static readonly Color InlineCodeBackgroundTint = EditorGUIUtility.isProSkin
-                ? new Color(0.72f, 0.72f, 0.74f)
-                : new Color(0.90f, 0.90f, 0.92f);
+                ? new Color(0.60f, 0.60f, 0.62f)
+                : new Color(0.84f, 0.84f, 0.86f);
             public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
                 ? new Color(0.92f, 0.92f, 0.92f)
                 : new Color(0.15f, 0.15f, 0.15f);
