@@ -196,16 +196,232 @@ namespace LoogaSoft.Tools.Editor
             }
 
             string[] headers = SplitTableRow(lines[index]);
-            DrawTableRow(headers, true);
+            List<string[]> rows = new();
             index += 2;
             while (index < lines.Length && lines[index].Contains('|') && !string.IsNullOrWhiteSpace(lines[index]))
             {
-                DrawTableRow(SplitTableRow(lines[index]), false);
+                rows.Add(SplitTableRow(lines[index]));
                 index++;
             }
 
+            DrawTable(headers, rows);
             EditorGUILayout.Space(4f);
             return true;
+        }
+
+        private static void DrawTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows)
+        {
+            int columnCount = headers.Count;
+            if (columnCount == 0)
+                return;
+
+            float availableWidth = Math.Max(1f, EditorGUIUtility.currentViewWidth - 38f);
+            float[] columnWidths = CalculateTableColumnWidths(headers, rows, availableWidth - 2f);
+            if (columnWidths == null)
+            {
+                DrawStackedTable(headers, rows);
+                return;
+            }
+
+            float[] rowHeights = new float[rows.Count + 1];
+            rowHeights[0] = CalculateTableRowHeight(headers, MarkdownStyles.TableHeader, columnWidths);
+            float totalHeight = rowHeights[0];
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                rowHeights[rowIndex + 1] = CalculateTableRowHeight(rows[rowIndex], MarkdownStyles.TableCell, columnWidths);
+                totalHeight += rowHeights[rowIndex + 1];
+            }
+
+            Rect tableRect = GUILayoutUtility.GetRect(
+                availableWidth,
+                totalHeight,
+                GUILayout.ExpandWidth(true),
+                GUILayout.Height(totalHeight));
+            GUI.Box(tableRect, GUIContent.none, MarkdownStyles.TableBox);
+
+            float scale = Math.Max(0.01f, (tableRect.width - 2f) / Math.Max(1f, Sum(columnWidths)));
+            float y = tableRect.y + 1f;
+            for (int rowIndex = 0; rowIndex <= rows.Count; rowIndex++)
+            {
+                bool header = rowIndex == 0;
+                IReadOnlyList<string> cells = header ? headers : rows[rowIndex - 1];
+                float rowHeight = rowHeights[rowIndex];
+                Rect rowRect = new(tableRect.x + 1f, y, tableRect.width - 2f, rowHeight);
+                EditorGUI.DrawRect(
+                    rowRect,
+                    header
+                        ? MarkdownStyles.TableHeaderBackground
+                        : rowIndex % 2 == 0
+                            ? MarkdownStyles.TableAlternateRowBackground
+                            : MarkdownStyles.TableRowBackground);
+
+                DrawTableCells(rowRect, cells, header ? MarkdownStyles.TableHeader : MarkdownStyles.TableCell, columnWidths, scale);
+                y += rowHeight;
+                if (rowIndex < rows.Count)
+                {
+                    float separatorHeight = Math.Max(1f / EditorGUIUtility.pixelsPerPoint, 0.5f);
+                    EditorGUI.DrawRect(
+                        new Rect(rowRect.x, y - separatorHeight, rowRect.width, separatorHeight),
+                        MarkdownStyles.TableBorderColor);
+                }
+            }
+        }
+
+        private static float[] CalculateTableColumnWidths(
+            IReadOnlyList<string> headers,
+            IReadOnlyList<string[]> rows,
+            float availableWidth)
+        {
+            int columnCount = headers.Count;
+            float[] minimum = new float[columnCount];
+            float[] preferred = new float[columnCount];
+            for (int column = 0; column < columnCount; column++)
+            {
+                minimum[column] = MeasureMinimumTableWidth(GetCell(headers, column), MarkdownStyles.TableHeader);
+                preferred[column] = MeasurePreferredTableWidth(GetCell(headers, column), MarkdownStyles.TableHeader);
+                for (int row = 0; row < rows.Count; row++)
+                {
+                    string cell = GetCell(rows[row], column);
+                    minimum[column] = Math.Max(minimum[column], MeasureMinimumTableWidth(cell, MarkdownStyles.TableCell));
+                    preferred[column] = Math.Max(preferred[column], MeasurePreferredTableWidth(cell, MarkdownStyles.TableCell));
+                }
+            }
+
+            float minimumTotal = Sum(minimum);
+            if (minimumTotal > availableWidth)
+                return null;
+
+            float[] result = (float[])minimum.Clone();
+            float remaining = availableWidth - minimumTotal;
+            while (remaining > 0.1f)
+            {
+                float demand = 0f;
+                for (int column = 0; column < columnCount; column++)
+                    demand += Math.Max(0f, preferred[column] - result[column]);
+
+                if (demand <= 0.1f)
+                {
+                    float share = remaining / columnCount;
+                    for (int column = 0; column < columnCount; column++)
+                        result[column] += share;
+                    break;
+                }
+
+                float distributed = 0f;
+                for (int column = 0; column < columnCount; column++)
+                {
+                    float columnDemand = Math.Max(0f, preferred[column] - result[column]);
+                    float addition = Math.Min(columnDemand, remaining * columnDemand / demand);
+                    result[column] += addition;
+                    distributed += addition;
+                }
+
+                if (distributed <= 0.1f)
+                    break;
+
+                remaining -= distributed;
+            }
+
+            return result;
+        }
+
+        private static float MeasureMinimumTableWidth(string text, GUIStyle style)
+        {
+            const float cellHorizontalPadding = 10f;
+            string[] words = Regex.Split(text ?? string.Empty, @"\s+");
+            float longest = 0f;
+            for (int index = 0; index < words.Length; index++)
+                longest = Math.Max(longest, style.CalcSize(new GUIContent(words[index])).x);
+
+            return Math.Max(44f, longest + cellHorizontalPadding);
+        }
+
+        private static float MeasurePreferredTableWidth(string text, GUIStyle style)
+        {
+            const float cellHorizontalPadding = 10f;
+            return Math.Max(44f, style.CalcSize(new GUIContent(text ?? string.Empty)).x + cellHorizontalPadding);
+        }
+
+        private static float CalculateTableRowHeight(
+            IReadOnlyList<string> cells,
+            GUIStyle style,
+            IReadOnlyList<float> columnWidths)
+        {
+            const float cellHorizontalPadding = 10f;
+            const float cellVerticalPadding = 6f;
+            float height = EditorGUIUtility.singleLineHeight + cellVerticalPadding;
+            for (int column = 0; column < columnWidths.Count; column++)
+            {
+                float textWidth = Math.Max(1f, columnWidths[column] - cellHorizontalPadding);
+                float cellHeight = Mathf.Ceil(style.CalcHeight(
+                    new GUIContent(FormatInline(GetCell(cells, column), out _)),
+                    textWidth));
+                height = Math.Max(height, cellHeight + cellVerticalPadding);
+            }
+
+            return height;
+        }
+
+        private static void DrawTableCells(
+            Rect rowRect,
+            IReadOnlyList<string> cells,
+            GUIStyle style,
+            IReadOnlyList<float> columnWidths,
+            float scale)
+        {
+            const float horizontalPadding = 5f;
+            const float verticalPadding = 3f;
+            float x = rowRect.x;
+            for (int column = 0; column < columnWidths.Count; column++)
+            {
+                float width = column == columnWidths.Count - 1
+                    ? rowRect.xMax - x
+                    : columnWidths[column] * scale;
+                Rect cellRect = new(x, rowRect.y, width, rowRect.height);
+                if (column > 0)
+                {
+                    float separatorWidth = Math.Max(1f / EditorGUIUtility.pixelsPerPoint, 0.5f);
+                    EditorGUI.DrawRect(
+                        new Rect(cellRect.x, cellRect.y, separatorWidth, cellRect.height),
+                        MarkdownStyles.TableBorderColor);
+                }
+
+                cellRect.xMin += horizontalPadding;
+                cellRect.xMax -= horizontalPadding;
+                cellRect.yMin += verticalPadding;
+                cellRect.yMax -= verticalPadding;
+                GUI.Label(cellRect, FormatInline(GetCell(cells, column), out _), style);
+                x += width;
+            }
+        }
+
+        private static void DrawStackedTable(IReadOnlyList<string> headers, IReadOnlyList<string[]> rows)
+        {
+            for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
+            {
+                using (new EditorGUILayout.VerticalScope(MarkdownStyles.TableBox))
+                {
+                    GUILayout.Label(FormatInline(GetCell(rows[rowIndex], 0), out _), MarkdownStyles.TableCardTitle);
+                    for (int column = 1; column < headers.Count; column++)
+                    {
+                        GUILayout.Label(GetCell(headers, column), MarkdownStyles.TableCardHeader);
+                        GUILayout.Label(FormatInline(GetCell(rows[rowIndex], column), out _), MarkdownStyles.TableCell);
+                    }
+                }
+            }
+        }
+
+        private static string GetCell(IReadOnlyList<string> cells, int index)
+        {
+            return index >= 0 && index < cells.Count ? cells[index].Trim() : string.Empty;
+        }
+
+        private static float Sum(IReadOnlyList<float> values)
+        {
+            float sum = 0f;
+            for (int index = 0; index < values.Count; index++)
+                sum += values[index];
+            return sum;
         }
 
         private static bool TryDrawQuote(string[] lines, ref int index)
@@ -613,16 +829,6 @@ namespace LoogaSoft.Tools.Editor
             }
         }
 
-        private static void DrawTableRow(IReadOnlyList<string> cells, bool header)
-        {
-            using (new EditorGUILayout.HorizontalScope(EditorStyles.helpBox))
-            {
-                GUIStyle style = header ? MarkdownStyles.TableHeader : MarkdownStyles.TableCell;
-                for (int index = 0; index < cells.Count; index++)
-                    GUILayout.Label(FormatInline(cells[index], out _), style, GUILayout.ExpandWidth(true));
-            }
-        }
-
         private static string[] SplitTableRow(string line)
         {
             return line.Trim().Trim('|').Split(new[] { '|' }, StringSplitOptions.None);
@@ -684,6 +890,18 @@ namespace LoogaSoft.Tools.Editor
             public static readonly Color RuleColor = EditorGUIUtility.isProSkin
                 ? new Color(0.30f, 0.30f, 0.30f)
                 : new Color(0.68f, 0.68f, 0.68f);
+            public static readonly Color TableHeaderBackground = EditorGUIUtility.isProSkin
+                ? new Color(0.30f, 0.30f, 0.31f)
+                : new Color(0.78f, 0.78f, 0.79f);
+            public static readonly Color TableRowBackground = EditorGUIUtility.isProSkin
+                ? new Color(0.235f, 0.235f, 0.24f)
+                : new Color(0.91f, 0.91f, 0.92f);
+            public static readonly Color TableAlternateRowBackground = EditorGUIUtility.isProSkin
+                ? new Color(0.255f, 0.255f, 0.26f)
+                : new Color(0.87f, 0.87f, 0.88f);
+            public static readonly Color TableBorderColor = EditorGUIUtility.isProSkin
+                ? new Color(0.14f, 0.14f, 0.15f)
+                : new Color(0.60f, 0.60f, 0.62f);
 
             public static readonly GUIStyle Body = CreateLabel(EditorStyles.label, 0, FontStyle.Normal, 3, 3);
             public static readonly GUIStyle Heading1 = CreateLabel(EditorStyles.boldLabel, 8, FontStyle.Bold, 10, 5);
@@ -693,8 +911,15 @@ namespace LoogaSoft.Tools.Editor
             public static readonly GUIStyle Caption = CreateLabel(EditorStyles.centeredGreyMiniLabel, 0, FontStyle.Italic, 2, 5);
             public static readonly GUIStyle Quote = CreateLabel(EditorStyles.label, 0, FontStyle.Italic, 4, 4);
             public static readonly GUIStyle ListMarker = CreateLabel(EditorStyles.label, 0, FontStyle.Bold, 3, 3);
-            public static readonly GUIStyle TableHeader = CreateLabel(EditorStyles.boldLabel, 0, FontStyle.Bold, 2, 2);
-            public static readonly GUIStyle TableCell = CreateLabel(EditorStyles.label, 0, FontStyle.Normal, 2, 2);
+            public static readonly GUIStyle TableHeader = CreateTableLabel(EditorStyles.boldLabel, FontStyle.Bold);
+            public static readonly GUIStyle TableCell = CreateTableLabel(EditorStyles.label, FontStyle.Normal);
+            public static readonly GUIStyle TableCardTitle = CreateLabel(EditorStyles.boldLabel, 0, FontStyle.Bold, 2, 4);
+            public static readonly GUIStyle TableCardHeader = CreateTableCardHeader();
+            public static readonly GUIStyle TableBox = new(EditorStyles.helpBox)
+            {
+                margin = new RectOffset(),
+                padding = new RectOffset()
+            };
             public static readonly GUIStyle CodeBox = new(EditorStyles.helpBox)
             {
                 margin = new RectOffset(),
@@ -722,6 +947,27 @@ namespace LoogaSoft.Tools.Editor
                     fontSize = Math.Max(1, source.fontSize + fontSizeIncrease),
                     margin = new RectOffset(HorizontalInset, HorizontalInset, topMargin, bottomMargin)
                 };
+                return style;
+            }
+
+            private static GUIStyle CreateTableLabel(GUIStyle source, FontStyle fontStyle)
+            {
+                return new GUIStyle(source)
+                {
+                    richText = true,
+                    wordWrap = true,
+                    fontStyle = fontStyle,
+                    margin = new RectOffset(),
+                    padding = new RectOffset()
+                };
+            }
+
+            private static GUIStyle CreateTableCardHeader()
+            {
+                GUIStyle style = CreateTableLabel(EditorStyles.boldLabel, FontStyle.Bold);
+                style.fontSize = Math.Max(1, EditorStyles.miniLabel.fontSize);
+                style.normal.textColor = EditorStyles.miniLabel.normal.textColor;
+                style.margin = new RectOffset(HorizontalInset, HorizontalInset, 3, 0);
                 return style;
             }
         }
