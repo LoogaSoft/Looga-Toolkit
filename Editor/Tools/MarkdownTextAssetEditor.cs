@@ -334,10 +334,12 @@ namespace LoogaSoft.Tools.Editor
             float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 38f - reservedHorizontalSpace);
             float lineHeight = Math.Max(EditorGUIUtility.singleLineHeight, flowStyle.lineHeight) + 2f;
             int lineCount = MeasureInlineLines(tokens, flowStyle, width);
+            float height = lineCount * lineHeight + 2f;
             Rect rect = GUILayoutUtility.GetRect(
-                1f,
-                lineCount * lineHeight + 2f,
-                GUILayout.ExpandWidth(expandWidth));
+                width,
+                height,
+                expandWidth ? GUILayout.ExpandWidth(true) : GUILayout.Width(width),
+                GUILayout.Height(height));
 
             float availableWidth = Math.Max(1f, rect.width);
             float x = rect.x;
@@ -367,7 +369,10 @@ namespace LoogaSoft.Tools.Editor
                         tokenRect.y + 1f,
                         tokenRect.width,
                         Math.Max(1f, tokenRect.height - 2f));
-                    EditorGUI.DrawRect(backgroundRect, MarkdownStyles.InlineCodeBackground);
+                    Color previousBackgroundColor = GUI.backgroundColor;
+                    GUI.backgroundColor = MarkdownStyles.InlineCodeBackgroundTint;
+                    GUI.Box(backgroundRect, GUIContent.none, MarkdownStyles.InlineCodeBox);
+                    GUI.backgroundColor = previousBackgroundColor;
                     tokenRect.xMin += MarkdownStyles.InlineCodeHorizontalPadding;
                     tokenRect.xMax -= MarkdownStyles.InlineCodeHorizontalPadding;
                 }
@@ -668,9 +673,9 @@ namespace LoogaSoft.Tools.Editor
                 ? new Color(0.40f, 0.68f, 0.96f)
                 : new Color(0.05f, 0.36f, 0.72f);
             public const float InlineCodeHorizontalPadding = 4f;
-            public static readonly Color InlineCodeBackground = EditorGUIUtility.isProSkin
-                ? new Color(0.17f, 0.17f, 0.18f)
-                : new Color(0.78f, 0.78f, 0.80f);
+            public static readonly Color InlineCodeBackgroundTint = EditorGUIUtility.isProSkin
+                ? new Color(0.72f, 0.72f, 0.74f)
+                : new Color(0.90f, 0.90f, 0.92f);
             public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
                 ? new Color(0.92f, 0.92f, 0.92f)
                 : new Color(0.15f, 0.15f, 0.15f);
@@ -691,6 +696,11 @@ namespace LoogaSoft.Tools.Editor
             public static readonly GUIStyle ListMarker = CreateLabel(EditorStyles.label, 0, FontStyle.Bold, 3, 3);
             public static readonly GUIStyle TableHeader = CreateLabel(EditorStyles.boldLabel, 0, FontStyle.Bold, 2, 2);
             public static readonly GUIStyle TableCell = CreateLabel(EditorStyles.label, 0, FontStyle.Normal, 2, 2);
+            public static readonly GUIStyle InlineCodeBox = new(EditorStyles.helpBox)
+            {
+                margin = new RectOffset(),
+                padding = new RectOffset()
+            };
             public static readonly GUIStyle Code = new(EditorStyles.label)
             {
                 wordWrap = true,
