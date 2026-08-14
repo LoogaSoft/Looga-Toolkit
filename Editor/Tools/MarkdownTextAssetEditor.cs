@@ -78,7 +78,7 @@ namespace LoogaSoft.Tools.Editor
                     TryDrawImage(trimmed, assetPath, ref index) ||
                     TryDrawTable(lines, ref index) ||
                     TryDrawQuote(lines, ref index) ||
-                    TryDrawList(line, ref index))
+                    TryDrawList(lines, ref index))
                 {
                     continue;
                 }
@@ -265,6 +265,25 @@ namespace LoogaSoft.Tools.Editor
                         MarkdownStyles.TableBorderColor);
                 }
             }
+
+            DrawTableBorder(tableRect);
+        }
+
+        private static void DrawTableBorder(Rect tableRect)
+        {
+            float lineWidth = Math.Max(1f / EditorGUIUtility.pixelsPerPoint, 0.5f);
+            EditorGUI.DrawRect(
+                new Rect(tableRect.x, tableRect.y, tableRect.width, lineWidth),
+                MarkdownStyles.TableBorderColor);
+            EditorGUI.DrawRect(
+                new Rect(tableRect.x, tableRect.yMax - lineWidth, tableRect.width, lineWidth),
+                MarkdownStyles.TableBorderColor);
+            EditorGUI.DrawRect(
+                new Rect(tableRect.x, tableRect.y, lineWidth, tableRect.height),
+                MarkdownStyles.TableBorderColor);
+            EditorGUI.DrawRect(
+                new Rect(tableRect.xMax - lineWidth, tableRect.y, lineWidth, tableRect.height),
+                MarkdownStyles.TableBorderColor);
         }
 
         private static float[] CalculateTableColumnWidths(
@@ -446,8 +465,9 @@ namespace LoogaSoft.Tools.Editor
             return true;
         }
 
-        private static bool TryDrawList(string line, ref int index)
+        private static bool TryDrawList(string[] lines, ref int index)
         {
+            string line = lines[index];
             Match ordered = OrderedListPattern.Match(line);
             Match unordered = UnorderedListPattern.Match(line);
             if (!ordered.Success && !unordered.Success)
@@ -457,19 +477,46 @@ namespace LoogaSoft.Tools.Editor
             int spaces = match.Groups[1].Value.Replace("\t", "    ").Length;
             int depth = Math.Min(4, spaces / 2);
             string marker = ordered.Success ? $"{match.Groups[2].Value}." : "\u2022";
-            string content = ordered.Success ? match.Groups[3].Value : match.Groups[2].Value;
+            StringBuilder content = new(ordered.Success ? match.Groups[3].Value : match.Groups[2].Value);
             float markerWidth = ordered.Success ? 28f : 14f;
             float indentation = HorizontalInset + depth * 14f;
+
+            index++;
+            while (index < lines.Length && IsListContinuation(lines[index], spaces))
+            {
+                content.Append(' ');
+                content.Append(lines[index].Trim());
+                index++;
+            }
 
             using (new EditorGUILayout.HorizontalScope())
             {
                 GUILayout.Space(indentation);
                 GUILayout.Label(marker, MarkdownStyles.ListMarker, GUILayout.Width(markerWidth));
-                DrawRichLabel(content, BodyStyle, false, indentation + markerWidth);
+                DrawRichLabel(content.ToString(), BodyStyle, true, indentation + markerWidth);
             }
 
-            index++;
             return true;
+        }
+
+        private static bool IsListContinuation(string line, int markerIndent)
+        {
+            if (string.IsNullOrWhiteSpace(line) ||
+                OrderedListPattern.IsMatch(line) ||
+                UnorderedListPattern.IsMatch(line))
+            {
+                return false;
+            }
+
+            int leadingSpaces = 0;
+            int characterIndex = 0;
+            while (characterIndex < line.Length && char.IsWhiteSpace(line[characterIndex]))
+            {
+                leadingSpaces += line[characterIndex] == '\t' ? 4 : 1;
+                characterIndex++;
+            }
+
+            return leadingSpaces > markerIndent;
         }
 
         private static void DrawParagraph(string[] lines, ref int index)
