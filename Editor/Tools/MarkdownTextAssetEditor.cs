@@ -418,13 +418,15 @@ namespace LoogaSoft.Tools.Editor
         {
             for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
             {
-                using (new EditorGUILayout.VerticalScope(MarkdownStyles.TableBox))
+                using (new EditorGUILayout.VerticalScope(MarkdownStyles.TableCardBox))
                 {
                     GUILayout.Label(FormatInline(GetCell(rows[rowIndex], 0), out _), MarkdownStyles.TableCardTitle);
                     for (int column = 1; column < headers.Count; column++)
                     {
                         GUILayout.Label(GetCell(headers, column), MarkdownStyles.TableCardHeader);
-                        GUILayout.Label(FormatInline(GetCell(rows[rowIndex], column), out _), MarkdownStyles.TableCell);
+                        GUILayout.Label(
+                            FormatInline(GetCell(rows[rowIndex], column), out _),
+                            MarkdownStyles.TableCardValue);
                     }
                 }
             }
@@ -960,12 +962,18 @@ namespace LoogaSoft.Tools.Editor
             public static readonly GUIStyle ListMarker = CreateLabel(EditorStyles.label, 0, FontStyle.Bold, 3, 3);
             public static readonly GUIStyle TableHeader = CreateTableLabel(EditorStyles.boldLabel, FontStyle.Bold);
             public static readonly GUIStyle TableCell = CreateTableLabel(EditorStyles.label, FontStyle.Normal);
-            public static readonly GUIStyle TableCardTitle = CreateLabel(EditorStyles.boldLabel, 0, FontStyle.Bold, 2, 4);
+            public static readonly GUIStyle TableCardTitle = CreateTableCardTitle();
             public static readonly GUIStyle TableCardHeader = CreateTableCardHeader();
+            public static readonly GUIStyle TableCardValue = CreateTableCardValue();
             public static readonly GUIStyle TableBox = new(EditorStyles.helpBox)
             {
                 margin = new RectOffset(),
                 padding = new RectOffset()
+            };
+            public static readonly GUIStyle TableCardBox = new(EditorStyles.helpBox)
+            {
+                margin = new RectOffset(0, 0, 0, 5),
+                padding = new RectOffset(8, 8, 6, 7)
             };
             public static readonly GUIStyle CodeBox = new(EditorStyles.helpBox)
             {
@@ -1014,7 +1022,21 @@ namespace LoogaSoft.Tools.Editor
                 GUIStyle style = CreateTableLabel(EditorStyles.boldLabel, FontStyle.Bold);
                 style.fontSize = Math.Max(1, EditorStyles.miniLabel.fontSize);
                 style.normal.textColor = EditorStyles.miniLabel.normal.textColor;
-                style.margin = new RectOffset(HorizontalInset, HorizontalInset, 3, 0);
+                style.margin = new RectOffset(0, 0, 4, 0);
+                return style;
+            }
+
+            private static GUIStyle CreateTableCardTitle()
+            {
+                GUIStyle style = CreateTableLabel(EditorStyles.boldLabel, FontStyle.Bold);
+                style.margin = new RectOffset(0, 0, 0, 4);
+                return style;
+            }
+
+            private static GUIStyle CreateTableCardValue()
+            {
+                GUIStyle style = CreateTableLabel(EditorStyles.label, FontStyle.Normal);
+                style.margin = new RectOffset(0, 0, 0, 2);
                 return style;
             }
         }
