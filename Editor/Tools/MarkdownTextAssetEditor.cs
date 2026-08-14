@@ -369,17 +369,7 @@ namespace LoogaSoft.Tools.Editor
                         tokenRect.y + 1f,
                         tokenRect.width,
                         Math.Max(1f, tokenRect.height - 2f));
-                    Color previousBackgroundColor = GUI.backgroundColor;
-                    GUI.backgroundColor = MarkdownStyles.InlineCodeOutline;
-                    GUI.Box(backgroundRect, GUIContent.none, MarkdownStyles.InlineCodeBox);
-                    GUI.backgroundColor = previousBackgroundColor;
-                    float borderWidth = Math.Max(1f / EditorGUIUtility.pixelsPerPoint, 0.5f);
-                    Rect fillRect = new(
-                        backgroundRect.x + borderWidth,
-                        backgroundRect.y + borderWidth,
-                        Math.Max(0f, backgroundRect.width - borderWidth * 2f),
-                        Math.Max(0f, backgroundRect.height - borderWidth * 2f));
-                    EditorGUI.DrawRect(fillRect, MarkdownStyles.InlineCodeBackground);
+                    GUI.Box(backgroundRect, GUIContent.none, MarkdownStyles.CodeBox);
                     tokenRect.xMin += MarkdownStyles.InlineCodeHorizontalPadding;
                     tokenRect.xMax -= MarkdownStyles.InlineCodeHorizontalPadding;
                 }
@@ -542,14 +532,19 @@ namespace LoogaSoft.Tools.Editor
         private static void DrawSelectableBlock(string text, GUIStyle style)
         {
             GUIContent content = new(text ?? string.Empty);
+            const float horizontalPadding = 7f;
+            const float verticalPadding = 4f;
             float width = Math.Max(1f, EditorGUIUtility.currentViewWidth - 44f);
-            float height = Math.Max(32f, style.CalcHeight(content, width) + 8f);
+            float innerWidth = Math.Max(1f, width - horizontalPadding * 2f);
+            float measuredHeight = Mathf.Ceil(style.CalcHeight(content, innerWidth));
+            float dpiAllowance = Math.Max(1f, 1f / EditorGUIUtility.pixelsPerPoint);
+            float height = Math.Max(32f, measuredHeight + verticalPadding * 2f + dpiAllowance);
             Rect rect = EditorGUILayout.GetControlRect(false, height);
-            GUI.Box(rect, GUIContent.none, EditorStyles.helpBox);
-            rect.xMin += 7f;
-            rect.xMax -= 7f;
-            rect.yMin += 4f;
-            rect.yMax -= 4f;
+            GUI.Box(rect, GUIContent.none, MarkdownStyles.CodeBox);
+            rect.xMin += horizontalPadding;
+            rect.xMax -= horizontalPadding;
+            rect.yMin += verticalPadding;
+            rect.yMax -= verticalPadding;
             EditorGUI.SelectableLabel(rect, content.text, style);
         }
 
@@ -680,12 +675,6 @@ namespace LoogaSoft.Tools.Editor
                 ? new Color(0.40f, 0.68f, 0.96f)
                 : new Color(0.05f, 0.36f, 0.72f);
             public const float InlineCodeHorizontalPadding = 4f;
-            public static readonly Color InlineCodeBackground = EditorGUIUtility.isProSkin
-                ? new Color(0.18f, 0.18f, 0.19f)
-                : new Color(0.73f, 0.73f, 0.75f);
-            public static readonly Color InlineCodeOutline = EditorGUIUtility.isProSkin
-                ? new Color(0.30f, 0.30f, 0.32f)
-                : new Color(0.80f, 0.80f, 0.82f);
             public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
                 ? new Color(0.92f, 0.92f, 0.92f)
                 : new Color(0.15f, 0.15f, 0.15f);
@@ -706,7 +695,7 @@ namespace LoogaSoft.Tools.Editor
             public static readonly GUIStyle ListMarker = CreateLabel(EditorStyles.label, 0, FontStyle.Bold, 3, 3);
             public static readonly GUIStyle TableHeader = CreateLabel(EditorStyles.boldLabel, 0, FontStyle.Bold, 2, 2);
             public static readonly GUIStyle TableCell = CreateLabel(EditorStyles.label, 0, FontStyle.Normal, 2, 2);
-            public static readonly GUIStyle InlineCodeBox = new(EditorStyles.helpBox)
+            public static readonly GUIStyle CodeBox = new(EditorStyles.helpBox)
             {
                 margin = new RectOffset(),
                 padding = new RectOffset()
