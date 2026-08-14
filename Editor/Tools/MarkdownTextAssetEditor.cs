@@ -370,9 +370,16 @@ namespace LoogaSoft.Tools.Editor
                         tokenRect.width,
                         Math.Max(1f, tokenRect.height - 2f));
                     Color previousBackgroundColor = GUI.backgroundColor;
-                    GUI.backgroundColor = MarkdownStyles.InlineCodeBackgroundTint;
+                    GUI.backgroundColor = MarkdownStyles.InlineCodeOutline;
                     GUI.Box(backgroundRect, GUIContent.none, MarkdownStyles.InlineCodeBox);
                     GUI.backgroundColor = previousBackgroundColor;
+                    float borderWidth = Math.Max(1f / EditorGUIUtility.pixelsPerPoint, 0.5f);
+                    Rect fillRect = new(
+                        backgroundRect.x + borderWidth,
+                        backgroundRect.y + borderWidth,
+                        Math.Max(0f, backgroundRect.width - borderWidth * 2f),
+                        Math.Max(0f, backgroundRect.height - borderWidth * 2f));
+                    EditorGUI.DrawRect(fillRect, MarkdownStyles.InlineCodeBackground);
                     tokenRect.xMin += MarkdownStyles.InlineCodeHorizontalPadding;
                     tokenRect.xMax -= MarkdownStyles.InlineCodeHorizontalPadding;
                 }
@@ -673,9 +680,12 @@ namespace LoogaSoft.Tools.Editor
                 ? new Color(0.40f, 0.68f, 0.96f)
                 : new Color(0.05f, 0.36f, 0.72f);
             public const float InlineCodeHorizontalPadding = 4f;
-            public static readonly Color InlineCodeBackgroundTint = EditorGUIUtility.isProSkin
-                ? new Color(0.60f, 0.60f, 0.62f)
-                : new Color(0.84f, 0.84f, 0.86f);
+            public static readonly Color InlineCodeBackground = EditorGUIUtility.isProSkin
+                ? new Color(0.18f, 0.18f, 0.19f)
+                : new Color(0.73f, 0.73f, 0.75f);
+            public static readonly Color InlineCodeOutline = EditorGUIUtility.isProSkin
+                ? new Color(0.30f, 0.30f, 0.32f)
+                : new Color(0.80f, 0.80f, 0.82f);
             public static readonly Color EmphasisColor = EditorGUIUtility.isProSkin
                 ? new Color(0.92f, 0.92f, 0.92f)
                 : new Color(0.15f, 0.15f, 0.15f);
