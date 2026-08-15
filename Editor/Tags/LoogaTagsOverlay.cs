@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LoogaSoft.Tags.Runtime;
 using UnityEditor;
 using UnityEngine;
@@ -7,15 +8,19 @@ namespace LoogaSoft.Tags.Editor
     [InitializeOnLoad]
     internal static class LoogaTagsOverlay
     {
-        private const float AddButtonHeight = 18f;
-        private const float AddButtonIconSize = 10f;
-        private const float AddButtonIconSpacing = 3f;
-        private const string TagIconPath =
-            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/price-tag-3-fill.png";
+        private const float ControlRowHeight = 20f;
+        private const string TagGroupPropertyName = "_tagGroup";
+        private const string SelectedTagsPropertyName = "_selectedTagGuids";
 
-        private static Texture2D _tagIcon;
-        private static UnityEditor.Editor _cachedEditor;
-        
+        private static readonly HashSet<LoogaTags> PendingRemovals = new();
+
+        private static EmptyTagState _emptyTagState;
+        private static SerializedObject _emptyTagSerializedObject;
+        private static bool _materializationScheduled;
+        private static Object[] _materializationTargets;
+        private static string[] _materializationTagGuids;
+        private static bool _removalScheduled;
+
         static LoogaTagsOverlay()
         {
             UnityEditor.Editor.finishedDefaultHeaderGUI -= OnPostHeaderGUI;
@@ -24,154 +29,247 @@ namespace LoogaSoft.Tags.Editor
 
         private static void OnPostHeaderGUI(UnityEditor.Editor editor)
         {
-            if (editor.target is GameObject)
-            {
-                LoogaTags tagComponent = null;
-                
-                if (editor.target is GameObject go)
-                    go.TryGetComponent(out tagComponent);
-                if (tagComponent == null)
-                    DrawAddButton(editor.targets);
-                else
-                    DrawEmbeddedEditor(tagComponent, editor.targets);
-            }
+            if (editor.target is not GameObject)
+                return;
+
+            Object[] targets = editor.targets;
+            LoogaTags tagComponent = FindFirstTagComponent(targets);
+            DrawControlRow(targets);
+
+            if (tagComponent == null)
+                DrawEmptyTagPicker(targets);
+            else
+                DrawTagPicker(tagComponent, targets);
+
+            EditorGUILayout.Space(EditorGUIUtility.standardVerticalSpacing);
         }
-        private static void DrawAddButton(Object[] targets)
+
+        private static void DrawControlRow(Object[] targets)
         {
-            if (_tagIcon == null)
-                _tagIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(TagIconPath);
-
-            GUILayout.Space(-EditorGUIUtility.standardVerticalSpacing * 2f);
-
-            GUIStyle buttonStyle = new GUIStyle(GUI.skin.button)
-            {
-                imagePosition = ImagePosition.ImageLeft,
-                alignment = TextAnchor.MiddleCenter
-            };
-            GUIContent content = new("Add Looga Tags", _tagIcon);
-            Rect availableRect = GUILayoutUtility.GetRect(
+            Rect rowRect = GUILayoutUtility.GetRect(
                 GUIContent.none,
                 GUIStyle.none,
-                GUILayout.Height(AddButtonHeight),
+                GUILayout.Height(ControlRowHeight),
                 GUILayout.ExpandWidth(true));
-
-            Vector2 cachedIconSize = EditorGUIUtility.GetIconSize();
-            EditorGUIUtility.SetIconSize(new Vector2(AddButtonIconSize, AddButtonIconSize));
-
-            float preferredWidth = buttonStyle.CalcSize(new GUIContent(content.text)).x
-                                   + AddButtonIconSize
-                                   + AddButtonIconSpacing;
-            Rect buttonRect = availableRect;
-            buttonRect.width = Mathf.Min(Mathf.Ceil(preferredWidth), availableRect.width);
-            buttonRect.x += (availableRect.width - buttonRect.width) * 0.5f;
-            buttonRect.y += EditorGUIUtility.standardVerticalSpacing * 2f;
-
-            if (GUI.Button(buttonRect, content, buttonStyle))
-            {
-                foreach (Object obj in targets)
-                {
-                    var go = obj as GameObject;
-                    if (go == null) 
-                        continue;
-                    
-                    if (!go.GetComponent<LoogaTags>())
-                        Undo.AddComponent<LoogaTags>(go);
-                }
-            }
-            
-            EditorGUIUtility.SetIconSize(cachedIconSize);
-        }
-
-        private static void DrawEmbeddedEditor(LoogaTags tagComp, Object[] targets)
-        {
-            UnityEditor.Editor.CreateCachedEditor(tagComp, null, ref _cachedEditor);
-
-            Rect rowRect = GUILayoutUtility.GetRect(GUIContent.none, GUI.skin.button, GUILayout.Height(24f));
-
-            rowRect.y += 2f;
-            rowRect.height -= 4f;
-
-            float spacing = 4f;
-            float halfWidth = (rowRect.width - spacing) / 2f;
-            
-            Rect clearRect = new Rect(rowRect.x, rowRect.y, halfWidth, rowRect.height);
-            Rect removeRect = new Rect(rowRect.x + halfWidth + spacing, rowRect.y, halfWidth, rowRect.height);
-            
-            EditorGUILayout.BeginHorizontal();
 
             using (new EditorGUI.DisabledScope(!HasAnyTags(targets)))
             {
-                if (GUI.Button(clearRect, "Clear Tags"))
-                {
-                    foreach (Object obj in targets)
-                    {
-                        if (obj is not GameObject go ||
-                            !go.TryGetComponent(out LoogaTags loogaTags) ||
-                            loogaTags.TagGroup.SelectedTagGuids is not { Count: > 0 })
-                        {
-                            continue;
-                        }
-
-                        Undo.RecordObject(loogaTags, "Clear Looga Tags");
-                        loogaTags.ClearTags();
-                        EditorUtility.SetDirty(loogaTags);
-                    }
-                }
+                if (!GUI.Button(rowRect, "Clear Tags"))
+                    return;
             }
 
-            if (GUI.Button(removeRect, "Remove Component"))
+            foreach (Object target in targets)
             {
-                foreach (Object obj in targets)
-                {
-                    var go = obj as GameObject;
-                    if (go == null) 
-                        continue;
-                    LoogaTags loogaTags = go.GetComponent<LoogaTags>();
-                    if (loogaTags != null)
-                        Undo.DestroyObjectImmediate(loogaTags);
-                }
-                return;
-            }
-
-            EditorGUILayout.EndHorizontal();
-            
-            EditorGUILayout.Space(2f);
-            
-            _cachedEditor.serializedObject.Update();
-            
-            SerializedProperty iterator = _cachedEditor.serializedObject.GetIterator();
-            bool enterChildren = true;
-            while (iterator.NextVisible(enterChildren))
-            {
-                enterChildren = false;
-                if (iterator.name == "m_Script")
+                if (target is not GameObject gameObject ||
+                    !gameObject.TryGetComponent(out LoogaTags tags))
                 {
                     continue;
                 }
 
-                if (iterator.name == "_tagGroup")
+                Undo.RecordObject(tags, "Clear Looga Tags");
+                tags.ClearTags();
+                EditorUtility.SetDirty(tags);
+                ScheduleRemoval(tags);
+            }
+        }
+
+        private static void DrawEmptyTagPicker(Object[] targets)
+        {
+            EnsureEmptyTagState();
+            _emptyTagSerializedObject.Update();
+
+            SerializedProperty tagGroup = _emptyTagSerializedObject.FindProperty(TagGroupPropertyName);
+            EditorGUILayout.PropertyField(tagGroup, GUIContent.none, true);
+            _emptyTagSerializedObject.ApplyModifiedProperties();
+            _emptyTagSerializedObject.Update();
+
+            SerializedProperty selectedTags = tagGroup.FindPropertyRelative(SelectedTagsPropertyName);
+            if (selectedTags.arraySize > 0)
+                ScheduleMaterialization(targets, ReadTagGuids(selectedTags));
+        }
+
+        private static void DrawTagPicker(LoogaTags tagComponent, Object[] targets)
+        {
+            SerializedObject serializedTags = new(tagComponent);
+            serializedTags.Update();
+
+            SerializedProperty tagGroup = serializedTags.FindProperty(TagGroupPropertyName);
+            SerializedProperty selectedTags = tagGroup.FindPropertyRelative(SelectedTagsPropertyName);
+            int selectedTagCountBefore = selectedTags.arraySize;
+
+            EditorGUILayout.PropertyField(tagGroup, GUIContent.none, true);
+            serializedTags.ApplyModifiedProperties();
+            serializedTags.Update();
+
+            selectedTags = serializedTags
+                .FindProperty(TagGroupPropertyName)
+                .FindPropertyRelative(SelectedTagsPropertyName);
+
+            if (selectedTagCountBefore > 0 && selectedTags.arraySize == 0)
+            {
+                foreach (Object target in targets)
                 {
-                    EditorGUILayout.PropertyField(iterator, GUIContent.none, true);
-                    break;
+                    if (target is GameObject gameObject &&
+                        gameObject.TryGetComponent(out LoogaTags tags) &&
+                        tags.TagGroup.SelectedTagGuids is not { Count: > 0 })
+                    {
+                        ScheduleRemoval(tags);
+                    }
                 }
             }
-            
-            _cachedEditor.serializedObject.ApplyModifiedProperties();
+        }
+
+        private static void EnsureEmptyTagState()
+        {
+            if (_emptyTagState != null && _emptyTagSerializedObject != null)
+                return;
+
+            _emptyTagState = ScriptableObject.CreateInstance<EmptyTagState>();
+            _emptyTagState.hideFlags = HideFlags.HideAndDontSave;
+            _emptyTagSerializedObject = new SerializedObject(_emptyTagState);
+        }
+
+        private static void ScheduleMaterialization(Object[] targets, string[] tagGuids)
+        {
+            if (_materializationScheduled || tagGuids.Length == 0)
+                return;
+
+            _materializationScheduled = true;
+            _materializationTargets = (Object[])targets.Clone();
+            _materializationTagGuids = tagGuids;
+            EditorApplication.delayCall += MaterializeTagComponents;
+        }
+
+        private static void MaterializeTagComponents()
+        {
+            EditorApplication.delayCall -= MaterializeTagComponents;
+            _materializationScheduled = false;
+
+            Object[] targets = _materializationTargets;
+            string[] tagGuids = _materializationTagGuids;
+            _materializationTargets = null;
+            _materializationTagGuids = null;
+
+            if (targets == null || tagGuids == null || tagGuids.Length == 0)
+                return;
+
+            foreach (Object target in targets)
+            {
+                if (target is not GameObject gameObject)
+                    continue;
+
+                LoogaTags tags = gameObject.GetComponent<LoogaTags>();
+                if (tags == null)
+                    tags = Undo.AddComponent<LoogaTags>(gameObject);
+
+                SerializedObject serializedTags = new(tags);
+                serializedTags.Update();
+                SerializedProperty selectedTags = serializedTags
+                    .FindProperty(TagGroupPropertyName)
+                    .FindPropertyRelative(SelectedTagsPropertyName);
+
+                selectedTags.arraySize = tagGuids.Length;
+                for (int index = 0; index < tagGuids.Length; index++)
+                    selectedTags.GetArrayElementAtIndex(index).stringValue = tagGuids[index];
+
+                serializedTags.ApplyModifiedProperties();
+                EditorUtility.SetDirty(tags);
+            }
+
+            ClearEmptyTagState();
+            RepaintEditorViews();
+        }
+
+        private static void ClearEmptyTagState()
+        {
+            if (_emptyTagSerializedObject == null)
+                return;
+
+            _emptyTagSerializedObject.Update();
+            SerializedProperty selectedTags = _emptyTagSerializedObject
+                .FindProperty(TagGroupPropertyName)
+                .FindPropertyRelative(SelectedTagsPropertyName);
+            selectedTags.ClearArray();
+            _emptyTagSerializedObject.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void ScheduleRemoval(LoogaTags tags)
+        {
+            if (tags == null)
+                return;
+
+            PendingRemovals.Add(tags);
+            if (_removalScheduled)
+                return;
+
+            _removalScheduled = true;
+            EditorApplication.delayCall += RemoveEmptyTagComponents;
+        }
+
+        private static void RemoveEmptyTagComponents()
+        {
+            EditorApplication.delayCall -= RemoveEmptyTagComponents;
+            _removalScheduled = false;
+
+            foreach (LoogaTags tags in PendingRemovals)
+            {
+                if (tags == null || tags.TagGroup.SelectedTagGuids is { Count: > 0 })
+                {
+                    continue;
+                }
+
+                Undo.DestroyObjectImmediate(tags);
+            }
+
+            PendingRemovals.Clear();
+            RepaintEditorViews();
+        }
+
+        private static LoogaTags FindFirstTagComponent(Object[] targets)
+        {
+            foreach (Object target in targets)
+            {
+                if (target is GameObject gameObject && gameObject.TryGetComponent(out LoogaTags tags))
+                    return tags;
+            }
+
+            return null;
         }
 
         private static bool HasAnyTags(Object[] targets)
         {
             foreach (Object target in targets)
             {
-                if (target is GameObject go &&
-                    go.TryGetComponent(out LoogaTags tagsObject) &&
-                    tagsObject.TagGroup.SelectedTagGuids is { Count: > 0 })
+                if (target is GameObject gameObject &&
+                    gameObject.TryGetComponent(out LoogaTags tags) &&
+                    tags.TagGroup.SelectedTagGuids is { Count: > 0 })
                 {
                     return true;
                 }
             }
 
             return false;
+        }
+
+        private static string[] ReadTagGuids(SerializedProperty selectedTags)
+        {
+            string[] tagGuids = new string[selectedTags.arraySize];
+            for (int index = 0; index < selectedTags.arraySize; index++)
+                tagGuids[index] = selectedTags.GetArrayElementAtIndex(index).stringValue;
+
+            return tagGuids;
+        }
+
+        private static void RepaintEditorViews()
+        {
+            foreach (EditorWindow window in Resources.FindObjectsOfTypeAll<EditorWindow>())
+                window.Repaint();
+        }
+
+        private sealed class EmptyTagState : ScriptableObject
+        {
+            [SerializeField]
+            private LoogaTagGroup _tagGroup;
         }
     }
 }
