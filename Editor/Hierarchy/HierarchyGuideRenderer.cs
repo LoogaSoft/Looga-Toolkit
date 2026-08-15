@@ -86,19 +86,16 @@ namespace LoogaSoft.Hierarchy.Editor
             Transform item = gameObject.transform;
             float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
             float thickness = settings.Thickness / pixelsPerPoint;
-            float currentGuideX = SnapToPixel(
-                rowRect.x - IndentWidth - ParentElbowLength,
-                pixelsPerPoint);
+            float currentGuideX = ResolveGuideX(rowRect.x);
             float centerY = SnapToPixel(rowRect.center.y, pixelsPerPoint);
             Color color = settings.ResolveColor();
 
             if (item.parent != null)
             {
-                DrawAncestorContinuations(item, rowRect, currentGuideX, thickness, color, pixelsPerPoint);
+                DrawAncestorContinuations(item, rowRect, thickness, color, pixelsPerPoint);
                 DrawParentConnector(
                     item,
                     rowRect,
-                    currentGuideX,
                     centerY,
                     thickness,
                     color,
@@ -107,11 +104,10 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (VisibleParentIds.Contains(gameObject.GetInstanceID()))
             {
-                float parentElbowX = AlignParentElbow(currentGuideX, pixelsPerPoint);
-                DrawVertical(parentElbowX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                DrawVertical(currentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
                 DrawHorizontal(
-                    parentElbowX,
-                    parentElbowX + ParentElbowLength,
+                    currentGuideX,
+                    currentGuideX + ParentElbowLength,
                     centerY,
                     thickness,
                     color,
@@ -284,19 +280,16 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            float parentGuideX = rowRect.x -
-                                 (IndentWidth * (itemDepth - target.Depth)) -
-                                 (IndentWidth * 2f) -
-                                 ParentElbowLength;
+            int levelsUp = itemDepth - target.Depth + 1;
+            float parentGuideX = ResolveGuideX(rowRect.x, levelsUp);
             float centerY = rowRect.center.y;
 
             if (item == target.Parent)
             {
-                float parentElbowX = AlignParentElbow(parentGuideX, pixelsPerPoint);
-                DrawVertical(parentElbowX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
+                DrawVertical(parentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
                 DrawHorizontal(
-                    parentElbowX,
-                    parentElbowX + ParentElbowLength,
+                    parentGuideX,
+                    parentGuideX + ParentElbowLength,
                     centerY,
                     thickness,
                     color,
@@ -349,7 +342,6 @@ namespace LoogaSoft.Hierarchy.Editor
         private static void DrawAncestorContinuations(
             Transform item,
             Rect rowRect,
-            float currentGuideX,
             float thickness,
             Color color,
             float pixelsPerPoint)
@@ -361,7 +353,7 @@ namespace LoogaSoft.Hierarchy.Editor
             {
                 if (HasFollowingSibling(branch))
                 {
-                    float guideX = currentGuideX - (IndentWidth * levelsUp);
+                    float guideX = ResolveGuideX(rowRect.x, levelsUp);
                     DrawVertical(guideX, rowRect.yMin, rowRect.yMax, thickness, color, pixelsPerPoint);
                 }
 
@@ -373,13 +365,12 @@ namespace LoogaSoft.Hierarchy.Editor
         private static void DrawParentConnector(
             Transform item,
             Rect rowRect,
-            float currentGuideX,
             float centerY,
             float thickness,
             Color color,
             float pixelsPerPoint)
         {
-            float parentGuideX = currentGuideX - IndentWidth;
+            float parentGuideX = ResolveGuideX(rowRect.x, 1);
             float top = rowRect.yMin;
 
             float bottom = HasFollowingSibling(item) ? rowRect.yMax : centerY;
@@ -403,9 +394,9 @@ namespace LoogaSoft.Hierarchy.Editor
             return rowRect.x - reservedFoldoutSpace;
         }
 
-        private static float AlignParentElbow(float guideX, float pixelsPerPoint)
+        private static float ResolveGuideX(float rowX, int levelsUp = 0)
         {
-            return guideX - (1f / pixelsPerPoint);
+            return rowX - IndentWidth - ParentElbowLength - IndentWidth * levelsUp;
         }
 
         private static bool HasFollowingSibling(Transform item)
