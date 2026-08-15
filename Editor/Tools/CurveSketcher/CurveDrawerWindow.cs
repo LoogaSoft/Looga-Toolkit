@@ -248,3 +248,291 @@ public class CurveDrawerWindow : EditorWindow
         }
     }
 }
+
+[CustomPropertyDrawer(typeof(AnimationCurve))]
+internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
+{
+    private const float ButtonWidth = 22f;
+    private const float ButtonGap = 2f;
+
+    public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+    {
+        if (property.propertyType != SerializedPropertyType.AnimationCurve)
+        {
+            EditorGUI.PropertyField(position, property, label, true);
+            return;
+        }
+
+        EditorGUI.BeginProperty(position, label, property);
+
+        Rect buttonRect = new(
+            position.xMax - ButtonWidth,
+            position.y,
+            ButtonWidth,
+            EditorGUIUtility.singleLineHeight);
+        Rect fieldRect = new(
+            position.x,
+            position.y,
+            Mathf.Max(0f, buttonRect.xMin - ButtonGap - position.x),
+            position.height);
+
+        EditorGUI.BeginChangeCheck();
+        AnimationCurve curve = EditorGUI.CurveField(fieldRect, label, property.animationCurveValue);
+        if (EditorGUI.EndChangeCheck())
+            property.animationCurveValue = curve;
+
+        GUIContent sketchContent = EditorGUIUtility.IconContent("d_editicon.sml");
+        sketchContent.tooltip = "Sketch this curve";
+        if (GUI.Button(buttonRect, sketchContent, EditorStyles.miniButton))
+        {
+            UnityEngine.Object[] targets = property.serializedObject.targetObjects;
+            PopupWindow.Show(
+                buttonRect,
+                new CompactCurveSketchPopup(targets, property.propertyPath, property.animationCurveValue));
+        }
+
+        EditorGUI.EndProperty();
+    }
+}
+
+internal sealed class CompactCurveSketchPopup : PopupWindowContent
+{
+    private const float PopupWidth = 340f;
+    private const float PopupHeight = 260f;
+    private const float CanvasHeight = 155f;
+    private const float GridStep = 24f;
+
+    private readonly UnityEngine.Object[] _targets;
+    private readonly string _propertyPath;
+    private readonly List<Vector2> _points = new();
+    private AnimationCurve _curve;
+    private float _smoothing = 2f;
+    private Rect _drawArea;
+    private bool _isDrawing;
+
+    public CompactCurveSketchPopup(
+        UnityEngine.Object[] targets,
+        string propertyPath,
+        AnimationCurve initialCurve)
+    {
+        _targets = targets;
+        _propertyPath = propertyPath;
+        _curve = CopyCurve(initialCurve);
+    }
+
+    public override Vector2 GetWindowSize() => new(PopupWidth, PopupHeight);
+
+    public override void OnGUI(Rect rect)
+    {
+        EditorGUILayout.LabelField("Curve Sketcher", EditorStyles.boldLabel);
+        EditorGUI.BeginChangeCheck();
+        _smoothing = EditorGUILayout.Slider("Smoothing", _smoothing, 0.1f, 20f);
+        if (EditorGUI.EndChangeCheck() && _points.Count > 1)
+            RebuildCurve();
+
+        _drawArea = EditorGUILayout.GetControlRect(false, CanvasHeight);
+        DrawCanvas(_drawArea);
+        HandleDrawingInput();
+
+        EditorGUILayout.Space(4f);
+        using (new EditorGUILayout.HorizontalScope())
+        {
+            if (GUILayout.Button("Clear"))
+            {
+                _points.Clear();
+                _curve = new AnimationCurve();
+            }
+
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Cancel"))
+                editorWindow.Close();
+
+            using (new EditorGUI.DisabledScope(_targets == null || _targets.Length == 0))
+            {
+                if (GUILayout.Button("Apply"))
+                {
+                    ApplyCurve();
+                    editorWindow.Close();
+                }
+            }
+        }
+
+        if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
+        {
+            Event.current.Use();
+            editorWindow.Close();
+        }
+    }
+
+    private void DrawCanvas(Rect rect)
+    {
+        EditorGUI.DrawRect(rect, new Color(0.12f, 0.12f, 0.12f));
+
+        Handles.BeginGUI();
+        Handles.color = new Color(1f, 1f, 1f, 0.04f);
+        for (float x = rect.x; x <= rect.xMax; x += GridStep)
+            Handles.DrawLine(new Vector2(x, rect.y), new Vector2(x, rect.yMax));
+        for (float y = rect.y; y <= rect.yMax; y += GridStep)
+            Handles.DrawLine(new Vector2(rect.x, y), new Vector2(rect.xMax, y));
+
+        if (_curve != null && _curve.length > 0)
+        {
+            Handles.color = new Color(0.45f, 0.85f, 0.55f, 1f);
+            Vector3 previous = CurvePoint(rect, 0f, _curve.Evaluate(0f));
+            const int segmentCount = 80;
+            for (int i = 1; i <= segmentCount; i++)
+            {
+                float time = i / (float)segmentCount;
+                Vector3 current = CurvePoint(rect, time, _curve.Evaluate(time));
+                Handles.DrawAAPolyLine(2f, previous, current);
+                previous = current;
+            }
+        }
+
+        Handles.EndGUI();
+        GUI.Label(rect, "Draw from left to right", EditorStyles.centeredGreyMiniLabel);
+    }
+
+    private void HandleDrawingInput()
+    {
+        Event current = Event.current;
+        bool isInside = _drawArea.Contains(current.mousePosition);
+
+        if (current.type == EventType.MouseDown && current.button == 0 && isInside)
+        {
+            _points.Clear();
+            _points.Add(Normalize(current.mousePosition));
+            _isDrawing = true;
+            current.Use();
+            return;
+        }
+
+        if (current.type == EventType.MouseDrag && current.button == 0 && _isDrawing)
+        {
+            Vector2 point = Normalize(current.mousePosition);
+            if (_points.Count == 0 || Vector2.Distance(_points[^1], point) > 0.004f)
+            {
+                _points.Add(point);
+                RebuildCurve();
+            }
+
+            current.Use();
+            editorWindow.Repaint();
+            return;
+        }
+
+        if (current.type == EventType.MouseUp && current.button == 0 && _isDrawing)
+        {
+            _isDrawing = false;
+            if (_points.Count > 1)
+                RebuildCurve();
+            current.Use();
+        }
+    }
+
+    private Vector2 Normalize(Vector2 mousePosition)
+    {
+        float x = Mathf.InverseLerp(_drawArea.xMin, _drawArea.xMax, mousePosition.x);
+        float y = 1f - Mathf.InverseLerp(_drawArea.yMin, _drawArea.yMax, mousePosition.y);
+        return new Vector2(Mathf.Clamp01(x), Mathf.Clamp01(y));
+    }
+
+    private void RebuildCurve()
+    {
+        if (_points.Count < 2)
+            return;
+
+        List<Vector2> simplified = new();
+        Simplify(_points, 0, _points.Count - 1, _smoothing / 500f, simplified);
+        simplified.Add(_points[^1]);
+
+        Keyframe[] keys = new Keyframe[simplified.Count];
+        for (int i = 0; i < simplified.Count; i++)
+            keys[i] = new Keyframe(simplified[i].x, simplified[i].y);
+
+        _curve = new AnimationCurve(keys);
+        for (int i = 0; i < _curve.length; i++)
+        {
+            AnimationUtility.SetKeyLeftTangentMode(_curve, i, AnimationUtility.TangentMode.Auto);
+            AnimationUtility.SetKeyRightTangentMode(_curve, i, AnimationUtility.TangentMode.Auto);
+        }
+    }
+
+    private void ApplyCurve()
+    {
+        Undo.RecordObjects(_targets, "Sketch Curve");
+        foreach (UnityEngine.Object target in _targets)
+        {
+            if (target == null)
+                continue;
+
+            SerializedObject serializedTarget = new(target);
+            SerializedProperty property = serializedTarget.FindProperty(_propertyPath);
+            if (property == null || property.propertyType != SerializedPropertyType.AnimationCurve)
+                continue;
+
+            property.animationCurveValue = CopyCurve(_curve);
+            serializedTarget.ApplyModifiedProperties();
+            EditorUtility.SetDirty(target);
+        }
+    }
+
+    private static AnimationCurve CopyCurve(AnimationCurve source)
+    {
+        if (source == null)
+            return new AnimationCurve();
+
+        return new AnimationCurve(source.keys)
+        {
+            preWrapMode = source.preWrapMode,
+            postWrapMode = source.postWrapMode
+        };
+    }
+
+    private static Vector3 CurvePoint(Rect rect, float time, float value)
+    {
+        return new Vector3(
+            Mathf.Lerp(rect.xMin, rect.xMax, time),
+            Mathf.Lerp(rect.yMax, rect.yMin, Mathf.Clamp01(value)));
+    }
+
+    private static void Simplify(
+        IReadOnlyList<Vector2> points,
+        int first,
+        int last,
+        float tolerance,
+        ICollection<Vector2> result)
+    {
+        float maximumDistance = 0f;
+        int splitIndex = 0;
+        for (int i = first + 1; i < last; i++)
+        {
+            float distance = DistanceFromLine(points[i], points[first], points[last]);
+            if (distance <= maximumDistance)
+                continue;
+
+            maximumDistance = distance;
+            splitIndex = i;
+        }
+
+        if (maximumDistance > tolerance)
+        {
+            Simplify(points, first, splitIndex, tolerance, result);
+            Simplify(points, splitIndex, last, tolerance, result);
+            return;
+        }
+
+        result.Add(points[first]);
+    }
+
+    private static float DistanceFromLine(Vector2 point, Vector2 start, Vector2 end)
+    {
+        float numerator = Mathf.Abs(
+            (end.y - start.y) * point.x
+            - (end.x - start.x) * point.y
+            + end.x * start.y
+            - end.y * start.x);
+        float denominator = Vector2.Distance(start, end);
+        return denominator <= Mathf.Epsilon ? 0f : numerator / denominator;
+    }
+}
