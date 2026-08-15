@@ -75,9 +75,6 @@ namespace LoogaSoft.Tags.Editor
             float totalHeight = hasLabel ? _singleLineHeight + _verticalSpacing : 0f;
             totalHeight += DoPillLayout(Rect.zero, property, true);
             
-            if (hasLabel)
-                totalHeight += _singleLineHeight + _verticalSpacing * 2f;
-            
             return totalHeight;
         }
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
@@ -108,25 +105,8 @@ namespace LoogaSoft.Tags.Editor
             }
 
             Rect tagsRect = new Rect(position.x, currentY, position.width, position.height);
-            float tagsAreaHeight = DoPillLayout(tagsRect, property, false);
+            DoPillLayout(tagsRect, property, false);
 
-            currentY += tagsAreaHeight + _verticalSpacing * 2f;
-
-            if (hasLabel)
-            {
-                Rect buttonRect = new Rect(position.x, currentY, position.width, _singleLineHeight);
-                SerializedProperty listProp = property.FindPropertyRelative("_selectedTagGuids");
-
-                using (new EditorGUI.DisabledScope(listProp.arraySize == 0))
-                {
-                    if (GUI.Button(buttonRect, "Clear Tags"))
-                    {
-                        listProp.ClearArray();
-                        property.serializedObject.ApplyModifiedProperties();
-                    }
-                }
-            }
-            
             EditorGUI.EndProperty();
         }
 
@@ -165,13 +145,66 @@ namespace LoogaSoft.Tags.Editor
             }
             
             if (IsCreatingTag(listProp))
+            {
                 DrawPendingTagField(ref currentX, ref currentY, maxWidth, position, listProp, calculateHeightOnly);
+            }
             else
+            {
+                float clearButtonWidth = ClearButtonWidth;
+                float addButtonWidth = AddButtonWidth;
+                float utilityGroupWidth = clearButtonWidth + PillSpacing + addButtonWidth;
+                if (currentX + utilityGroupWidth > maxWidth)
+                {
+                    currentX = 2f;
+                    currentY += PillHeight;
+                }
+
+                DrawClearButton(ref currentX, currentY, position, listProp, calculateHeightOnly, clearButtonWidth);
                 DrawSinglePill("+", Color.gray4, "ADD_BUTTON_ID", ref currentX, ref currentY, maxWidth, position, _currentSelection, listProp, calculateHeightOnly, true);
+            }
 
             totalHeight += currentY + PillHeight;
 
             return totalHeight;
+        }
+
+        private float ClearButtonWidth => SnapToPixel(EditorStyles.miniButton.CalcSize(new GUIContent("Clear")).x + 8f);
+
+        private float AddButtonWidth
+        {
+            get
+            {
+                int originalTextSize = _labelStyle.fontSize;
+                _labelStyle.fontSize = AddTagFontSize;
+                float width = SnapToPixel(_labelStyle.CalcSize(new GUIContent("+")).x + PillHorizontalPadding) - 4f;
+                _labelStyle.fontSize = originalTextSize;
+                return width;
+            }
+        }
+
+        private static void DrawClearButton(
+            ref float currentX,
+            float currentY,
+            Rect startRect,
+            SerializedProperty listProp,
+            bool calculateHeightOnly,
+            float width)
+        {
+            if (!calculateHeightOnly)
+            {
+                Rect buttonRect = SnapToPixelGrid(
+                    new Rect(startRect.x + currentX, startRect.y + currentY, width, PillHeight));
+                using (new EditorGUI.DisabledScope(listProp.arraySize == 0))
+                {
+                    if (GUI.Button(buttonRect, "Clear", EditorStyles.miniButton))
+                    {
+                        listProp.ClearArray();
+                        listProp.serializedObject.ApplyModifiedProperties();
+                    }
+                }
+            }
+
+            currentX += width + PillSpacing;
         }
 
         private void DrawSinglePill(string name, Color color, string guid, ref float currentX, ref float currentY, float maxWidth, Rect startRect, HashSet<string> selection, SerializedProperty listProp,

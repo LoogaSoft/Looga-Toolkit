@@ -2,13 +2,16 @@ using System.Collections.Generic;
 using LoogaSoft.Tags.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Tags.Editor
 {
-    [InitializeOnLoad]
-    internal static class LoogaTagsOverlay
+    /// <summary>
+    /// Supplies the Looga Tags panel used by the shared GameObject inspector toolbar.
+    /// The runtime component exists only while the object has at least one selected tag.
+    /// </summary>
+    public static class LoogaTagsOverlay
     {
-        private const float ControlRowHeight = 20f;
         private const string TagGroupPropertyName = "_tagGroup";
         private const string SelectedTagsPropertyName = "_selectedTagGuids";
 
@@ -21,56 +24,48 @@ namespace LoogaSoft.Tags.Editor
         private static string[] _materializationTagGuids;
         private static bool _removalScheduled;
 
-        static LoogaTagsOverlay()
+        public static VisualElement CreateToolbarPanel()
         {
-            UnityEditor.Editor.finishedDefaultHeaderGUI -= OnPostHeaderGUI;
-            UnityEditor.Editor.finishedDefaultHeaderGUI += OnPostHeaderGUI;
+            TagPanelState state = new();
+            IMGUIContainer container = new(() => DrawToolbarPanel(state))
+            {
+                userData = state
+            };
+            container.style.flexGrow = 1f;
+            container.style.flexShrink = 0f;
+            container.style.marginLeft = 0f;
+            container.style.marginRight = 0f;
+            container.style.marginTop = 0f;
+            container.style.marginBottom = 0f;
+            return container;
         }
 
-        private static void OnPostHeaderGUI(UnityEditor.Editor editor)
+        public static void BindToolbarPanel(VisualElement panel, GameObject gameObject)
         {
-            if (editor.target is not GameObject)
+            if (panel is not IMGUIContainer container || container.userData is not TagPanelState state)
                 return;
 
-            Object[] targets = editor.targets;
-            LoogaTags tagComponent = FindFirstTagComponent(targets);
-            DrawControlRow(targets);
+            if (state.Target == gameObject)
+                return;
+
+            state.Target = gameObject;
+            ClearEmptyTagState();
+            container.MarkDirtyRepaint();
+        }
+
+        private static void DrawToolbarPanel(TagPanelState state)
+        {
+            GameObject gameObject = state.Target;
+            if (gameObject == null)
+                return;
+
+            Object[] targets = { gameObject };
+            LoogaTags tagComponent = gameObject.GetComponent<LoogaTags>();
 
             if (tagComponent == null)
                 DrawEmptyTagPicker(targets);
             else
                 DrawTagPicker(tagComponent, targets);
-
-            EditorGUILayout.Space(EditorGUIUtility.standardVerticalSpacing);
-        }
-
-        private static void DrawControlRow(Object[] targets)
-        {
-            Rect rowRect = GUILayoutUtility.GetRect(
-                GUIContent.none,
-                GUIStyle.none,
-                GUILayout.Height(ControlRowHeight),
-                GUILayout.ExpandWidth(true));
-
-            using (new EditorGUI.DisabledScope(!HasAnyTags(targets)))
-            {
-                if (!GUI.Button(rowRect, "Clear Tags"))
-                    return;
-            }
-
-            foreach (Object target in targets)
-            {
-                if (target is not GameObject gameObject ||
-                    !gameObject.TryGetComponent(out LoogaTags tags))
-                {
-                    continue;
-                }
-
-                Undo.RecordObject(tags, "Clear Looga Tags");
-                tags.ClearTags();
-                EditorUtility.SetDirty(tags);
-                ScheduleRemoval(tags);
-            }
         }
 
         private static void DrawEmptyTagPicker(Object[] targets)
@@ -225,32 +220,6 @@ namespace LoogaSoft.Tags.Editor
             RepaintEditorViews();
         }
 
-        private static LoogaTags FindFirstTagComponent(Object[] targets)
-        {
-            foreach (Object target in targets)
-            {
-                if (target is GameObject gameObject && gameObject.TryGetComponent(out LoogaTags tags))
-                    return tags;
-            }
-
-            return null;
-        }
-
-        private static bool HasAnyTags(Object[] targets)
-        {
-            foreach (Object target in targets)
-            {
-                if (target is GameObject gameObject &&
-                    gameObject.TryGetComponent(out LoogaTags tags) &&
-                    tags.TagGroup.SelectedTagGuids is { Count: > 0 })
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         private static string[] ReadTagGuids(SerializedProperty selectedTags)
         {
             string[] tagGuids = new string[selectedTags.arraySize];
@@ -270,6 +239,11 @@ namespace LoogaSoft.Tags.Editor
         {
             [SerializeField]
             private LoogaTagGroup _tagGroup;
+        }
+
+        private sealed class TagPanelState
+        {
+            public GameObject Target;
         }
     }
 }

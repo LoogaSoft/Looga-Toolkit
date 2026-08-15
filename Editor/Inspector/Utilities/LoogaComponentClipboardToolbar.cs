@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using LoogaSoft.Tags.Editor;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -31,6 +32,9 @@ namespace LoogaSoft.Inspector.Editor
         private const float ComponentIconSize = 14f;
         private const float ComponentIconTextGap = 4f;
         private const float ComponentRowsTopPadding = 0f;
+        private const float SectionTabHeight = 20f;
+        private const float SectionControlGap = 1f;
+        private const float CollapseButtonWidth = 24f;
         private const double MaintenanceInterval = 1.0d;
         private const string CopyIconPath = "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/copy.svg";
         private const string PasteIconPath = "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/clipboard-paste.svg";
@@ -278,7 +282,13 @@ namespace LoogaSoft.Inspector.Editor
             private readonly HashSet<int> _selectedComponentIds = new();
             private VisualElement _editorList;
             private VisualElement _toolbar;
+            private VisualElement _contentRoot;
+            private VisualElement _componentPanel;
             private VisualElement _componentRows;
+            private VisualElement _tagsPanel;
+            private Button _componentsTabButton;
+            private Button _tagsTabButton;
+            private Button _collapseButton;
             private Button _pasteButton;
             private Button _pasteValuesButton;
             private ToolbarSearchField _searchField;
@@ -288,6 +298,8 @@ namespace LoogaSoft.Inspector.Editor
             private float _maximumEditorListInset;
             private bool _listGeometryCallbackRegistered;
             private bool _wasLocked;
+            private bool _contentExpanded = true;
+            private bool _tagsSelected;
 
             public InspectorToolbarContainer(EditorWindow window)
             {
@@ -332,6 +344,8 @@ namespace LoogaSoft.Inspector.Editor
                 }
 
                 RefreshActionButtons();
+                LoogaTagsOverlay.BindToolbarPanel(_tagsPanel, gameObject);
+                RefreshSectionVisibility();
                 RefreshComponentRows(gameObject);
                 ApplyComponentFilter(gameObject);
             }
@@ -405,6 +419,43 @@ namespace LoogaSoft.Inspector.Editor
                 _toolbar.style.paddingBottom = ToolbarPadding;
                 _toolbar.style.borderTopWidth = DividerHeight;
                 _toolbar.style.borderTopColor = DividerColor;
+
+                VisualElement sectionRow = new();
+                sectionRow.style.flexDirection = FlexDirection.Row;
+                sectionRow.style.height = SectionTabHeight;
+                sectionRow.style.marginBottom = SectionControlGap;
+
+                _componentsTabButton = CreateSectionButton("Components", () => SelectSection(false));
+                _tagsTabButton = CreateSectionButton("Tags", () => SelectSection(true));
+                _componentsTabButton.style.marginRight = SectionControlGap;
+                _tagsTabButton.style.marginRight = SectionControlGap;
+
+                _collapseButton = new Button(() =>
+                {
+                    _contentExpanded = !_contentExpanded;
+                    RefreshSectionVisibility();
+                });
+                _collapseButton.style.width = CollapseButtonWidth;
+                _collapseButton.style.height = SectionTabHeight;
+                _collapseButton.style.marginLeft = 0f;
+                _collapseButton.style.marginRight = 0f;
+                _collapseButton.style.marginTop = 0f;
+                _collapseButton.style.marginBottom = 0f;
+                _collapseButton.style.paddingLeft = 0f;
+                _collapseButton.style.paddingRight = 0f;
+                _collapseButton.style.paddingTop = 0f;
+                _collapseButton.style.paddingBottom = 0f;
+
+                sectionRow.Add(_componentsTabButton);
+                sectionRow.Add(_tagsTabButton);
+                sectionRow.Add(_collapseButton);
+
+                _contentRoot = new VisualElement();
+                _contentRoot.style.flexDirection = FlexDirection.Column;
+
+                _componentPanel = new VisualElement();
+                _componentPanel.style.flexDirection = FlexDirection.Column;
+
                 VisualElement actionRow = new();
                 actionRow.style.flexDirection = FlexDirection.Row;
                 actionRow.style.height = ActionRowHeight;
@@ -466,8 +517,64 @@ namespace LoogaSoft.Inspector.Editor
                 _componentRows = new VisualElement();
                 _componentRows.style.flexDirection = FlexDirection.Column;
 
-                _toolbar.Add(actionRow);
-                _toolbar.Add(_componentRows);
+                _componentPanel.Add(actionRow);
+                _componentPanel.Add(_componentRows);
+
+                _tagsPanel = LoogaTagsOverlay.CreateToolbarPanel();
+                _contentRoot.Add(_componentPanel);
+                _contentRoot.Add(_tagsPanel);
+
+                _toolbar.Add(sectionRow);
+                _toolbar.Add(_contentRoot);
+                RefreshSectionVisibility();
+            }
+
+            private static Button CreateSectionButton(string label, System.Action clicked)
+            {
+                Button button = new(clicked)
+                {
+                    text = label
+                };
+                button.style.height = SectionTabHeight;
+                button.style.flexGrow = 1f;
+                button.style.marginLeft = 0f;
+                button.style.marginRight = 0f;
+                button.style.marginTop = 0f;
+                button.style.marginBottom = 0f;
+                button.style.paddingLeft = 0f;
+                button.style.paddingRight = 0f;
+                button.style.paddingTop = 0f;
+                button.style.paddingBottom = 0f;
+                return button;
+            }
+
+            private void SelectSection(bool tagsSelected)
+            {
+                _tagsSelected = tagsSelected;
+                _contentExpanded = true;
+                RefreshSectionVisibility();
+            }
+
+            private void RefreshSectionVisibility()
+            {
+                if (_contentRoot == null)
+                    return;
+
+                _contentRoot.style.display = _contentExpanded ? DisplayStyle.Flex : DisplayStyle.None;
+                _componentPanel.style.display = !_tagsSelected ? DisplayStyle.Flex : DisplayStyle.None;
+                _tagsPanel.style.display = _tagsSelected ? DisplayStyle.Flex : DisplayStyle.None;
+
+                _componentsTabButton.style.backgroundColor = !_tagsSelected
+                    ? ComponentSelectedColor
+                    : new StyleColor(StyleKeyword.Null);
+                _tagsTabButton.style.backgroundColor = _tagsSelected
+                    ? ComponentSelectedColor
+                    : new StyleColor(StyleKeyword.Null);
+
+                _collapseButton.text = _contentExpanded ? "-" : "+";
+                _collapseButton.tooltip = _contentExpanded
+                    ? "Collapse component and tag controls"
+                    : "Expand component and tag controls";
             }
 
             private void RefreshActionButtons()

@@ -5,6 +5,7 @@
                        "GUID:f51ebe6a0ceec4240a699833d6309b23",
                        "GUID:a1c2ca2f0ddffe9469bec46cade81d5a",
                        "GUID:64fffafd5203e504f93879c21ccfebac",
+                       "GUID:50d78132a5fb94a46a5d8a84f30b4d68",
                        "Unity.RenderPipelines.Core.Runtime"
                    ],
     "includePlatforms":  [
