@@ -117,8 +117,8 @@ namespace LoogaSoft.Tags.Editor
 
             SerializedProperty listProp = property.FindPropertyRelative("_selectedTagGuids");
 
-            float maxWidth = (calculateHeightOnly ? EditorGUIUtility.currentViewWidth - 20f : position.width) - 2f;
-            float currentX = 2f;
+            float maxWidth = calculateHeightOnly ? EditorGUIUtility.currentViewWidth - 20f : position.width;
+            float currentX = 0f;
             float currentY = 0f;
             float totalHeight = 0f;
 
@@ -155,7 +155,7 @@ namespace LoogaSoft.Tags.Editor
                 float utilityGroupWidth = clearButtonWidth + PillSpacing + addButtonWidth;
                 if (currentX + utilityGroupWidth > maxWidth)
                 {
-                    currentX = 2f;
+                    currentX = 0f;
                     currentY += PillHeight;
                 }
 
@@ -224,7 +224,7 @@ namespace LoogaSoft.Tags.Editor
             
             if (currentX + pillWidth > maxWidth)
             {
-                currentX = 2f;
+                currentX = 0f;
                 currentY += PillHeight;
             }
 
@@ -316,10 +316,10 @@ namespace LoogaSoft.Tags.Editor
             const float textPadding = 16f;
 
             float textWidth = _pendingTagFieldStyle.CalcSize(new GUIContent(_pendingTagName)).x;
-            float fieldWidth = SnapToPixel(Mathf.Clamp(textWidth + textPadding, minimumWidth, maxWidth - 2f));
+            float fieldWidth = SnapToPixel(Mathf.Clamp(textWidth + textPadding, minimumWidth, maxWidth));
             if (currentX + fieldWidth > maxWidth)
             {
-                currentX = 2f;
+                currentX = 0f;
                 currentY += PillHeight;
             }
 
