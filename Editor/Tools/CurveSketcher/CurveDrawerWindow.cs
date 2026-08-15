@@ -285,7 +285,7 @@ internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
         GUIContent sketchContent = new(string.Empty, "Sketch this curve");
         bool openSketcher = GUI.Button(buttonRect, sketchContent, EditorStyles.miniButton);
 
-        Texture sketchIcon = EditorGUIUtility.IconContent("d_editicon").image;
+        Texture sketchIcon = EditorGUIUtility.IconContent("d_editicon.sml").image;
         if (sketchIcon != null && Event.current.type == EventType.Repaint)
         {
             Rect iconRect = new(
