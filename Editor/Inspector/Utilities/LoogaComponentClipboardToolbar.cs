@@ -413,7 +413,7 @@ namespace LoogaSoft.Inspector.Editor
                 _toolbar.style.paddingLeft = ToolbarPadding;
                 _toolbar.style.paddingRight = ToolbarPadding;
                 _toolbar.style.paddingTop = ToolbarPadding;
-                _toolbar.style.paddingBottom = ToolbarPadding;
+                _toolbar.style.paddingBottom = ButtonGap;
                 _toolbar.style.borderTopWidth = DividerHeight;
                 _toolbar.style.borderTopColor = DividerColor;
 
