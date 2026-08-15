@@ -255,6 +255,10 @@ internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
     private const float ButtonWidth = 22f;
     private const float ButtonGap = 2f;
     private const float IconSize = 14f;
+    private const string SketchIconPath =
+        "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/edit-fill.png";
+
+    private static Texture2D _sketchIcon;
 
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
@@ -285,7 +289,7 @@ internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
         GUIContent sketchContent = new(string.Empty, "Sketch this curve");
         bool openSketcher = GUI.Button(buttonRect, sketchContent, EditorStyles.miniButton);
 
-        Texture sketchIcon = EditorGUIUtility.IconContent("d_editicon.sml").image;
+        Texture2D sketchIcon = GetSketchIcon();
         if (sketchIcon != null && Event.current.type == EventType.Repaint)
         {
             Rect iconRect = new(
@@ -305,6 +309,13 @@ internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
         }
 
         EditorGUI.EndProperty();
+    }
+
+    private static Texture2D GetSketchIcon()
+    {
+        return _sketchIcon != null
+            ? _sketchIcon
+            : _sketchIcon = AssetDatabase.LoadAssetAtPath<Texture2D>(SketchIconPath);
     }
 }
 
