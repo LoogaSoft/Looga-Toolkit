@@ -34,7 +34,6 @@ namespace LoogaSoft.Inspector.Editor
         private const float ComponentRowsTopPadding = 0f;
         private const float SectionTabHeight = 20f;
         private const float SectionControlGap = 1f;
-        private const float CollapseButtonWidth = 24f;
         private const double MaintenanceInterval = 1.0d;
         private const string CopyIconPath = "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/copy.svg";
         private const string PasteIconPath = "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/clipboard-paste.svg";
@@ -288,7 +287,6 @@ namespace LoogaSoft.Inspector.Editor
             private VisualElement _tagsPanel;
             private Button _componentsTabButton;
             private Button _tagsTabButton;
-            private Button _collapseButton;
             private Button _pasteButton;
             private Button _pasteValuesButton;
             private ToolbarSearchField _searchField;
@@ -298,7 +296,6 @@ namespace LoogaSoft.Inspector.Editor
             private float _maximumEditorListInset;
             private bool _listGeometryCallbackRegistered;
             private bool _wasLocked;
-            private bool _contentExpanded = true;
             private bool _tagsSelected;
 
             public InspectorToolbarContainer(EditorWindow window)
@@ -423,32 +420,14 @@ namespace LoogaSoft.Inspector.Editor
                 VisualElement sectionRow = new();
                 sectionRow.style.flexDirection = FlexDirection.Row;
                 sectionRow.style.height = SectionTabHeight;
-                sectionRow.style.marginBottom = SectionControlGap;
+                sectionRow.style.marginBottom = ButtonGap;
 
                 _componentsTabButton = CreateSectionButton("Components", () => SelectSection(false));
                 _tagsTabButton = CreateSectionButton("Tags", () => SelectSection(true));
                 _componentsTabButton.style.marginRight = SectionControlGap;
-                _tagsTabButton.style.marginRight = SectionControlGap;
-
-                _collapseButton = new Button(() =>
-                {
-                    _contentExpanded = !_contentExpanded;
-                    RefreshSectionVisibility();
-                });
-                _collapseButton.style.width = CollapseButtonWidth;
-                _collapseButton.style.height = SectionTabHeight;
-                _collapseButton.style.marginLeft = 0f;
-                _collapseButton.style.marginRight = 0f;
-                _collapseButton.style.marginTop = 0f;
-                _collapseButton.style.marginBottom = 0f;
-                _collapseButton.style.paddingLeft = 0f;
-                _collapseButton.style.paddingRight = 0f;
-                _collapseButton.style.paddingTop = 0f;
-                _collapseButton.style.paddingBottom = 0f;
 
                 sectionRow.Add(_componentsTabButton);
                 sectionRow.Add(_tagsTabButton);
-                sectionRow.Add(_collapseButton);
 
                 _contentRoot = new VisualElement();
                 _contentRoot.style.flexDirection = FlexDirection.Column;
@@ -551,7 +530,6 @@ namespace LoogaSoft.Inspector.Editor
             private void SelectSection(bool tagsSelected)
             {
                 _tagsSelected = tagsSelected;
-                _contentExpanded = true;
                 RefreshSectionVisibility();
             }
 
@@ -560,7 +538,7 @@ namespace LoogaSoft.Inspector.Editor
                 if (_contentRoot == null)
                     return;
 
-                _contentRoot.style.display = _contentExpanded ? DisplayStyle.Flex : DisplayStyle.None;
+                _contentRoot.style.display = DisplayStyle.Flex;
                 _componentPanel.style.display = !_tagsSelected ? DisplayStyle.Flex : DisplayStyle.None;
                 _tagsPanel.style.display = _tagsSelected ? DisplayStyle.Flex : DisplayStyle.None;
 
@@ -570,11 +548,6 @@ namespace LoogaSoft.Inspector.Editor
                 _tagsTabButton.style.backgroundColor = _tagsSelected
                     ? ComponentSelectedColor
                     : new StyleColor(StyleKeyword.Null);
-
-                _collapseButton.text = _contentExpanded ? "-" : "+";
-                _collapseButton.tooltip = _contentExpanded
-                    ? "Collapse component and tag controls"
-                    : "Expand component and tag controls";
             }
 
             private void RefreshActionButtons()
