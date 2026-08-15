@@ -254,6 +254,7 @@ internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
 {
     private const float ButtonWidth = 22f;
     private const float ButtonGap = 2f;
+    private const float IconSize = 14f;
 
     public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
     {
@@ -281,9 +282,21 @@ internal sealed class CurveSketchPropertyDrawer : PropertyDrawer
         if (EditorGUI.EndChangeCheck())
             property.animationCurveValue = curve;
 
-        GUIContent sketchContent = EditorGUIUtility.IconContent("d_editicon.sml");
-        sketchContent.tooltip = "Sketch this curve";
-        if (GUI.Button(buttonRect, sketchContent, EditorStyles.miniButton))
+        GUIContent sketchContent = new(string.Empty, "Sketch this curve");
+        bool openSketcher = GUI.Button(buttonRect, sketchContent, EditorStyles.miniButton);
+
+        Texture sketchIcon = EditorGUIUtility.IconContent("d_editicon").image;
+        if (sketchIcon != null && Event.current.type == EventType.Repaint)
+        {
+            Rect iconRect = new(
+                buttonRect.center.x - (IconSize * 0.5f),
+                buttonRect.center.y - (IconSize * 0.5f),
+                IconSize,
+                IconSize);
+            GUI.DrawTexture(iconRect, sketchIcon, ScaleMode.ScaleToFit, true);
+        }
+
+        if (openSketcher)
         {
             UnityEngine.Object[] targets = property.serializedObject.targetObjects;
             PopupWindow.Show(
