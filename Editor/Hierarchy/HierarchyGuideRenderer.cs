@@ -20,12 +20,14 @@ namespace LoogaSoft.Hierarchy.Editor
         private static readonly HashSet<int> PendingVisibleRowIds = new();
         private static readonly HashSet<int> VisibleParentIds = new();
         private static readonly HashSet<int> PendingVisibleParentIds = new();
+        private static readonly HashSet<int> PendingFoldoutInvalidationIds = new();
 
         private static BranchTarget _hoveredBranch;
         private static BranchTarget _pendingHoveredBranch;
         private static Vector2 _lastHierarchyMousePosition = new(float.NaN, float.NaN);
         private static bool _hoverCommitScheduled;
         private static bool _visibleParentsCommitScheduled;
+        private static bool _foldoutInvalidationScheduled;
 
         static HierarchyGuideRenderer()
         {
@@ -255,6 +257,34 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             RemoveDescendantsFromVisibleRows(gameObject.transform);
+            PendingFoldoutInvalidationIds.Add(gameObject.GetInstanceID());
+            EditorApplication.RepaintHierarchyWindow();
+
+            if (_foldoutInvalidationScheduled)
+            {
+                return;
+            }
+
+            _foldoutInvalidationScheduled = true;
+            EditorApplication.delayCall += CommitFoldoutInvalidation;
+        }
+
+        private static void CommitFoldoutInvalidation()
+        {
+            _foldoutInvalidationScheduled = false;
+            foreach (int parentId in PendingFoldoutInvalidationIds)
+            {
+#pragma warning disable CS0618
+                Object parentObject = EditorUtility.InstanceIDToObject(parentId);
+#pragma warning restore CS0618
+                if (parentObject is GameObject parent)
+                {
+                    RemoveDescendantsFromVisibleRows(parent.transform);
+                }
+            }
+
+            PendingFoldoutInvalidationIds.Clear();
+            EditorApplication.RepaintHierarchyWindow();
         }
 
         private static void RemoveDescendantsFromVisibleRows(Transform parent)
