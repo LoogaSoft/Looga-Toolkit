@@ -256,7 +256,7 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            RemoveDescendantsFromVisibleRows(gameObject.transform);
+            InvalidateBranchVisibility(gameObject.transform);
             PendingFoldoutInvalidationIds.Add(gameObject.GetInstanceID());
             EditorApplication.RepaintHierarchyWindow();
 
@@ -279,12 +279,20 @@ namespace LoogaSoft.Hierarchy.Editor
 #pragma warning restore CS0618
                 if (parentObject is GameObject parent)
                 {
-                    RemoveDescendantsFromVisibleRows(parent.transform);
+                    InvalidateBranchVisibility(parent.transform);
                 }
             }
 
             PendingFoldoutInvalidationIds.Clear();
             EditorApplication.RepaintHierarchyWindow();
+        }
+
+        private static void InvalidateBranchVisibility(Transform parent)
+        {
+            int parentId = parent.gameObject.GetInstanceID();
+            VisibleParentIds.Remove(parentId);
+            PendingVisibleParentIds.Remove(parentId);
+            RemoveDescendantsFromVisibleRows(parent);
         }
 
         private static void RemoveDescendantsFromVisibleRows(Transform parent)
