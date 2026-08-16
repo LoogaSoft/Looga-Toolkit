@@ -16,6 +16,8 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private static readonly HashSet<int> SelectedInstanceIds = new();
         private static readonly List<BranchTarget> SelectedBranches = new();
+        private static readonly HashSet<int> VisibleRowIds = new();
+        private static readonly HashSet<int> PendingVisibleRowIds = new();
         private static readonly HashSet<int> VisibleParentIds = new();
         private static readonly HashSet<int> PendingVisibleParentIds = new();
 
@@ -49,7 +51,7 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             TrackHoveredRow(gameObject, rowRect, settings);
-            TrackVisibleParent(gameObject);
+            TrackVisibleRow(gameObject);
 
             if (settings.ShowPresentation && HierarchyPresentationRenderer.Draw(gameObject, rowRect))
             {
@@ -121,7 +123,7 @@ namespace LoogaSoft.Hierarchy.Editor
 
             int itemDepth = GetDepth(item);
             int hoveredId = _hoveredBranch.InstanceId;
-            if (_hoveredBranch.IsValid && !SelectedInstanceIds.Contains(hoveredId))
+            if (IsBranchVisible(_hoveredBranch) && !SelectedInstanceIds.Contains(hoveredId))
             {
                 DrawInteractiveBranchSegment(
                     item,
@@ -135,6 +137,11 @@ namespace LoogaSoft.Hierarchy.Editor
 
             for (int i = 0; i < SelectedBranches.Count; i++)
             {
+                if (!IsBranchVisible(SelectedBranches[i]))
+                {
+                    continue;
+                }
+
                 DrawInteractiveBranchSegment(
                     item,
                     itemDepth,
@@ -201,13 +208,14 @@ namespace LoogaSoft.Hierarchy.Editor
             }
         }
 
-        private static void TrackVisibleParent(GameObject gameObject)
+        private static void TrackVisibleRow(GameObject gameObject)
         {
             if (Event.current.type != EventType.Repaint)
             {
                 return;
             }
 
+            PendingVisibleRowIds.Add(gameObject.GetInstanceID());
             Transform parent = gameObject.transform.parent;
             if (parent != null)
             {
@@ -226,7 +234,12 @@ namespace LoogaSoft.Hierarchy.Editor
         private static void CommitVisibleParents()
         {
             _visibleParentsCommitScheduled = false;
-            bool changed = !VisibleParentIds.SetEquals(PendingVisibleParentIds);
+            bool changed = !VisibleRowIds.SetEquals(PendingVisibleRowIds) ||
+                           !VisibleParentIds.SetEquals(PendingVisibleParentIds);
+
+            VisibleRowIds.Clear();
+            VisibleRowIds.UnionWith(PendingVisibleRowIds);
+            PendingVisibleRowIds.Clear();
 
             VisibleParentIds.Clear();
             VisibleParentIds.UnionWith(PendingVisibleParentIds);
@@ -236,6 +249,11 @@ namespace LoogaSoft.Hierarchy.Editor
             {
                 EditorApplication.RepaintHierarchyWindow();
             }
+        }
+
+        private static bool IsBranchVisible(BranchTarget branch)
+        {
+            return branch.IsValid && VisibleRowIds.Contains(branch.InstanceId);
         }
 
         private static void ScheduleHoverCommit()
