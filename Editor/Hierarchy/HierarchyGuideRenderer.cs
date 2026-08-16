@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -20,14 +21,19 @@ namespace LoogaSoft.Hierarchy.Editor
         private static readonly HashSet<int> PendingVisibleRowIds = new();
         private static readonly HashSet<int> VisibleParentIds = new();
         private static readonly HashSet<int> PendingVisibleParentIds = new();
-        private static readonly HashSet<int> PendingFoldoutInvalidationIds = new();
+        private static readonly HashSet<int> ExpandedParentIds = new();
+        private static readonly HashSet<int> PendingExpandedParentIds = new();
+
+        private static readonly PropertyInfo LastInteractedHierarchyProperty;
+        private static readonly PropertyInfo SceneHierarchyProperty;
+        private static readonly MethodInfo GetExpandedGameObjectsMethod;
 
         private static BranchTarget _hoveredBranch;
         private static BranchTarget _pendingHoveredBranch;
         private static Vector2 _lastHierarchyMousePosition = new(float.NaN, float.NaN);
         private static bool _hoverCommitScheduled;
         private static bool _visibleParentsCommitScheduled;
-        private static bool _foldoutInvalidationScheduled;
+        private static bool _expandedStateInitialized;
 
         static HierarchyGuideRenderer()
         {
@@ -37,6 +43,22 @@ namespace LoogaSoft.Hierarchy.Editor
             Selection.selectionChanged += CacheSelection;
             EditorApplication.hierarchyChanged -= CacheSelection;
             EditorApplication.hierarchyChanged += CacheSelection;
+            EditorApplication.update -= PollExpandedParents;
+            EditorApplication.update += PollExpandedParents;
+
+            System.Type hierarchyWindowType = typeof(EditorWindow).Assembly.GetType(
+                "UnityEditor.SceneHierarchyWindow");
+            System.Type sceneHierarchyType = typeof(EditorWindow).Assembly.GetType(
+                "UnityEditor.SceneHierarchy");
+            LastInteractedHierarchyProperty = hierarchyWindowType?.GetProperty(
+                "lastInteractedHierarchyWindow",
+                BindingFlags.Public | BindingFlags.Static);
+            SceneHierarchyProperty = hierarchyWindowType?.GetProperty(
+                "sceneHierarchy",
+                BindingFlags.Public | BindingFlags.Instance);
+            GetExpandedGameObjectsMethod = sceneHierarchyType?.GetMethod(
+                "GetExpandedGameObjects",
+                BindingFlags.Public | BindingFlags.Instance);
             CacheSelection();
         }
 
@@ -52,7 +74,6 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            InvalidateDescendantsOnFoldoutInput(gameObject, rowRect);
             TrackHoveredRow(gameObject, rowRect, settings);
             TrackVisibleRow(gameObject);
 
@@ -107,7 +128,8 @@ namespace LoogaSoft.Hierarchy.Editor
                     pixelsPerPoint);
             }
 
-            if (VisibleParentIds.Contains(gameObject.GetInstanceID()))
+            int gameObjectId = gameObject.GetInstanceID();
+            if (VisibleParentIds.Contains(gameObjectId) && IsExpandedParent(gameObjectId))
             {
                 DrawVertical(currentGuideX, centerY, rowRect.yMax, thickness, color, pixelsPerPoint);
                 DrawHorizontal(
@@ -234,77 +256,75 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorApplication.delayCall += CommitVisibleParents;
         }
 
-        private static void InvalidateDescendantsOnFoldoutInput(
-            GameObject gameObject,
-            Rect rowRect)
+        private static void PollExpandedParents()
         {
-            Event currentEvent = Event.current;
-            if (currentEvent.rawType != EventType.MouseDown ||
-                currentEvent.button != 0 ||
-                gameObject.transform.childCount == 0)
+            if (LastInteractedHierarchyProperty == null ||
+                SceneHierarchyProperty == null ||
+                GetExpandedGameObjectsMethod == null)
             {
                 return;
             }
 
-            Rect foldoutRect = new(
-                rowRect.x - IndentWidth,
-                rowRect.y,
-                IndentWidth,
-                rowRect.height);
-            if (!foldoutRect.Contains(currentEvent.mousePosition))
+            object hierarchyWindow = LastInteractedHierarchyProperty.GetValue(null);
+            object sceneHierarchy = hierarchyWindow != null
+                ? SceneHierarchyProperty.GetValue(hierarchyWindow)
+                : null;
+            if (sceneHierarchy == null ||
+                GetExpandedGameObjectsMethod.Invoke(sceneHierarchy, null) is not
+                    List<GameObject> expandedObjects)
             {
                 return;
             }
 
-            InvalidateBranchVisibility(gameObject.transform);
-            PendingFoldoutInvalidationIds.Add(gameObject.GetInstanceID());
-            EditorApplication.RepaintHierarchyWindow();
-
-            if (_foldoutInvalidationScheduled)
+            PendingExpandedParentIds.Clear();
+            for (int i = 0; i < expandedObjects.Count; i++)
             {
-                return;
-            }
-
-            _foldoutInvalidationScheduled = true;
-            EditorApplication.delayCall += CommitFoldoutInvalidation;
-        }
-
-        private static void CommitFoldoutInvalidation()
-        {
-            _foldoutInvalidationScheduled = false;
-            foreach (int parentId in PendingFoldoutInvalidationIds)
-            {
-#pragma warning disable CS0618
-                Object parentObject = EditorUtility.InstanceIDToObject(parentId);
-#pragma warning restore CS0618
-                if (parentObject is GameObject parent)
+                GameObject expandedObject = expandedObjects[i];
+                if (expandedObject != null)
                 {
-                    InvalidateBranchVisibility(parent.transform);
+                    PendingExpandedParentIds.Add(expandedObject.GetInstanceID());
                 }
             }
 
-            PendingFoldoutInvalidationIds.Clear();
+            bool changed = !_expandedStateInitialized ||
+                           !ExpandedParentIds.SetEquals(PendingExpandedParentIds);
+            if (!changed)
+            {
+                return;
+            }
+
+            _expandedStateInitialized = true;
+            ExpandedParentIds.Clear();
+            ExpandedParentIds.UnionWith(PendingExpandedParentIds);
+            VisibleParentIds.IntersectWith(ExpandedParentIds);
+            PendingVisibleParentIds.IntersectWith(ExpandedParentIds);
             EditorApplication.RepaintHierarchyWindow();
         }
 
-        private static void InvalidateBranchVisibility(Transform parent)
+        private static bool IsExpandedParent(int instanceId)
         {
-            int parentId = parent.gameObject.GetInstanceID();
-            VisibleParentIds.Remove(parentId);
-            PendingVisibleParentIds.Remove(parentId);
-            RemoveDescendantsFromVisibleRows(parent);
+            return !_expandedStateInitialized || ExpandedParentIds.Contains(instanceId);
         }
 
-        private static void RemoveDescendantsFromVisibleRows(Transform parent)
+        private static bool AreAncestorsExpanded(Transform item)
         {
-            for (int i = 0; i < parent.childCount; i++)
+            if (!_expandedStateInitialized)
             {
-                Transform child = parent.GetChild(i);
-                int childId = child.gameObject.GetInstanceID();
-                VisibleRowIds.Remove(childId);
-                PendingVisibleRowIds.Remove(childId);
-                RemoveDescendantsFromVisibleRows(child);
+                return true;
             }
+
+            Transform ancestor = item.parent;
+            while (ancestor != null)
+            {
+                if (!ExpandedParentIds.Contains(ancestor.gameObject.GetInstanceID()))
+                {
+                    return false;
+                }
+
+                ancestor = ancestor.parent;
+            }
+
+            return true;
         }
 
         private static void CommitVisibleParents()
@@ -329,7 +349,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private static bool IsBranchVisible(BranchTarget branch)
         {
-            return branch.IsValid && VisibleRowIds.Contains(branch.InstanceId);
+            return branch.IsValid &&
+                   VisibleRowIds.Contains(branch.InstanceId) &&
+                   AreAncestorsExpanded(branch.Item);
         }
 
         private static void ScheduleHoverCommit()
