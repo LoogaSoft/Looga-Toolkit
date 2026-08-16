@@ -50,6 +50,7 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
+            InvalidateDescendantsOnFoldoutInput(gameObject, rowRect);
             TrackHoveredRow(gameObject, rowRect, settings);
             TrackVisibleRow(gameObject);
 
@@ -229,6 +230,43 @@ namespace LoogaSoft.Hierarchy.Editor
 
             _visibleParentsCommitScheduled = true;
             EditorApplication.delayCall += CommitVisibleParents;
+        }
+
+        private static void InvalidateDescendantsOnFoldoutInput(
+            GameObject gameObject,
+            Rect rowRect)
+        {
+            Event currentEvent = Event.current;
+            if (currentEvent.rawType != EventType.MouseDown ||
+                currentEvent.button != 0 ||
+                gameObject.transform.childCount == 0)
+            {
+                return;
+            }
+
+            Rect foldoutRect = new(
+                rowRect.x - IndentWidth,
+                rowRect.y,
+                IndentWidth,
+                rowRect.height);
+            if (!foldoutRect.Contains(currentEvent.mousePosition))
+            {
+                return;
+            }
+
+            RemoveDescendantsFromVisibleRows(gameObject.transform);
+        }
+
+        private static void RemoveDescendantsFromVisibleRows(Transform parent)
+        {
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                Transform child = parent.GetChild(i);
+                int childId = child.gameObject.GetInstanceID();
+                VisibleRowIds.Remove(childId);
+                PendingVisibleRowIds.Remove(childId);
+                RemoveDescendantsFromVisibleRows(child);
+            }
         }
 
         private static void CommitVisibleParents()
