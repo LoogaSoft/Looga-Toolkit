@@ -50,6 +50,7 @@ namespace LoogaSoft.Inspector.Editor
     internal static class LoogaPackageUpdateService
     {
         private const string PackagePrefix = "com.loogasoft.";
+        private const string PackageSupportMenuPath = "LoogaSoft/Package Support";
         private const string CacheDirectoryName = "LoogaSoft/PackageUpdates";
         private const string CacheFileName = "cache.json";
         private const string QueueFileName = "pending.json";
@@ -89,6 +90,9 @@ namespace LoogaSoft.Inspector.Editor
 
         public static void Initialize()
         {
+            // Unity can preserve a menu checkmark set by an older package revision.
+            Menu.SetChecked(PackageSupportMenuPath, false);
+
             if (_initialized)
                 return;
 
