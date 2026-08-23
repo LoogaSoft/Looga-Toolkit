@@ -14,7 +14,7 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private Vector2 _scrollPosition;
 
-        [MenuItem("LoogaSoft/Toolkit/Hierarchy Favorites", false, 120)]
+        [MenuItem("LoogaSoft/Toolkit/Hierarchy Favorites", false, 25)]
         private static void Open()
         {
             HierarchyFavoritesWindow window = GetWindow<HierarchyFavoritesWindow>();

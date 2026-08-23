@@ -53,7 +53,6 @@ namespace LoogaSoft.Inspector.Editor
         private const string CacheDirectoryName = "LoogaSoft/PackageUpdates";
         private const string CacheFileName = "cache.json";
         private const string QueueFileName = "pending.json";
-        private const string PackageSupportMenuPath = "LoogaSoft/Package Support";
         private const double CacheHours = 24d;
         private const int GitTimeoutMilliseconds = 20000;
 
@@ -507,7 +506,8 @@ namespace LoogaSoft.Inspector.Editor
                 {
                     packageName = package.PackageName,
                     displayName = package.DisplayName,
-                    packageIdentifier = $"{package.RepositoryUrl}#{package.TargetReference}"
+                    packageIdentifier = $"{package.RepositoryUrl}#{package.TargetReference}",
+                    targetRevision = package.LatestRevision
                 })
                 .ToList();
             if (updates.Count == 0)
@@ -526,13 +526,25 @@ namespace LoogaSoft.Inspector.Editor
 
             string manifestPath = Path.Combine(ProjectRoot, "Packages", "manifest.json");
             string manifest = File.Exists(manifestPath) ? File.ReadAllText(manifestPath) : string.Empty;
-            _pendingUpdates.updates.RemoveAll(update => IsAlreadyInstalled(manifest, update));
+            string lockContents = ReadLockFile();
+            _pendingUpdates.updates.RemoveAll(update =>
+                IsAlreadyInstalled(manifest, lockContents, update));
             SaveJson(QueuePath, _pendingUpdates);
             StartNextUpdate();
         }
 
-        private static bool IsAlreadyInstalled(string manifest, PendingUpdate update)
+        private static bool IsAlreadyInstalled(
+            string manifest,
+            string lockContents,
+            PendingUpdate update)
         {
+            string installedRevision = ReadInstalledRevision(lockContents, update.packageName);
+            if (!string.IsNullOrWhiteSpace(update.targetRevision) &&
+                string.Equals(installedRevision, update.targetRevision, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
             string dependency = $"\"{update.packageName}\"";
             int dependencyIndex = manifest.IndexOf(dependency, StringComparison.Ordinal);
             if (dependencyIndex < 0)
@@ -645,11 +657,31 @@ namespace LoogaSoft.Inspector.Editor
         private static string ReadInstalledRevision(string lockContents, string packageName)
         {
             string key = $"\"{packageName}\"";
-            int keyIndex = lockContents.IndexOf(key, StringComparison.Ordinal);
-            if (keyIndex < 0)
-                return string.Empty;
+            int searchIndex = 0;
+            int objectStart = -1;
+            while (searchIndex < lockContents.Length)
+            {
+                int keyIndex = lockContents.IndexOf(key, searchIndex, StringComparison.Ordinal);
+                if (keyIndex < 0)
+                    return string.Empty;
 
-            int objectStart = lockContents.IndexOf('{', keyIndex + key.Length);
+                int colonIndex = lockContents.IndexOf(':', keyIndex + key.Length);
+                if (colonIndex < 0)
+                    return string.Empty;
+
+                int valueIndex = colonIndex + 1;
+                while (valueIndex < lockContents.Length && char.IsWhiteSpace(lockContents[valueIndex]))
+                    valueIndex++;
+
+                if (valueIndex < lockContents.Length && lockContents[valueIndex] == '{')
+                {
+                    objectStart = valueIndex;
+                    break;
+                }
+
+                searchIndex = keyIndex + key.Length;
+            }
+
             if (objectStart < 0)
                 return string.Empty;
 
@@ -752,7 +784,6 @@ namespace LoogaSoft.Inspector.Editor
 
         private static void NotifyChanged()
         {
-            Menu.SetChecked(PackageSupportMenuPath, AvailableUpdateCount > 0);
             Changed?.Invoke();
         }
 
@@ -780,6 +811,7 @@ namespace LoogaSoft.Inspector.Editor
             public string packageName = string.Empty;
             public string displayName = string.Empty;
             public string packageIdentifier = string.Empty;
+            public string targetRevision = string.Empty;
         }
 
         [Serializable]

@@ -17,7 +17,7 @@ public class CurveDrawerWindow : EditorWindow
     private double _lastCopyTime = -100;
     private const double CopyFeedbackDuration = 1.0;
 
-    [MenuItem("LoogaSoft/Toolkit/Curve Sketcher")]
+    [MenuItem("LoogaSoft/Toolkit/Curve Sketcher", priority = 25)]
     public static void ShowWindow() => GetWindow<CurveDrawerWindow>("Curve Sketcher");
 
     private void OnGUI()

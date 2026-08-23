@@ -9,7 +9,7 @@ namespace LoogaSoft.Toolkit.PhysicsPlacement
         private const float ScenePanelWidth = 300f;
         private const float ScenePanelHeight = 72f;
 
-        [MenuItem("LoogaSoft/Toolkit/Physics Placement")]
+        [MenuItem("LoogaSoft/Toolkit/Physics Placement", priority = 25)]
         private static void Open()
         {
             PhysicsPlacementWindow window = GetWindow<PhysicsPlacementWindow>();
