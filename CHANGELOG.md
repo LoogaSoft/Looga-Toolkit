@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 2.0.0
+
+- Merged Looga Logger into Looga Toolkit while preserving all `LoogaSoft.Logger.*` assembly names, `LoogaSoft.Logging` namespaces, and Unity asset GUIDs.
+- Grouped logging integration controls with the other Looga Toolkit integrations in Package Support.
+- Added logging and migration documentation.
+
 ## 1.1.0
 
 - Added cached update checks for direct `com.loogasoft.*` Git dependencies.

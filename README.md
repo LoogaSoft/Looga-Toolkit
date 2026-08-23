@@ -1,6 +1,6 @@
 # Looga Toolkit
 
-Looga Toolkit combines Looga Inspector, Looga Hierarchy, Looga Tags, Prefab Browser, and Looga Tools into one modular Unity package. It provides a consistent authoring environment without collapsing the features into one assembly.
+Looga Toolkit combines Looga Inspector, Looga Hierarchy, Looga Tags, Prefab Browser, Looga Logger, and Looga Tools into one modular Unity package. It provides a consistent authoring environment without collapsing the features into one assembly.
 
 ## Modules
 
@@ -9,6 +9,7 @@ Looga Toolkit combines Looga Inspector, Looga Hierarchy, Looga Tags, Prefab Brow
 - **Tags** provides project-defined, color-coded tags that can be assigned to GameObjects and queried at runtime.
 - **Prefab Browser** provides categorized prefab browsing, project-owned configuration, asset labels, and a generated prefab index.
 - **Tools** provides Curve Sketcher, assembly-definition helpers, cross-reference authoring, and shared runtime utilities.
+- **Logging** provides typed logging channels, configurable runtime filtering, a replaceable backend, and optional ZLogger and ZString adapters.
 - **Physics Placement** settles scene objects with Edit Mode physics and provides reversible collider generation and baking.
 - **Transform Authoring** adds local and world editing, vector clipboard actions, real-world size inspection, and Scene view measurements.
 
@@ -27,6 +28,10 @@ Toolkit exposes these feature assemblies:
 - `LoogaSoft.PrefabBrowser.Editor`
 - `LoogaSoft.Tools.Runtime`
 - `LoogaSoft.Tools.Editor`
+- `LoogaSoft.Logger.Runtime`
+- `LoogaSoft.Logger.Editor`
+- `LoogaSoft.Logger.ZLogger`
+- `LoogaSoft.Logger.ZString`
 - `LoogaSoft.PhysicsPlacement.Editor`
 - `LoogaSoft.TransformAuthoring.Editor`
 
@@ -41,6 +46,7 @@ ZLinq support is optional. Enable it from `LoogaSoft > Package Support` to route
 - [Looga Tags reference](Documentation~/Tags.md)
 - [Prefab Browser reference](Documentation~/Prefab-Browser.md)
 - [Tools reference](Documentation~/Tools.md)
+- [Logging reference](Documentation~/Logging.md)
 - [Physics Placement reference](Documentation~/Physics-Placement.md)
 - [Transform Authoring reference](Documentation~/Transform-Authoring.md)
 - [Migration guide](Documentation~/Migration.md)
@@ -53,4 +59,4 @@ Add the package through Unity Package Manager or add this dependency to `Package
 "com.loogasoft.loogatoolkit": "https://github.com/LoogaSoft/Looga-Toolkit.git"
 ```
 
-Remove the old `com.loogasoft.loogainspector`, `com.loogasoft.loogahierarchy`, `com.loogasoft.loogatools`, `com.loogasoft.polytags`, and `com.loogasoft.loogaprefabbrowser` dependencies after all dependent Looga packages reference Looga Toolkit.
+Remove the old `com.loogasoft.loogainspector`, `com.loogasoft.loogahierarchy`, `com.loogasoft.loogatools`, `com.loogasoft.polytags`, `com.loogasoft.loogaprefabbrowser`, and `com.loogasoft.loogalogger` dependencies after all dependent Looga packages reference Looga Toolkit.

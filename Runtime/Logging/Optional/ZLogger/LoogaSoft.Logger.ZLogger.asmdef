@@ -1,0 +1,25 @@
+{
+    "name": "LoogaSoft.Logger.ZLogger",
+    "rootNamespace": "LoogaSoft.Logging",
+    "references": [
+        "LoogaSoft.Logger.Runtime",
+        "ZLogger.Unity"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "LOOGA_LOGGER_ZLOGGER_AVAILABLE"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.zlogger",
+            "expression": "[0.0.0,)",
+            "define": "LOOGA_LOGGER_ZLOGGER_AVAILABLE"
+        }
+    ],
+    "noEngineReferences": false
+}
