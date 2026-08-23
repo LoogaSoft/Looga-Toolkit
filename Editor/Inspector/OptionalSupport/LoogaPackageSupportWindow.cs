@@ -356,8 +356,21 @@ namespace LoogaSoft.Inspector.Editor
         private static GUIStyle CreateStatusStyle(Color textColor)
         {
             GUIStyle style = new(EditorStyles.miniLabel);
-            style.normal.textColor = textColor;
+            SetStateTextColor(style.normal, textColor);
+            SetStateTextColor(style.hover, textColor);
+            SetStateTextColor(style.active, textColor);
+            SetStateTextColor(style.focused, textColor);
+            SetStateTextColor(style.onNormal, textColor);
+            SetStateTextColor(style.onHover, textColor);
+            SetStateTextColor(style.onActive, textColor);
+            SetStateTextColor(style.onFocused, textColor);
             return style;
+        }
+
+        private static void SetStateTextColor(GUIStyleState state, Color textColor)
+        {
+            if (state != null)
+                state.textColor = textColor;
         }
 
         private static string GetUpdateStatusLabel(LoogaPackageUpdateStatus status)

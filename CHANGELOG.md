@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Kept optional-integration status labels readable across all Unity Editor themes and IMGUI states.
+
 ## 2.0.0
 
 - Merged Looga Logger into Looga Toolkit while preserving all `LoogaSoft.Logger.*` assembly names, `LoogaSoft.Logging` namespaces, and Unity asset GUIDs.
