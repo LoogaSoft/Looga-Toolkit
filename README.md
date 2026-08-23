@@ -19,6 +19,7 @@ Toolkit exposes these feature assemblies:
 - `LoogaSoft.Inspector.Runtime`
 - `LoogaSoft.Inspector.Editor`
 - `LoogaSoft.Inspector.ZLinq`
+- `LoogaSoft.Toolkit.Search.ZLinq`
 - `LoogaSoft.Hierarchy.Editor`
 - `LoogaSoft.Tags.Runtime`
 - `LoogaSoft.Tags.Editor`
@@ -30,6 +31,8 @@ Toolkit exposes these feature assemblies:
 - `LoogaSoft.TransformAuthoring.Editor`
 
 Looga Tags uses `LoogaSoft.Tags` namespaces and `LoogaTag*` public types. Unity migration metadata preserves existing serialized tag components and databases when upgrading from the retired tag API.
+
+ZLinq support is optional. Enable it from `LoogaSoft > Package Support` to route eligible Inspector, Prefab Browser, asset-label, and Looga Tags collection queries through ZLinq. The normal assemblies keep allocation-conscious loop fallbacks and do not reference ZLinq.
 
 ## Documentation
 

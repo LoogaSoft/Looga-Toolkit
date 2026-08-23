@@ -15,7 +15,8 @@ namespace LoogaSoft.Inspector.Editor
         public static string ProviderId => "looga-toolkit.inspector.zlinq";
         public static string PackageName => "Looga Toolkit";
         public static string IntegrationName => "ZLinq";
-        public static string Description => "Uses ZLinq for allocation-conscious editor collection queries.";
+        public static string Description =>
+            "Uses ZLinq for allocation-conscious Inspector, Prefab Browser, asset-label, and Looga Tags queries.";
 
         public static bool IsEnabled()
         {
@@ -41,14 +42,14 @@ namespace LoogaSoft.Inspector.Editor
         {
             LoogaInspectorOptionalSupportUtility.AddDefineSymbol(DefineSymbol);
             AssetDatabase.Refresh();
-            Debug.Log("Looga Toolkit Inspector ZLinq support enabled.");
+            Debug.Log("Looga Toolkit ZLinq support enabled.");
         }
 
         private static void Disable()
         {
             LoogaInspectorOptionalSupportUtility.RemoveDefineSymbol(DefineSymbol);
             AssetDatabase.Refresh();
-            Debug.Log("Looga Toolkit Inspector ZLinq support disabled.");
+            Debug.Log("Looga Toolkit ZLinq support disabled.");
         }
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using LoogaSoft.PrefabBrowser.Runtime;
 using UnityEditor;
 using UnityEngine;
@@ -476,9 +475,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
                     DragAndDrop.PrepareStartDrag();
             
                     // Convert our selected lightweight data back into real GameObjects for Unity's drag system
-                    DragAndDrop.objectReferences = _selectedPrefabs
-                        .Select(p => AssetDatabase.LoadAssetAtPath<GameObject>(p.Path))
-                        .ToArray();
+                    DragAndDrop.objectReferences = PrefabBrowserQueryUtility.GetPrefabObjects(_selectedPrefabs);
                 
                     DragAndDrop.StartDrag($"{_selectedPrefabs.Count} Prefabs");
                     e.Use();

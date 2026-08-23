@@ -1,7 +1,7 @@
 {
   "name": "com.loogasoft.loogatoolkit",
   "displayName": "Looga Toolkit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "unity": "6000.3",
   "description": "A modular Unity development toolkit for inspectors, hierarchy workflows, tags, prefab browsing, editor utilities, and shared runtime helpers.",
   "author": {

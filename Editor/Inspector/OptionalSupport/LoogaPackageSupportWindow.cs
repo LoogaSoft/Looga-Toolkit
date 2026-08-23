@@ -16,12 +16,17 @@ namespace LoogaSoft.Inspector.Editor
         private const string MenuPath = "LoogaSoft/Package Support";
         private const float ToolbarHeight = 21f;
         private const float CardHeight = 82f;
+        private const float UpdateCardHeight = 126f;
         private const float ContentPadding = 12f;
 
         private readonly List<PackageSupportPage> _pages = new();
         private GUIStyle _availableStatusStyle;
+        private GUIStyle _currentUpdateStyle;
         private GUIStyle _enabledStatusStyle;
+        private GUIStyle _errorUpdateStyle;
+        private GUIStyle _sourceUpdateStyle;
         private GUIStyle _unavailableStatusStyle;
+        private GUIStyle _updateAvailableStyle;
         private Vector2 _navigationScroll;
         private Vector2 _contentScroll;
         private int _selectedPage;
@@ -38,7 +43,15 @@ namespace LoogaSoft.Inspector.Editor
         private void OnEnable()
         {
             wantsMouseMove = true;
+            LoogaPackageUpdateService.Changed += OnPackageUpdatesChanged;
+            LoogaPackageUpdateService.Initialize();
             RefreshProviders();
+            UpdateTitle();
+        }
+
+        private void OnDisable()
+        {
+            LoogaPackageUpdateService.Changed -= OnPackageUpdatesChanged;
         }
 
         private void OnGUI()
@@ -80,10 +93,18 @@ namespace LoogaSoft.Inspector.Editor
                 using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar, GUILayout.ExpandHeight(true)))
                 {
                     if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(70f)))
+                    {
                         RefreshProviders();
+                        LoogaPackageUpdateService.Refresh(true);
+                    }
 
                     GUILayout.FlexibleSpace();
-                    GUILayout.Label($"{_pages.Count} package(s)", EditorStyles.miniLabel);
+                    int packageCount = LoogaPackageUpdateService.Packages.Count;
+                    int updateCount = LoogaPackageUpdateService.AvailableUpdateCount;
+                    string summary = updateCount > 0
+                        ? $"{packageCount} package(s), {updateCount} update(s)"
+                        : $"{packageCount} package(s)";
+                    GUILayout.Label(summary, EditorStyles.miniLabel);
                 }
             }
             finally
@@ -98,8 +119,8 @@ namespace LoogaSoft.Inspector.Editor
                 rect,
                 _navigationScroll,
                 _selectedPage,
-                _pages.Count,
-                index => _pages[index].Name,
+                _pages.Count + 1,
+                GetNavigationLabel,
                 out _navigationScroll);
         }
 
@@ -108,16 +129,20 @@ namespace LoogaSoft.Inspector.Editor
             GUILayout.BeginArea(rect);
             try
             {
-                if (_pages.Count == 0)
+                if (_selectedPage == 0)
                 {
-                    GUILayout.Space(ContentPadding);
-                    EditorGUILayout.LabelField("Package Support", LoogaSidebarGUI.HeaderStyle);
-                    GUILayout.Space(6f);
-                    EditorGUILayout.HelpBox("No optional Looga package integrations were found.", MessageType.Info);
+                    DrawPackageUpdates();
                     return;
                 }
 
-                PackageSupportPage page = _pages[Mathf.Clamp(_selectedPage, 0, _pages.Count - 1)];
+                if (_pages.Count == 0)
+                {
+                    GUILayout.Space(ContentPadding);
+                    EditorGUILayout.HelpBox("No optional package integrations were found.", MessageType.Info);
+                    return;
+                }
+
+                PackageSupportPage page = _pages[Mathf.Clamp(_selectedPage - 1, 0, _pages.Count - 1)];
                 _contentScroll = EditorGUILayout.BeginScrollView(_contentScroll);
                 GUILayout.Space(ContentPadding);
                 EditorGUILayout.LabelField(page.Name, LoogaSidebarGUI.HeaderStyle);
@@ -139,6 +164,130 @@ namespace LoogaSoft.Inspector.Editor
             finally
             {
                 GUILayout.EndArea();
+            }
+        }
+
+        private void DrawPackageUpdates()
+        {
+            _contentScroll = EditorGUILayout.BeginScrollView(_contentScroll);
+            GUILayout.Space(ContentPadding);
+            EditorGUILayout.LabelField("Package Updates", LoogaSidebarGUI.HeaderStyle);
+            GUILayout.Space(2f);
+            EditorGUILayout.LabelField(
+                "Review installed Looga packages and apply updates through Unity Package Manager.",
+                EditorStyles.wordWrappedMiniLabel);
+            GUILayout.Space(8f);
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                using (new EditorGUI.DisabledScope(
+                           LoogaPackageUpdateService.IsChecking ||
+                           LoogaPackageUpdateService.IsUpdating))
+                {
+                    if (GUILayout.Button("Check Now", GUILayout.Width(92f)))
+                        LoogaPackageUpdateService.Refresh(true);
+                }
+
+                using (new EditorGUI.DisabledScope(
+                           LoogaPackageUpdateService.AvailableUpdateCount == 0 ||
+                           LoogaPackageUpdateService.IsUpdating))
+                {
+                    if (GUILayout.Button("Update All", GUILayout.Width(92f)) &&
+                        ConfirmUpdateAll())
+                    {
+                        LoogaPackageUpdateService.UpdateAll();
+                    }
+                }
+
+                GUILayout.FlexibleSpace();
+            }
+
+            if (!string.IsNullOrWhiteSpace(LoogaPackageUpdateService.OperationMessage))
+            {
+                GUILayout.Space(5f);
+                EditorGUILayout.HelpBox(
+                    LoogaPackageUpdateService.OperationMessage,
+                    LoogaPackageUpdateService.IsChecking ? MessageType.Info : MessageType.None);
+            }
+
+            GUILayout.Space(7f);
+            IReadOnlyList<LoogaPackageUpdateInfo> packages = LoogaPackageUpdateService.Packages;
+            if (packages.Count == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "The project does not contain direct com.loogasoft Git dependencies.",
+                    MessageType.Info);
+            }
+
+            for (int i = 0; i < packages.Count; i++)
+            {
+                DrawPackageUpdate(packages[i]);
+                GUILayout.Space(4f);
+            }
+
+            GUILayout.Space(ContentPadding);
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawPackageUpdate(LoogaPackageUpdateInfo package)
+        {
+            Rect cardRect = LoogaEditorStyle.PixelSnap(
+                GUILayoutUtility.GetRect(1f, UpdateCardHeight, GUILayout.ExpandWidth(true)));
+            EditorGUI.DrawRect(cardRect, LoogaEditorStyle.AlternateBoxColor);
+
+            Rect innerRect = new(
+                cardRect.x + 12f,
+                cardRect.y + 8f,
+                cardRect.width - 24f,
+                cardRect.height - 16f);
+            Rect titleRect = new(innerRect.x, innerRect.y, innerRect.width - 150f, 19f);
+            EditorGUI.LabelField(titleRect, package.DisplayName, EditorStyles.boldLabel);
+
+            Rect statusRect = new(innerRect.xMax - 146f, innerRect.y, 146f, 19f);
+            EditorGUI.LabelField(
+                statusRect,
+                GetUpdateStatusLabel(package.Status),
+                GetUpdateStatusStyle(package.Status));
+
+            string installed = FormatRevision(package.InstalledRevision);
+            string installedLabel = string.IsNullOrWhiteSpace(package.InstalledVersion)
+                ? installed
+                : $"{package.InstalledVersion}  {installed}";
+            Rect installedRect = new(innerRect.x, innerRect.y + 22f, innerRect.width, 18f);
+            EditorGUI.LabelField(installedRect, $"Installed: {installedLabel}", EditorStyles.miniLabel);
+
+            string latestLabel = string.IsNullOrWhiteSpace(package.LatestLabel)
+                ? "Not checked"
+                : $"{package.LatestLabel}  {FormatRevision(package.LatestRevision)}";
+            Rect latestRect = new(innerRect.x, innerRect.y + 39f, innerRect.width, 18f);
+            EditorGUI.LabelField(latestRect, $"Latest: {latestLabel}", EditorStyles.miniLabel);
+
+            Rect detailRect = new(innerRect.x, innerRect.y + 58f, innerRect.width, 29f);
+            EditorGUI.LabelField(detailRect, package.Detail, EditorStyles.wordWrappedMiniLabel);
+
+            Rect actionsRect = new(innerRect.x, innerRect.yMax - 20f, innerRect.width, 20f);
+            DrawPackageActions(actionsRect, package);
+        }
+
+        private void DrawPackageActions(Rect rect, LoogaPackageUpdateInfo package)
+        {
+            const float buttonWidth = 104f;
+            Rect updateRect = new(rect.x, rect.y, buttonWidth, rect.height);
+            using (new EditorGUI.DisabledScope(
+                       !package.CanUpdate || LoogaPackageUpdateService.IsUpdating))
+            {
+                string updateLabel = package.Status == LoogaPackageUpdateStatus.UnreleasedChanges
+                    ? "Install Source"
+                    : "Update";
+                if (GUI.Button(updateRect, updateLabel) && ConfirmPackageUpdate(package))
+                    LoogaPackageUpdateService.UpdatePackage(package);
+            }
+
+            Rect changesRect = new(updateRect.xMax + 4f, rect.y, buttonWidth, rect.height);
+            using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(package.ChangesUrl)))
+            {
+                if (GUI.Button(changesRect, "View Changes"))
+                    LoogaPackageUpdateService.OpenChanges(package);
             }
         }
 
@@ -187,11 +336,78 @@ namespace LoogaSoft.Inspector.Editor
                 : available ? _availableStatusStyle : _unavailableStatusStyle;
         }
 
+        private GUIStyle GetUpdateStatusStyle(LoogaPackageUpdateStatus status)
+        {
+            _currentUpdateStyle ??= CreateStatusStyle(new Color(0.45f, 0.78f, 0.48f));
+            _updateAvailableStyle ??= CreateStatusStyle(new Color(0.42f, 0.68f, 0.95f));
+            _sourceUpdateStyle ??= CreateStatusStyle(new Color(0.88f, 0.68f, 0.30f));
+            _errorUpdateStyle ??= CreateStatusStyle(new Color(0.92f, 0.46f, 0.40f));
+
+            return status switch
+            {
+                LoogaPackageUpdateStatus.Current => _currentUpdateStyle,
+                LoogaPackageUpdateStatus.UpdateAvailable => _updateAvailableStyle,
+                LoogaPackageUpdateStatus.UnreleasedChanges => _sourceUpdateStyle,
+                LoogaPackageUpdateStatus.Unavailable => _errorUpdateStyle,
+                _ => EditorStyles.miniLabel
+            };
+        }
+
         private static GUIStyle CreateStatusStyle(Color textColor)
         {
             GUIStyle style = new(EditorStyles.miniLabel);
             style.normal.textColor = textColor;
             return style;
+        }
+
+        private static string GetUpdateStatusLabel(LoogaPackageUpdateStatus status)
+        {
+            return status switch
+            {
+                LoogaPackageUpdateStatus.Checking => "Checking",
+                LoogaPackageUpdateStatus.Current => "Current",
+                LoogaPackageUpdateStatus.UpdateAvailable => "Update available",
+                LoogaPackageUpdateStatus.UnreleasedChanges => "Unreleased changes",
+                LoogaPackageUpdateStatus.LocalDevelopment => "Local development",
+                LoogaPackageUpdateStatus.Unavailable => "Unavailable",
+                _ => status.ToString()
+            };
+        }
+
+        private static string FormatRevision(string revision)
+        {
+            if (string.IsNullOrWhiteSpace(revision))
+                return "revision unavailable";
+
+            return revision.Length > 8 ? revision.Substring(0, 8) : revision;
+        }
+
+        private static bool ConfirmPackageUpdate(LoogaPackageUpdateInfo package)
+        {
+            bool unreleased = package.Status == LoogaPackageUpdateStatus.UnreleasedChanges;
+            string title = unreleased ? "Install Unreleased Source" : "Update Looga Package";
+            string detail = unreleased
+                ? "This revision is not part of a newer release tag. Install it only when you want the latest repository source."
+                : $"Install {package.LatestLabel}?";
+            return EditorUtility.DisplayDialog(
+                title,
+                $"{package.DisplayName}\n\n{detail}",
+                unreleased ? "Install Source" : "Update",
+                "Cancel");
+        }
+
+        private static bool ConfirmUpdateAll()
+        {
+            int unreleasedCount = LoogaPackageUpdateService.Packages.Count(package =>
+                package.Status == LoogaPackageUpdateStatus.UnreleasedChanges);
+            string warning = unreleasedCount > 0
+                ? $"\n\nThis operation also installs unreleased source for {unreleasedCount} package(s)."
+                : string.Empty;
+            return EditorUtility.DisplayDialog(
+                "Update All Looga Packages",
+                $"Update {LoogaPackageUpdateService.AvailableUpdateCount} package(s)?{warning}\n\nLooga Toolkit updates last.",
+                "Update All",
+                "Cancel");
         }
 
         private void SetProviderEnabled(OptionalSupportProvider provider, bool enabled)
@@ -214,8 +430,8 @@ namespace LoogaSoft.Inspector.Editor
 
         private void RefreshProviders()
         {
-            string selectedName = _pages.Count > 0 && _selectedPage < _pages.Count
-                ? _pages[_selectedPage].Name
+            string selectedName = _selectedPage > 0 && _selectedPage - 1 < _pages.Count
+                ? _pages[_selectedPage - 1].Name
                 : string.Empty;
 
             _pages.Clear();
@@ -228,11 +444,43 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             _pages.Sort((left, right) => string.Compare(left.Name, right.Name, StringComparison.Ordinal));
-            _selectedPage = Mathf.Clamp(
-                _pages.FindIndex(page => string.Equals(page.Name, selectedName, StringComparison.Ordinal)),
-                0,
-                Mathf.Max(0, _pages.Count - 1));
+            if (!string.IsNullOrEmpty(selectedName))
+            {
+                int selectedIndex = _pages.FindIndex(page =>
+                    string.Equals(page.Name, selectedName, StringComparison.Ordinal));
+                _selectedPage = selectedIndex >= 0 ? selectedIndex + 1 : 0;
+            }
+            else
+            {
+                _selectedPage = Mathf.Clamp(_selectedPage, 0, _pages.Count);
+            }
+
             Repaint();
+        }
+
+        private string GetNavigationLabel(int index)
+        {
+            if (index == 0)
+            {
+                int updateCount = LoogaPackageUpdateService.AvailableUpdateCount;
+                return updateCount > 0 ? $"Updates ({updateCount})" : "Updates";
+            }
+
+            return _pages[index - 1].Name;
+        }
+
+        private void OnPackageUpdatesChanged()
+        {
+            UpdateTitle();
+            Repaint();
+        }
+
+        private void UpdateTitle()
+        {
+            int updateCount = LoogaPackageUpdateService.AvailableUpdateCount;
+            titleContent = new GUIContent(updateCount > 0
+                ? $"Looga Packages ({updateCount})"
+                : "Looga Packages");
         }
 
         private sealed class PackageSupportPage

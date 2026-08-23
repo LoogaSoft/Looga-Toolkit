@@ -814,11 +814,11 @@ public sealed class ProjectSettingsComponent : MonoBehaviour
 
 ## Optional Integrations
 
-Looga Inspector can enable optional editor acceleration for ZLinq from:
+Looga Toolkit can enable optional editor acceleration for ZLinq from:
 
-`LoogaSoft/Inspector/Enable ZLinq Support`
+`LoogaSoft > Package Support`
 
-Only enable optional support when the dependency is installed in the project and the package is editable or updated at the source package level.
+The integration covers Inspector queries plus selected Prefab Browser, asset-label, and Looga Tags result projections. Search loops that already avoid allocations remain unchanged. Only enable optional support when ZLinq is installed in the project.
 
 ## When To Use A Custom Editor
 

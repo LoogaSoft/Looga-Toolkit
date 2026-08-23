@@ -1,4 +1,3 @@
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -15,7 +14,7 @@ namespace LoogaSoft.Tags.Editor
         {
             if (HasHistory)
             {
-                var validObjects = _previousSelection.Where(s => s != null).ToArray();
+                Object[] validObjects = LoogaTagQueryUtility.GetValidObjects(_previousSelection);
 
                 if (validObjects.Length > 0)
                     Selection.objects = validObjects;

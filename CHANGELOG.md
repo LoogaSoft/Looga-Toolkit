@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 1.1.0
+
+- Added cached update checks for direct `com.loogasoft.*` Git dependencies.
+- Added release, source, local-development, and unavailable package statuses.
+- Added safe single-package and ordered all-package update workflows.
+- Added direct links that compare installed and available revisions.
+- Extended optional ZLinq support to Prefab Browser drag results, asset-label results, and Looga Tags selection filtering.
+- Kept allocation-conscious loop fallbacks in all search modules so ZLinq remains optional.
+- Removed the remaining ordinary LINQ calls from Prefab Browser and Looga Tags editor workflows.
 - Added a Transform inspector with local and world editing modes.
 - Added copy, paste, and reset actions for position, rotation, and scale.
 - Added calculated world size and Scene view bounds measurements for selected objects.

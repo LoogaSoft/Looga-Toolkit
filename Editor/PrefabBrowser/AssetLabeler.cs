@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -95,14 +94,15 @@ namespace LoogaSoft.PrefabBrowser.Editor
                     if (asset != null)
                     {
                         string[] currentLabels = AssetDatabase.GetLabels(asset);
-                        if (!currentLabels.Contains(_label) && !removeLabels)
+                        bool containsLabel = System.Array.IndexOf(currentLabels, _label) >= 0;
+                        if (!containsLabel && !removeLabels)
                         {
                             List<string> newLabels = new List<string>(currentLabels);
                             newLabels.Add(_label);
                             AssetDatabase.SetLabels(asset, newLabels.ToArray());
                             count++;
                         }
-                        else if (removeLabels && currentLabels.Contains(_label))
+                        else if (removeLabels && containsLabel)
                         {
                             List<string> newLabels = new List<string>(currentLabels);
                             newLabels.Remove(_label);

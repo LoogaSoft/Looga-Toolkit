@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
@@ -48,7 +47,7 @@ namespace LoogaSoft.PrefabBrowser.Editor
             if (method != null)
             {
                 Dictionary<string, float> labels = method.Invoke(null, null) as Dictionary<string, float>;
-                return labels?.Keys.ToArray();
+                return PrefabBrowserQueryUtility.ToStringArray(labels?.Keys);
             }
 
             Debug.LogError("Unable to get labels from AssetDatabase");

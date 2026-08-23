@@ -11,3 +11,5 @@ The tag database is stored at `Assets/Resources/LoogaSoft/LoogaTagDatabase.asset
 Runtime code uses the `LoogaSoft.Tags.Runtime` namespace. The primary types are `LoogaTags`, `LoogaTagGroup`, `LoogaTag`, and `LoogaTagDatabase`.
 
 Unity migration metadata preserves serialized tag components and databases from earlier Toolkit versions. The editor also moves the former database asset to the Looga Tags resource path when it first loads the project.
+
+When Toolkit ZLinq support is enabled from `LoogaSoft > Package Support`, Looga Tags uses the optional adapter when it filters saved editor selections. The default loop implementation remains available when ZLinq is not installed.
