@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -13,6 +17,15 @@ namespace LoogaSoft.Inspector.Editor
         public const float InteractiveRowSpacing = 4f;
         public const float RowHorizontalPadding = 8f;
         public const float FoldoutTriangleInset = 10f;
+        public const float ContentPadding = 12f;
+        public const float SectionSpacing = 8f;
+
+        public static readonly ProfilerMarker MenuPreviewRefresh =
+            new("Looga.UI.MenuPreview.Refresh");
+        public static readonly ProfilerMarker PackageWorkspaceRefresh =
+            new("Looga.Toolkit.PackageWorkspace.Refresh");
+        public static readonly ProfilerMarker DesignSystemRefresh =
+            new("Looga.UI.DesignSystem.Refresh");
 
         private const string SharedStyleSheetPath =
             "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Styles/LoogaUiToolkitStyle.uss";
@@ -62,16 +75,138 @@ namespace LoogaSoft.Inspector.Editor
             VisualElement input = header.Q<VisualElement>(className: "unity-toggle__input");
             if (input != null)
             {
+                input.style.opacity = 1f;
                 input.style.marginLeft = FoldoutTriangleInset;
                 input.style.marginRight = 4f;
+                input.style.width = 10f;
+                input.style.height = 10f;
             }
 
             VisualElement triangle = header.Q<VisualElement>(className: "unity-toggle__checkmark");
             if (triangle != null)
             {
-                triangle.style.unityBackgroundImageTintColor = FoldoutTriangleColor;
-                triangle.style.opacity = 1f;
+                triangle.style.display = DisplayStyle.None;
             }
+
+            if (input != null && input.Q<LoogaFoldoutTriangle>() == null)
+                input.Add(new LoogaFoldoutTriangle(foldout));
+        }
+
+        public static VisualElement CreateInspectorRoot()
+        {
+            VisualElement root = new();
+            AddSharedStyleSheet(root);
+            root.style.paddingLeft = ContentPadding;
+            root.style.paddingRight = ContentPadding;
+            root.style.paddingTop = ContentPadding;
+            root.style.paddingBottom = ContentPadding;
+            return root;
+        }
+
+        public static VisualElement CreateSection(string title, string description = null)
+        {
+            VisualElement section = new();
+            section.style.marginBottom = SectionSpacing;
+
+            Label heading = new(title);
+            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
+            heading.style.fontSize = 13f;
+            heading.style.marginBottom = string.IsNullOrWhiteSpace(description) ? 4f : 2f;
+            section.Add(heading);
+
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                Label detail = new(description);
+                detail.style.whiteSpace = WhiteSpace.Normal;
+                detail.style.opacity = 0.78f;
+                detail.style.marginBottom = 6f;
+                section.Add(detail);
+            }
+
+            return section;
+        }
+
+        public static VisualElement CreateCard()
+        {
+            VisualElement card = new();
+            card.style.paddingLeft = 10f;
+            card.style.paddingRight = 10f;
+            card.style.paddingTop = 8f;
+            card.style.paddingBottom = 8f;
+            card.style.marginBottom = 4f;
+            card.style.backgroundColor = EditorGUIUtility.isProSkin
+                ? new Color(0.24f, 0.24f, 0.24f)
+                : new Color(0.82f, 0.82f, 0.82f);
+            return card;
+        }
+
+        public static VisualElement CreateButtonRow(params VisualElement[] controls)
+        {
+            VisualElement row = new();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.marginBottom = 6f;
+            foreach (VisualElement control in controls)
+            {
+                control.style.marginLeft = 0f;
+                control.style.marginRight = 4f;
+                row.Add(control);
+            }
+
+            return row;
+        }
+
+        public static Toolbar CreateTabBar(
+            string[] labels,
+            int selectedIndex,
+            Action<int> selectionChanged)
+        {
+            Toolbar toolbar = new();
+            toolbar.style.flexShrink = 0f;
+            List<ToolbarToggle> tabs = new(labels.Length);
+            for (int i = 0; i < labels.Length; i++)
+            {
+                int index = i;
+                ToolbarToggle tab = new() { text = labels[i] };
+                tab.style.flexGrow = 1f;
+                tab.SetValueWithoutNotify(i == selectedIndex);
+                tab.RegisterValueChangedCallback(evt =>
+                {
+                    if (!evt.newValue)
+                    {
+                        if (tabs.TrueForAll(candidate => !candidate.value))
+                            tab.SetValueWithoutNotify(true);
+                        return;
+                    }
+
+                    foreach (ToolbarToggle candidate in tabs)
+                    {
+                        if (candidate != tab)
+                            candidate.SetValueWithoutNotify(false);
+                    }
+
+                    selectionChanged?.Invoke(index);
+                });
+                tabs.Add(tab);
+                toolbar.Add(tab);
+            }
+
+            return toolbar;
+        }
+
+        public static PropertyField CreatePropertyField(
+            SerializedObject owner,
+            string propertyName,
+            string label = null)
+        {
+            SerializedProperty property = owner?.FindProperty(propertyName);
+            if (property == null)
+                return null;
+
+            PropertyField field = string.IsNullOrWhiteSpace(label)
+                ? new PropertyField(property)
+                : new PropertyField(property, label);
+            field.Bind(owner);
+            return field;
         }
 
         public static void DisableCollectionRowHover(BaseVerticalCollectionView collection)
@@ -80,15 +215,55 @@ namespace LoogaSoft.Inspector.Editor
             collection.AddToClassList(NoCollectionRowHoverClass);
         }
 
-        private static Color FoldoutTriangleColor => EditorGUIUtility.isProSkin
-            ? new Color(0.76f, 0.76f, 0.76f)
-            : new Color(0.28f, 0.28f, 0.28f);
+        internal static Color FoldoutTriangleColor => EditorStyles.popup.normal.textColor;
 
-        private static void AddSharedStyleSheet(VisualElement root)
+        public static void AddSharedStyleSheet(VisualElement root)
         {
             _sharedStyleSheet ??= AssetDatabase.LoadAssetAtPath<StyleSheet>(SharedStyleSheetPath);
             if (_sharedStyleSheet != null)
                 root.styleSheets.Add(_sharedStyleSheet);
+        }
+    }
+
+    internal sealed class LoogaFoldoutTriangle : VisualElement
+    {
+        private readonly Foldout _foldout;
+
+        public LoogaFoldoutTriangle(Foldout foldout)
+        {
+            _foldout = foldout;
+            pickingMode = PickingMode.Ignore;
+            style.position = Position.Absolute;
+            style.left = 0f;
+            style.top = 0f;
+            style.width = 10f;
+            style.height = 10f;
+            style.opacity = 1f;
+            generateVisualContent += DrawTriangle;
+            _foldout.RegisterValueChangedCallback(_ => MarkDirtyRepaint());
+            RegisterCallback<AttachToPanelEvent>(_ => MarkDirtyRepaint());
+        }
+
+        private void DrawTriangle(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            painter.fillColor = LoogaUiToolkitStyle.FoldoutTriangleColor;
+            painter.BeginPath();
+            if (_foldout.value)
+            {
+                painter.MoveTo(new Vector2(1f, 2.5f));
+                painter.LineTo(new Vector2(9f, 2.5f));
+                painter.LineTo(new Vector2(5f, 8.5f));
+            }
+            else
+            {
+                painter.MoveTo(new Vector2(2.5f, 1f));
+                painter.LineTo(new Vector2(8.5f, 5f));
+                painter.LineTo(new Vector2(2.5f, 9f));
+            }
+
+            painter.ClosePath();
+            painter.Fill();
         }
     }
 }

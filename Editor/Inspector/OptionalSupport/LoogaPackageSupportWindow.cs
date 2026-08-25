@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -30,6 +32,9 @@ namespace LoogaSoft.Inspector.Editor
         private Vector2 _navigationScroll;
         private Vector2 _contentScroll;
         private int _selectedPage;
+        private VisualElement _contentRoot;
+        private ListView _navigationList;
+        private Label _summaryLabel;
 
         [MenuItem(MenuPath, priority = 0)]
         private static void Open()
@@ -42,7 +47,6 @@ namespace LoogaSoft.Inspector.Editor
 
         private void OnEnable()
         {
-            wantsMouseMove = true;
             LoogaPackageUpdateService.Changed += OnPackageUpdatesChanged;
             LoogaPackageUpdateService.Initialize();
             RefreshProviders();
@@ -54,7 +58,245 @@ namespace LoogaSoft.Inspector.Editor
             LoogaPackageUpdateService.Changed -= OnPackageUpdatesChanged;
         }
 
-        private void OnGUI()
+        public void CreateGUI()
+        {
+            BuildWorkspace();
+        }
+
+        private void BuildWorkspace()
+        {
+            using var _ = LoogaUiToolkitStyle.PackageWorkspaceRefresh.Auto();
+            VisualElement root = rootVisualElement;
+            root.Clear();
+            root.style.flexDirection = FlexDirection.Column;
+
+            Toolbar toolbar = new();
+            toolbar.Add(new ToolbarButton(() =>
+            {
+                RefreshProviders();
+                LoogaPackageUpdateService.Refresh(true);
+                RebuildWorkspace();
+            }) { text = "Refresh" });
+            VisualElement spacer = new();
+            spacer.style.flexGrow = 1f;
+            toolbar.Add(spacer);
+            _summaryLabel = new Label();
+            _summaryLabel.style.unityFontStyleAndWeight = FontStyle.Normal;
+            toolbar.Add(_summaryLabel);
+            root.Add(toolbar);
+
+            TwoPaneSplitView split = new(0, 190f, TwoPaneSplitViewOrientation.Horizontal);
+            split.style.flexGrow = 1f;
+            root.Add(split);
+
+            _navigationList = new ListView
+            {
+                selectionType = SelectionType.Single,
+                fixedItemHeight = 28f,
+                makeItem = () => new Label(),
+                bindItem = (element, index) =>
+                    ((Label)element).text = GetNavigationLabel(index)
+            };
+            _navigationList.style.flexGrow = 1f;
+            _navigationList.itemsSource = BuildNavigationItems();
+            _navigationList.selectedIndex = Mathf.Clamp(_selectedPage, 0, _pages.Count);
+            _navigationList.selectionChanged += _ =>
+            {
+                _selectedPage = Mathf.Max(0, _navigationList.selectedIndex);
+                BuildSelectedPage();
+            };
+            split.Add(_navigationList);
+
+            _contentRoot = new ScrollView(ScrollViewMode.Vertical);
+            _contentRoot.style.flexGrow = 1f;
+            split.Add(_contentRoot);
+            UpdateWorkspaceSummary();
+            BuildSelectedPage();
+        }
+
+        private List<string> BuildNavigationItems()
+        {
+            List<string> items = new() { GetNavigationLabel(0) };
+            for (int i = 0; i < _pages.Count; i++)
+                items.Add(_pages[i].Name);
+            return items;
+        }
+
+        private void BuildSelectedPage()
+        {
+            if (_contentRoot == null)
+                return;
+
+            _contentRoot.Clear();
+            VisualElement content = LoogaUiToolkitStyle.CreateInspectorRoot();
+            _contentRoot.Add(content);
+            if (_selectedPage == 0)
+            {
+                BuildPackageUpdates(content);
+                return;
+            }
+
+            if (_pages.Count == 0)
+            {
+                content.Add(new HelpBox(
+                    "No optional package integrations were found.",
+                    HelpBoxMessageType.Info));
+                return;
+            }
+
+            PackageSupportPage page = _pages[Mathf.Clamp(_selectedPage - 1, 0, _pages.Count - 1)];
+            VisualElement section = LoogaUiToolkitStyle.CreateSection(
+                page.Name,
+                "Enable only the integrations used by this project.");
+            content.Add(section);
+            foreach (OptionalSupportProvider provider in page.Providers)
+                section.Add(CreateProviderCard(provider));
+        }
+
+        private void BuildPackageUpdates(VisualElement content)
+        {
+            VisualElement section = LoogaUiToolkitStyle.CreateSection(
+                "Package Updates",
+                "Review installed Looga packages and apply updates through Unity Package Manager.");
+            content.Add(section);
+
+            Button check = new(() => LoogaPackageUpdateService.Refresh(true)) { text = "Check Now" };
+            check.SetEnabled(!LoogaPackageUpdateService.IsChecking && !LoogaPackageUpdateService.IsUpdating);
+            Button updateAll = new(() =>
+            {
+                if (ConfirmUpdateAll())
+                    LoogaPackageUpdateService.UpdateAll();
+            }) { text = "Update All" };
+            updateAll.SetEnabled(
+                LoogaPackageUpdateService.AvailableUpdateCount > 0 &&
+                !LoogaPackageUpdateService.IsUpdating);
+            section.Add(LoogaUiToolkitStyle.CreateButtonRow(check, updateAll));
+
+            if (!string.IsNullOrWhiteSpace(LoogaPackageUpdateService.OperationMessage))
+            {
+                section.Add(new HelpBox(
+                    LoogaPackageUpdateService.OperationMessage,
+                    LoogaPackageUpdateService.IsChecking
+                        ? HelpBoxMessageType.Info
+                        : HelpBoxMessageType.None));
+            }
+
+            IReadOnlyList<LoogaPackageUpdateInfo> packages = LoogaPackageUpdateService.Packages;
+            if (packages.Count == 0)
+            {
+                section.Add(new HelpBox(
+                    "The project does not contain direct com.loogasoft Git dependencies.",
+                    HelpBoxMessageType.Info));
+            }
+
+            foreach (LoogaPackageUpdateInfo package in packages)
+                section.Add(CreatePackageCard(package));
+        }
+
+        private VisualElement CreatePackageCard(LoogaPackageUpdateInfo package)
+        {
+            VisualElement card = LoogaUiToolkitStyle.CreateCard();
+            VisualElement heading = new();
+            heading.style.flexDirection = FlexDirection.Row;
+            Label title = new(package.DisplayName);
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.flexGrow = 1f;
+            heading.Add(title);
+            Label status = new(GetUpdateStatusLabel(package.Status));
+            status.style.color = GetUpdateStatusColor(package.Status);
+            heading.Add(status);
+            card.Add(heading);
+
+            string installed = FormatRevision(package.InstalledRevision);
+            string installedLabel = string.IsNullOrWhiteSpace(package.InstalledVersion)
+                ? installed
+                : $"{package.InstalledVersion}  {installed}";
+            card.Add(new Label($"Installed: {installedLabel}"));
+            string latest = string.IsNullOrWhiteSpace(package.LatestLabel)
+                ? "Not checked"
+                : $"{package.LatestLabel}  {FormatRevision(package.LatestRevision)}";
+            card.Add(new Label($"Latest: {latest}"));
+            Label detail = new(package.Detail);
+            detail.style.whiteSpace = WhiteSpace.Normal;
+            card.Add(detail);
+
+            string updateLabel = package.Status == LoogaPackageUpdateStatus.UnreleasedChanges
+                ? "Install Source"
+                : "Update";
+            Button update = new(() =>
+            {
+                if (ConfirmPackageUpdate(package))
+                    LoogaPackageUpdateService.UpdatePackage(package);
+            }) { text = updateLabel };
+            update.SetEnabled(package.CanUpdate && !LoogaPackageUpdateService.IsUpdating);
+            Button changes = new(() => LoogaPackageUpdateService.OpenChanges(package))
+            {
+                text = "View Changes"
+            };
+            changes.SetEnabled(!string.IsNullOrWhiteSpace(package.ChangesUrl));
+            card.Add(LoogaUiToolkitStyle.CreateButtonRow(update, changes));
+            return card;
+        }
+
+        private VisualElement CreateProviderCard(OptionalSupportProvider provider)
+        {
+            VisualElement card = LoogaUiToolkitStyle.CreateCard();
+            VisualElement heading = new();
+            heading.style.flexDirection = FlexDirection.Row;
+            Label title = new(provider.IntegrationName);
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.flexGrow = 1f;
+            heading.Add(title);
+            Toggle enabled = new("Enabled");
+            enabled.SetValueWithoutNotify(provider.Enabled);
+            enabled.SetEnabled(provider.Available || provider.Enabled);
+            enabled.RegisterValueChangedCallback(evt => SetProviderEnabled(provider, evt.newValue));
+            heading.Add(enabled);
+            card.Add(heading);
+
+            bool available = provider.Available;
+            Label status = new(provider.Enabled ? "Enabled" : available ? "Available" : "Unavailable");
+            status.style.color = provider.Enabled
+                ? new Color(0.45f, 0.78f, 0.48f)
+                : available ? LoogaEditorStyle.TextColor : new Color(0.88f, 0.58f, 0.30f);
+            card.Add(status);
+            Label detail = new(available ? provider.Description : provider.UnavailableReason);
+            detail.style.whiteSpace = WhiteSpace.Normal;
+            card.Add(detail);
+            return card;
+        }
+
+        private static Color GetUpdateStatusColor(LoogaPackageUpdateStatus status)
+        {
+            return status switch
+            {
+                LoogaPackageUpdateStatus.Current => new Color(0.45f, 0.78f, 0.48f),
+                LoogaPackageUpdateStatus.UpdateAvailable => new Color(0.42f, 0.68f, 0.95f),
+                LoogaPackageUpdateStatus.UnreleasedChanges => new Color(0.88f, 0.68f, 0.30f),
+                LoogaPackageUpdateStatus.Unavailable => new Color(0.92f, 0.46f, 0.40f),
+                _ => LoogaEditorStyle.TextColor
+            };
+        }
+
+        private void RebuildWorkspace()
+        {
+            if (rootVisualElement.panel != null)
+                BuildWorkspace();
+        }
+
+        private void UpdateWorkspaceSummary()
+        {
+            if (_summaryLabel == null)
+                return;
+
+            int packageCount = LoogaPackageUpdateService.Packages.Count;
+            int updateCount = LoogaPackageUpdateService.AvailableUpdateCount;
+            _summaryLabel.text = updateCount > 0
+                ? $"{packageCount} package(s), {updateCount} update(s)"
+                : $"{packageCount} package(s)";
+        }
+
+        private void DrawLegacyGui()
         {
             DrawToolbar();
 
@@ -429,7 +671,7 @@ namespace LoogaSoft.Inspector.Editor
             {
                 provider.SetEnabled(enabled);
                 provider.RefreshState();
-                Repaint();
+                RebuildWorkspace();
             }
             catch (Exception exception)
             {
@@ -468,7 +710,7 @@ namespace LoogaSoft.Inspector.Editor
                 _selectedPage = Mathf.Clamp(_selectedPage, 0, _pages.Count);
             }
 
-            Repaint();
+            RebuildWorkspace();
         }
 
         private string GetNavigationLabel(int index)
@@ -485,7 +727,7 @@ namespace LoogaSoft.Inspector.Editor
         private void OnPackageUpdatesChanged()
         {
             UpdateTitle();
-            Repaint();
+            RebuildWorkspace();
         }
 
         private void UpdateTitle()
