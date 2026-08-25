@@ -118,7 +118,7 @@ namespace LoogaSoft.Inspector.Editor
                 return;
 
             Object inspectedTarget = inspectedObject.targetObject;
-            inspectedObject.Update();
+            inspectedObject.UpdateIfRequiredOrScript();
 
             var rootProperties = GetSerializedProperties();
 
@@ -146,7 +146,7 @@ namespace LoogaSoft.Inspector.Editor
                 _sidebarView.Draw(inspectedObject);
                 DrawButtons(layout, false);
                 DrawAfterProperties();
-                inspectedObject.ApplyModifiedProperties();
+                ApplyPendingChanges(inspectedObject);
                 return;
             }
 
@@ -158,7 +158,13 @@ namespace LoogaSoft.Inspector.Editor
 
             DrawButtons(layout, false);
             
-            inspectedObject.ApplyModifiedProperties();
+            ApplyPendingChanges(inspectedObject);
+        }
+
+        private static void ApplyPendingChanges(SerializedObject inspectedObject)
+        {
+            if (inspectedObject.hasModifiedProperties)
+                inspectedObject.ApplyModifiedProperties();
         }
 
         private void DrawEmbeddedObject(Object embeddedObject, bool showScriptField)

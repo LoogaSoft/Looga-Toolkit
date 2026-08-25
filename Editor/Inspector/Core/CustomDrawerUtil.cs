@@ -8,6 +8,7 @@ namespace LoogaSoft.Inspector.Editor
     public static class CustomDrawerUtil
     {
         private static readonly Dictionary<Type, bool> DrawerCache = new();
+        private static readonly Dictionary<PropertyTypeLookupKey, Type> PropertyTypeCache = new();
 
         private static readonly List<Type> InheritableTypes = new();
         private static readonly HashSet<Type> ExactDrawerTypes = new();
@@ -89,12 +90,22 @@ namespace LoogaSoft.Inspector.Editor
         }
         public static Type GetTargetType(SerializedProperty property)
         {
-            if (property == null) 
+            if (property?.serializedObject?.targetObject == null)
                 return null;
-            
+
             Type parentType = property.serializedObject.targetObject.GetType();
-            
-            string[] pathParts = property.propertyPath.Split('.');
+            var cacheKey = new PropertyTypeLookupKey(parentType, property.propertyPath);
+            if (PropertyTypeCache.TryGetValue(cacheKey, out Type cachedType))
+                return cachedType;
+
+            Type targetType = ResolveTargetType(parentType, property.propertyPath);
+            PropertyTypeCache[cacheKey] = targetType;
+            return targetType;
+        }
+
+        private static Type ResolveTargetType(Type parentType, string propertyPath)
+        {
+            string[] pathParts = propertyPath.Split('.');
 
             Type currentType = parentType;
 
@@ -119,9 +130,10 @@ namespace LoogaSoft.Inspector.Editor
                         return null;
                 }
             }
-            
+
             return currentType;
         }
+
         private static FieldInfo GetField(Type type, string fieldName)
         {
             while (type != null)
@@ -132,6 +144,37 @@ namespace LoogaSoft.Inspector.Editor
                 type = type.BaseType;
             }
             return null;
+        }
+
+        private readonly struct PropertyTypeLookupKey : IEquatable<PropertyTypeLookupKey>
+        {
+            public PropertyTypeLookupKey(Type rootType, string propertyPath)
+            {
+                RootType = rootType;
+                PropertyPath = propertyPath;
+            }
+
+            private Type RootType { get; }
+            private string PropertyPath { get; }
+
+            public bool Equals(PropertyTypeLookupKey other)
+            {
+                return RootType == other.RootType && PropertyPath == other.PropertyPath;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is PropertyTypeLookupKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return ((RootType != null ? RootType.GetHashCode() : 0) * 397) ^
+                           (PropertyPath != null ? PropertyPath.GetHashCode() : 0);
+                }
+            }
         }
     }
 }

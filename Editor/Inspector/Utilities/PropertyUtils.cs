@@ -15,6 +15,7 @@ namespace LoogaSoft.Inspector.Editor
         private const int MaximumFittedLabelCacheEntries = 1024;
 
         private static readonly Dictionary<AttributeLookupKey, Array> AttributeCache = new();
+        private static readonly Dictionary<PropertyFieldLookupKey, FieldInfo> PropertyFieldCache = new();
         private static readonly Dictionary<string, GUIContent> LabelCache = new();
         private static readonly Dictionary<LabelContentKey, GUIContent> TooltipLabelCache = new();
         private static readonly Dictionary<FittedLabelKey, GUIContent> FittedLabelCache = new();
@@ -34,11 +35,73 @@ namespace LoogaSoft.Inspector.Editor
             if (property == null) 
                 return Array.Empty<T>();
             
-            FieldInfo field = ReflectionUtils.GetField(GetTargetObjectWithProperty(property), property.name);
+            FieldInfo field = GetPropertyField(property);
             if (field == null)
                 return Array.Empty<T>();
             
             return GetCachedAttributes<T>(field);
+        }
+
+        private static FieldInfo GetPropertyField(SerializedProperty property)
+        {
+            object rootTarget = property.serializedObject.targetObject;
+            if (rootTarget == null)
+                return null;
+
+            PropertyFieldLookupKey key = new(rootTarget.GetType(), property.propertyPath);
+            if (PropertyFieldCache.TryGetValue(key, out FieldInfo cachedField))
+                return cachedField;
+
+            FieldInfo field = ResolvePropertyField(key.RootType, property.propertyPath);
+            if (field == null)
+            {
+                object owner = GetTargetObjectWithProperty(property);
+                field = ReflectionUtils.GetField(owner, property.name);
+            }
+
+            PropertyFieldCache[key] = field;
+            return field;
+        }
+
+        private static FieldInfo ResolvePropertyField(Type rootType, string propertyPath)
+        {
+            Type currentType = rootType;
+            FieldInfo currentField = null;
+            string[] pathElements = propertyPath.Split('.');
+
+            for (int i = 0; i < pathElements.Length; i++)
+            {
+                if (pathElements[i] == "Array"
+                    && i + 1 < pathElements.Length
+                    && pathElements[i + 1].StartsWith("data[", StringComparison.Ordinal))
+                {
+                    currentType = GetCollectionElementType(currentType);
+                    i++;
+                    continue;
+                }
+
+                currentField = ReflectionUtils.GetField(currentType, pathElements[i]);
+                if (currentField == null)
+                    return null;
+
+                currentType = currentField.FieldType;
+            }
+
+            return currentField;
+        }
+
+        private static Type GetCollectionElementType(Type collectionType)
+        {
+            if (collectionType == null)
+                return null;
+
+            if (collectionType.IsArray)
+                return collectionType.GetElementType();
+
+            if (collectionType.IsGenericType)
+                return collectionType.GetGenericArguments()[0];
+
+            return collectionType;
         }
 
 
@@ -407,6 +470,38 @@ namespace LoogaSoft.Inspector.Editor
                 {
                     return ((_field != null ? _field.GetHashCode() : 0) * 397)
                         ^ (_attributeType != null ? _attributeType.GetHashCode() : 0);
+                }
+            }
+        }
+
+        private readonly struct PropertyFieldLookupKey : IEquatable<PropertyFieldLookupKey>
+        {
+            public Type RootType { get; }
+            private readonly string _propertyPath;
+
+            public PropertyFieldLookupKey(Type rootType, string propertyPath)
+            {
+                RootType = rootType;
+                _propertyPath = propertyPath;
+            }
+
+            public bool Equals(PropertyFieldLookupKey other)
+            {
+                return RootType == other.RootType
+                    && string.Equals(_propertyPath, other._propertyPath, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is PropertyFieldLookupKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return ((RootType != null ? RootType.GetHashCode() : 0) * 397)
+                        ^ (_propertyPath != null ? _propertyPath.GetHashCode() : 0);
                 }
             }
         }
