@@ -16,7 +16,6 @@ namespace LoogaSoft.Inspector.Editor
         public const float InteractiveRowHeight = 38f;
         public const float InteractiveRowSpacing = 4f;
         public const float RowHorizontalPadding = 8f;
-        public const float FoldoutTriangleInset = 10f;
         public const float ContentPadding = 12f;
         public const float SectionSpacing = 8f;
 
@@ -66,20 +65,39 @@ namespace LoogaSoft.Inspector.Editor
 
             StyleInteractiveRow(header);
             header.style.marginBottom = 0f;
-            header.style.paddingLeft = 0f;
+            header.style.paddingLeft = RowHorizontalPadding;
+            header.style.alignItems = Align.Center;
 
             Label label = header.Q<Label>(className: "unity-toggle__label");
             if (label != null)
+            {
                 label.style.unityFontStyleAndWeight = FontStyle.Normal;
+                label.style.unityTextAlign = TextAnchor.MiddleLeft;
+                label.style.alignSelf = Align.Center;
+                label.style.flexGrow = 1f;
+                label.style.marginLeft = 0f;
+                label.style.paddingLeft = 0f;
+            }
 
             VisualElement input = header.Q<VisualElement>(className: "unity-toggle__input");
             if (input != null)
             {
                 input.style.opacity = 1f;
-                input.style.marginLeft = FoldoutTriangleInset;
-                input.style.marginRight = 4f;
+                input.style.position = Position.Relative;
+                input.style.marginLeft = 0f;
+                input.style.marginRight = 6f;
+                input.style.marginTop = 0f;
+                input.style.marginBottom = 0f;
+                input.style.paddingLeft = 0f;
+                input.style.paddingRight = 0f;
                 input.style.width = 10f;
+                input.style.minWidth = 10f;
+                input.style.maxWidth = 10f;
                 input.style.height = 10f;
+                input.style.minHeight = 10f;
+                input.style.maxHeight = 10f;
+                input.style.flexShrink = 0f;
+                input.style.alignSelf = Align.Center;
             }
 
             VisualElement triangle = header.Q<VisualElement>(className: "unity-toggle__checkmark");
@@ -233,11 +251,14 @@ namespace LoogaSoft.Inspector.Editor
         {
             _foldout = foldout;
             pickingMode = PickingMode.Ignore;
-            style.position = Position.Absolute;
-            style.left = 0f;
-            style.top = 0f;
+            style.position = Position.Relative;
             style.width = 10f;
+            style.minWidth = 10f;
+            style.maxWidth = 10f;
             style.height = 10f;
+            style.minHeight = 10f;
+            style.maxHeight = 10f;
+            style.flexShrink = 0f;
             style.opacity = 1f;
             generateVisualContent += DrawTriangle;
             _foldout.RegisterValueChangedCallback(_ => MarkDirtyRepaint());

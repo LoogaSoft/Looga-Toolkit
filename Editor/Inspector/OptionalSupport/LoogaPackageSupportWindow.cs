@@ -68,6 +68,7 @@ namespace LoogaSoft.Inspector.Editor
             using var _ = LoogaUiToolkitStyle.PackageWorkspaceRefresh.Auto();
             VisualElement root = rootVisualElement;
             root.Clear();
+            LoogaUiToolkitStyle.AddSharedStyleSheet(root);
             root.style.flexDirection = FlexDirection.Column;
 
             Toolbar toolbar = new();
@@ -82,6 +83,11 @@ namespace LoogaSoft.Inspector.Editor
             toolbar.Add(spacer);
             _summaryLabel = new Label();
             _summaryLabel.style.unityFontStyleAndWeight = FontStyle.Normal;
+            _summaryLabel.style.fontSize = 11f;
+            _summaryLabel.style.alignSelf = Align.Center;
+            _summaryLabel.style.unityTextAlign = TextAnchor.MiddleRight;
+            _summaryLabel.style.marginTop = 0f;
+            _summaryLabel.style.marginBottom = 0f;
             toolbar.Add(_summaryLabel);
             root.Add(toolbar);
 
@@ -92,8 +98,8 @@ namespace LoogaSoft.Inspector.Editor
             _navigationList = new ListView
             {
                 selectionType = SelectionType.Single,
-                fixedItemHeight = 28f,
-                makeItem = () => new Label(),
+                fixedItemHeight = 32f,
+                makeItem = CreateNavigationRow,
                 bindItem = (element, index) =>
                     ((Label)element).text = GetNavigationLabel(index)
             };
@@ -211,14 +217,12 @@ namespace LoogaSoft.Inspector.Editor
             string installedLabel = string.IsNullOrWhiteSpace(package.InstalledVersion)
                 ? installed
                 : $"{package.InstalledVersion}  {installed}";
-            card.Add(new Label($"Installed: {installedLabel}"));
+            card.Add(CreatePackageMetadataLabel($"Installed: {installedLabel}"));
             string latest = string.IsNullOrWhiteSpace(package.LatestLabel)
                 ? "Not checked"
                 : $"{package.LatestLabel}  {FormatRevision(package.LatestRevision)}";
-            card.Add(new Label($"Latest: {latest}"));
-            Label detail = new(package.Detail);
-            detail.style.whiteSpace = WhiteSpace.Normal;
-            card.Add(detail);
+            card.Add(CreatePackageMetadataLabel($"Latest: {latest}"));
+            card.Add(CreatePackageMetadataLabel(package.Detail, true));
 
             string updateLabel = package.Status == LoogaPackageUpdateStatus.UnreleasedChanges
                 ? "Install Source"
@@ -236,6 +240,33 @@ namespace LoogaSoft.Inspector.Editor
             changes.SetEnabled(!string.IsNullOrWhiteSpace(package.ChangesUrl));
             card.Add(LoogaUiToolkitStyle.CreateButtonRow(update, changes));
             return card;
+        }
+
+        private static Label CreateNavigationRow()
+        {
+            Label label = new();
+            label.style.height = 32f;
+            label.style.marginLeft = 0f;
+            label.style.marginRight = 0f;
+            label.style.marginTop = 0f;
+            label.style.marginBottom = 0f;
+            label.style.paddingLeft = 6f;
+            label.style.paddingRight = 6f;
+            label.style.paddingTop = 6f;
+            label.style.paddingBottom = 6f;
+            label.style.unityTextAlign = TextAnchor.MiddleLeft;
+            return label;
+        }
+
+        private static Label CreatePackageMetadataLabel(string text, bool wrap = false)
+        {
+            Label label = new(text);
+            label.style.fontSize = 11f;
+            label.style.unityFontStyleAndWeight = FontStyle.Normal;
+            label.style.whiteSpace = wrap ? WhiteSpace.Normal : WhiteSpace.NoWrap;
+            label.style.marginTop = 0f;
+            label.style.marginBottom = 0f;
+            return label;
         }
 
         private VisualElement CreateProviderCard(OptionalSupportProvider provider)
