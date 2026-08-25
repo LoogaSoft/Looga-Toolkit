@@ -1,0 +1,8 @@
+.looga-no-collection-row-hover .unity-base-vertical-collection-view__item,
+.looga-no-collection-row-hover .unity-base-vertical-collection-view__item:hover,
+.looga-no-collection-row-hover .unity-collection-view__item,
+.looga-no-collection-row-hover .unity-collection-view__item:hover,
+.looga-no-collection-row-hover .unity-list-view__item,
+.looga-no-collection-row-hover .unity-list-view__item:hover {
+    background-color: rgba(0, 0, 0, 0);
+}

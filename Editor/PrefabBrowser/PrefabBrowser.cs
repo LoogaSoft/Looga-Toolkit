@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LoogaSoft.Inspector.Editor;
 using LoogaSoft.PrefabBrowser.Runtime;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -105,12 +106,9 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 selectionType = SelectionType.None,
                 makeItem = () => new PrefabRowElement(this),
                 bindItem = (element, index) =>
-                {
-                    PrefabRowElement row = (PrefabRowElement)element;
-                    row.ClearListItemBackground();
-                    row.Bind(_rows[index].StartIndex, _columnCount);
-                }
+                    ((PrefabRowElement)element).Bind(_rows[index].StartIndex, _columnCount)
             };
+            LoogaUiToolkitStyle.DisableCollectionRowHover(_prefabGrid);
             _prefabGrid.style.flexGrow = 1f;
             _prefabGrid.RegisterCallback<GeometryChangedEvent>(HandleGridGeometryChanged);
             root.Add(_prefabGrid);
@@ -494,13 +492,6 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 style.height = TileHeight;
                 style.paddingLeft = 2f;
                 style.paddingRight = 2f;
-                RegisterCallback<AttachToPanelEvent>(_ => ClearListItemBackground());
-            }
-
-            public void ClearListItemBackground()
-            {
-                if (parent != null)
-                    parent.style.backgroundColor = Color.clear;
             }
 
             public void Bind(int startIndex, int columnCount)
