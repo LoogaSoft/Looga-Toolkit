@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Reflection;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -69,8 +71,8 @@ namespace LoogaSoft.Inspector.Editor
             SerializedObject owner = property.serializedObject;
             string propertyPath = property.propertyPath;
             UnityEngine.UIElements.VisualElement root = new();
-            UnityEditor.UIElements.PopupField<string> componentField = new(label, new List<string> { "None" }, 0);
-            UnityEditor.UIElements.PopupField<string> parameterField = new("Value", new List<string> { "None" }, 0);
+            PopupField<string> componentField = new(label, new List<string> { "None" }, 0);
+            PopupField<string> parameterField = new("Value", new List<string> { "None" }, 0);
             parameterField.style.marginLeft = IndentWidth;
             root.Add(componentField);
             root.Add(parameterField);
