@@ -105,7 +105,11 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 selectionType = SelectionType.None,
                 makeItem = () => new PrefabRowElement(this),
                 bindItem = (element, index) =>
-                    ((PrefabRowElement)element).Bind(_rows[index].StartIndex, _columnCount)
+                {
+                    PrefabRowElement row = (PrefabRowElement)element;
+                    row.ClearListItemBackground();
+                    row.Bind(_rows[index].StartIndex, _columnCount);
+                }
             };
             _prefabGrid.style.flexGrow = 1f;
             _prefabGrid.RegisterCallback<GeometryChangedEvent>(HandleGridGeometryChanged);
@@ -490,6 +494,13 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 style.height = TileHeight;
                 style.paddingLeft = 2f;
                 style.paddingRight = 2f;
+                RegisterCallback<AttachToPanelEvent>(_ => ClearListItemBackground());
+            }
+
+            public void ClearListItemBackground()
+            {
+                if (parent != null)
+                    parent.style.backgroundColor = Color.clear;
             }
 
             public void Bind(int startIndex, int columnCount)
