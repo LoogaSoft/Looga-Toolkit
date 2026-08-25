@@ -3,6 +3,7 @@ using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -69,7 +70,46 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUI.EndProperty();
         }
 
-        private void GetStatesRecursive(AnimatorStateMachine stateMachine, List<string> stateNames)
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String &&
+                property.propertyType != SerializedPropertyType.Integer)
+            {
+                return LoogaPropertyDrawerUi.CreateMessage(
+                    "AnimatorState is for string and integer fields only.",
+                    HelpBoxMessageType.Warning);
+            }
+
+            AnimatorStateAttribute state = (AnimatorStateAttribute)attribute;
+            AnimatorController controller = AnimatorHelper.GetAnimatorController(property, state.animatorControllerName);
+            if (controller == null)
+                return LoogaPropertyDrawerUi.CreateMessage("Animator Controller not found.", HelpBoxMessageType.Warning);
+
+            List<string> names = LoogaDrawerOptionCache.GetOrCreate(
+                $"animator.states:{controller.GetInstanceID()}",
+                () =>
+                {
+                    List<string> values = new() { "None" };
+                    foreach (AnimatorControllerLayer layer in controller.layers)
+                        GetStatesRecursive(layer.stateMachine, values);
+                    return values;
+                });
+            int selected = property.propertyType == SerializedPropertyType.String
+                ? Mathf.Max(0, names.IndexOf(property.stringValue))
+                : Mathf.Max(0, names.FindIndex(name =>
+                    name != "None" && Animator.StringToHash(name) == property.intValue));
+
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, names, selected, (current, index) =>
+            {
+                string name = index == 0 ? string.Empty : names[index];
+                if (current.propertyType == SerializedPropertyType.String)
+                    current.stringValue = name;
+                else
+                    current.intValue = string.IsNullOrEmpty(name) ? 0 : Animator.StringToHash(name);
+            });
+        }
+
+        private static void GetStatesRecursive(AnimatorStateMachine stateMachine, List<string> stateNames)
         {
             foreach (var state in stateMachine.states) 
                 stateNames.Add(state.state.name);

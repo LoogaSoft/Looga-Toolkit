@@ -1,6 +1,7 @@
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -35,6 +36,22 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.Integer)
+                return LoogaPropertyDrawerUi.CreateMessage("NavMeshAreaMask is for integer fields only.", HelpBoxMessageType.Warning);
+
+            string[] names = UnityEngine.AI.NavMesh.GetAreaNames();
+            int[] indices = GetAreaIndices(names);
+            int displayed = LoogaPropertyDrawerUi.ToDisplayedMask(property.intValue, indices);
+            return LoogaPropertyDrawerUi.CreateMaskField(
+                property,
+                label,
+                names,
+                displayed,
+                value => LoogaPropertyDrawerUi.ToActualMask(value, indices));
         }
 
         private static int[] GetAreaIndices(string[] areaNames)

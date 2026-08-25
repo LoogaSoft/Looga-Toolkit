@@ -2,13 +2,14 @@ using System;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
     [CustomPropertyDrawer(typeof(SliderlessRangeAttribute))]
-    public class SliderlessRangeDrawer : PropertyDrawer
+    public class SliderlessRangeDrawer : PropertyDrawerBase
     {
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
         {
             SliderlessRangeAttribute attr = (SliderlessRangeAttribute)attribute;
 
@@ -51,6 +52,57 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            SliderlessRangeAttribute range = (SliderlessRangeAttribute)attribute;
+            SerializedObject owner = property.serializedObject;
+            string path = property.propertyPath;
+
+            if (property.propertyType == SerializedPropertyType.Float && fieldInfo?.FieldType == typeof(double))
+            {
+                DoubleField field = new(label) { value = property.doubleValue };
+                field.RegisterValueChangedCallback(evt => LoogaPropertyDrawerUi.Commit(
+                    owner,
+                    path,
+                    current => current.doubleValue = Math.Clamp(evt.newValue, range.min, range.max)));
+                return field;
+            }
+
+            if (property.propertyType == SerializedPropertyType.Float)
+            {
+                FloatField field = new(label) { value = property.floatValue };
+                field.RegisterValueChangedCallback(evt => LoogaPropertyDrawerUi.Commit(
+                    owner,
+                    path,
+                    current => current.floatValue = Mathf.Clamp(evt.newValue, (float)range.min, (float)range.max)));
+                return field;
+            }
+
+            if (property.propertyType == SerializedPropertyType.Integer && fieldInfo?.FieldType == typeof(long))
+            {
+                LongField field = new(label) { value = property.longValue };
+                field.RegisterValueChangedCallback(evt => LoogaPropertyDrawerUi.Commit(
+                    owner,
+                    path,
+                    current => current.longValue = Math.Clamp(evt.newValue, (long)range.min, (long)range.max)));
+                return field;
+            }
+
+            if (property.propertyType == SerializedPropertyType.Integer)
+            {
+                IntegerField field = new(label) { value = property.intValue };
+                field.RegisterValueChangedCallback(evt => LoogaPropertyDrawerUi.Commit(
+                    owner,
+                    path,
+                    current => current.intValue = Mathf.Clamp(evt.newValue, (int)range.min, (int)range.max)));
+                return field;
+            }
+
+            return LoogaPropertyDrawerUi.CreateMessage(
+                "SliderlessRange is for numeric fields only.",
+                HelpBoxMessageType.Warning);
         }
     }
 }

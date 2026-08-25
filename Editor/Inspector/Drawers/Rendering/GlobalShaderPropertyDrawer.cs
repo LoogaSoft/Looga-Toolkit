@@ -3,6 +3,7 @@ using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -10,6 +11,11 @@ namespace LoogaSoft.Inspector.Editor
     public sealed class GlobalShaderPropertyDrawer : PropertyDrawerBase
     {
         private static readonly Dictionary<LoogaShaderPropertyType, string[]> CachedPropertyNames = new();
+
+        static GlobalShaderPropertyDrawer()
+        {
+            LoogaDrawerOptionCache.Invalidated += CachedPropertyNames.Clear;
+        }
 
         protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -33,6 +39,27 @@ namespace LoogaSoft.Inspector.Editor
             int currentIndex = Mathf.Max(0, propertyNames.IndexOf(property.stringValue));
             int newIndex = LoogaGUI.Popup(position, label.text, currentIndex, propertyNames.ToArray());
             property.stringValue = propertyNames[Mathf.Clamp(newIndex, 0, propertyNames.Count - 1)];
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            GlobalShaderPropertyAttribute globalProperty = (GlobalShaderPropertyAttribute)attribute;
+            List<string> names = new(GetPropertyNames(globalProperty.propertyType));
+            if (!string.IsNullOrWhiteSpace(property.stringValue) && !names.Contains(property.stringValue))
+                names.Insert(0, property.stringValue);
+            if (names.Count == 0)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            int selected = Mathf.Max(0, names.IndexOf(property.stringValue));
+            return LoogaPropertyDrawerUi.CreatePopup(
+                property,
+                label,
+                names,
+                selected,
+                (current, index) => current.stringValue = names[index]);
         }
 
         private static string[] GetPropertyNames(LoogaShaderPropertyType propertyType)

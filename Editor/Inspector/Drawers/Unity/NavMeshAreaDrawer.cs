@@ -1,6 +1,7 @@
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -34,6 +35,24 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            string[] areaNames = UnityEngine.AI.NavMesh.GetAreaNames();
+            if (areaNames.Length == 0)
+                return LoogaPropertyDrawerUi.CreateMessage("No NavMesh areas are configured.", HelpBoxMessageType.Info);
+
+            int selected = property.propertyType == SerializedPropertyType.String
+                ? Mathf.Max(0, System.Array.IndexOf(areaNames, property.stringValue))
+                : FindAreaNameIndex(areaNames, property.intValue);
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, areaNames, selected, (current, index) =>
+            {
+                if (current.propertyType == SerializedPropertyType.String)
+                    current.stringValue = areaNames[index];
+                else
+                    current.intValue = UnityEngine.AI.NavMesh.GetAreaFromName(areaNames[index]);
+            });
         }
 
         private static int FindAreaNameIndex(string[] areaNames, int areaIndex)

@@ -3,6 +3,7 @@ using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -35,6 +36,24 @@ namespace LoogaSoft.Inspector.Editor
             int currentIndex = Mathf.Max(0, propertyNames.IndexOf(property.stringValue));
             int newIndex = LoogaGUI.Popup(position, label.text, currentIndex, propertyNames.ToArray());
             property.stringValue = propertyNames[Mathf.Clamp(newIndex, 0, propertyNames.Count - 1)];
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            ShaderPropertyAttribute shaderProperty = (ShaderPropertyAttribute)attribute;
+            return LoogaPropertyDrawerUi.CreateTrackedPopup(
+                property,
+                label,
+                current =>
+                {
+                    Shader shader = LoogaShaderEditorUtility.ResolveShader(current, shaderProperty.materialOrShaderMember);
+                    return shader == null ? new List<string>() : GetPropertyNames(shader, shaderProperty.propertyType);
+                },
+                (current, names) => Mathf.Max(0, new List<string>(names).IndexOf(current.stringValue)),
+                (current, names, index) => current.stringValue = names[index]);
         }
 
         private static List<string> GetPropertyNames(Shader shader, LoogaShaderPropertyType propertyType)

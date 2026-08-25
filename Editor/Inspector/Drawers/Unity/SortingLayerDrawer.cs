@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -32,6 +33,28 @@ namespace LoogaSoft.Inspector.Editor
             }
             
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            List<string> layers = LoogaDrawerOptionCache.GetOrCreate(
+                "unity.sorting-layers",
+                () =>
+                {
+                    List<string> values = LoogaInspectorQueryUtility.GetSortingLayerNames(SortingLayer.layers);
+                    values.Insert(0, "None");
+                    return values;
+                });
+            int selected = property.propertyType == SerializedPropertyType.String
+                ? Mathf.Max(0, layers.IndexOf(property.stringValue))
+                : Mathf.Clamp(property.intValue, 0, layers.Count - 1);
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, layers, selected, (current, index) =>
+            {
+                if (current.propertyType == SerializedPropertyType.String)
+                    current.stringValue = layers[index];
+                else
+                    current.intValue = index;
+            });
         }
     }
 }

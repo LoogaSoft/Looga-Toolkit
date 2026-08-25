@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -39,6 +40,26 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.Integer &&
+                property.propertyType != SerializedPropertyType.LayerMask)
+            {
+                return LoogaPropertyDrawerUi.CreateMessage(
+                    "PhysicsLayerMask is for integer and LayerMask fields only.",
+                    HelpBoxMessageType.Warning);
+            }
+
+            BuildLayerOptions();
+            int displayed = LoogaPropertyDrawerUi.ToDisplayedMask(property.intValue, LayerIndices);
+            return LoogaPropertyDrawerUi.CreateMaskField(
+                property,
+                label,
+                LayerNames,
+                displayed,
+                value => LoogaPropertyDrawerUi.ToActualMask(value, LayerIndices));
         }
 
         private static void BuildLayerOptions()

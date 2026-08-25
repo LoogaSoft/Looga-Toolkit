@@ -4,6 +4,7 @@ using System.Reflection;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using Object = UnityEngine.Object;
 
 namespace LoogaSoft.Inspector.Editor
@@ -38,6 +39,57 @@ namespace LoogaSoft.Inspector.Editor
             Rect pingRect = new(fieldRect.xMax + Gap, position.y, PingButtonWidth, position.height);
             if (GUI.Button(pingRect, EditorGUIUtility.IconContent("d_ViewToolZoom")))
                 EditorGUIUtility.PingObject(property.objectReferenceValue);
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            HierarchicalAssetDropdownAttribute dropdown = (HierarchicalAssetDropdownAttribute)attribute;
+            Type assetType = GetAssetType(property, dropdown);
+            if (assetType == null)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            SerializedObject owner = property.serializedObject;
+            string path = property.propertyPath;
+            Button selector = new() { text = GetCurrentLabel(property, dropdown) };
+            selector.style.flexGrow = 1f;
+            selector.clicked += () =>
+            {
+                SerializedProperty current = owner.FindProperty(path);
+                if (current == null)
+                    return;
+
+                Rect rect = selector.worldBound;
+                rect.position = GUIUtility.GUIToScreenPoint(rect.position);
+                ShowMenu(rect, current, dropdown, assetType);
+            };
+
+            VisualElement field = selector;
+            if (!string.IsNullOrWhiteSpace(label))
+            {
+                VisualElement row = new();
+                row.style.flexDirection = FlexDirection.Row;
+                row.style.alignItems = Align.Center;
+                Label fieldLabel = new(label);
+                fieldLabel.style.minWidth = 120f;
+                row.Add(fieldLabel);
+                row.Add(selector);
+                field = row;
+            }
+
+            if (property.propertyType == SerializedPropertyType.ObjectReference)
+            {
+                Button ping = new(() =>
+                {
+                    SerializedProperty current = owner.FindProperty(path);
+                    if (current?.objectReferenceValue != null)
+                        EditorGUIUtility.PingObject(current.objectReferenceValue);
+                }) { text = "Ping" };
+                field = LoogaPropertyDrawerUi.CreateFieldWithButtons(field, ping);
+            }
+
+            LoogaPropertyDrawerUi.Track(field, property, current =>
+                selector.text = GetCurrentLabel(current, dropdown));
+            return field;
         }
 
         private static Type GetAssetType(SerializedProperty property, HierarchicalAssetDropdownAttribute dropdown)
@@ -90,6 +142,12 @@ namespace LoogaSoft.Inspector.Editor
         }
 
         private static List<Object> FindAssets(Type assetType, string searchFilter)
+        {
+            string cacheKey = $"assets:{assetType.AssemblyQualifiedName}:{searchFilter}";
+            return LoogaDrawerOptionCache.GetOrCreate(cacheKey, () => FindAssetsUncached(assetType, searchFilter));
+        }
+
+        private static List<Object> FindAssetsUncached(Type assetType, string searchFilter)
         {
             string filter = $"t:{assetType.Name}";
             if (!string.IsNullOrWhiteSpace(searchFilter))

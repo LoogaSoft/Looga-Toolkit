@@ -3,6 +3,7 @@ using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -29,6 +30,28 @@ namespace LoogaSoft.Inspector.Editor
             }
             
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+                return LoogaPropertyDrawerUi.CreateMessage("Tag is for string fields only.", HelpBoxMessageType.Warning);
+
+            List<string> tags = LoogaDrawerOptionCache.GetOrCreate(
+                "unity.tags",
+                () =>
+                {
+                    List<string> values = LoogaInspectorQueryUtility.ToStringList(InternalEditorUtility.tags);
+                    values.Insert(0, "None");
+                    return values;
+                });
+            int selected = Mathf.Max(0, tags.IndexOf(property.stringValue));
+            return LoogaPropertyDrawerUi.CreatePopup(
+                property,
+                label,
+                tags,
+                selected,
+                (current, index) => current.stringValue = tags[index]);
         }
     }
 }

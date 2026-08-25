@@ -1,6 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 using LoogaSoft.Inspector.Runtime;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -70,6 +71,23 @@ namespace LoogaSoft.Inspector.Editor
             property.vector2Value = new Vector2(min, max);
 
             EditorGUI.indentLevel = originalIndentLevel;
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.Vector2)
+                return LoogaPropertyDrawerUi.CreateMessage("MinMaxSlider is for Vector2 fields only.", HelpBoxMessageType.Warning);
+
+            MinMaxSliderAttribute range = (MinMaxSliderAttribute)attribute;
+            Vector2 value = property.vector2Value;
+            MinMaxSlider slider = new(label, value.x, value.y, range.min, range.max);
+            SerializedObject owner = property.serializedObject;
+            string path = property.propertyPath;
+            slider.RegisterValueChangedCallback(evt => LoogaPropertyDrawerUi.Commit(
+                owner,
+                path,
+                current => current.vector2Value = evt.newValue));
+            return slider;
         }
     }
 }

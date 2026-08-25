@@ -4,6 +4,7 @@ using System.Reflection;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -47,6 +48,34 @@ namespace LoogaSoft.Inspector.Editor
                 property.boxedValue = GetOptionValue(options[newIndex], dropdownAttribute);
             
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            DropdownAttribute dropdownAttribute = (DropdownAttribute)attribute;
+            List<object> options = GetOptions(property.serializedObject.targetObject, dropdownAttribute.listOrArrayName);
+            if (options == null || options.Count == 0)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            string[] labels = LoogaInspectorQueryUtility.GetObjectLabels(
+                options,
+                option => GetOptionLabel(option, dropdownAttribute));
+            int selectedIndex = 0;
+            for (int i = 0; i < options.Count; i++)
+            {
+                if (Equals(property.boxedValue, GetOptionValue(options[i], dropdownAttribute)))
+                {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+
+            return LoogaPropertyDrawerUi.CreatePopup(
+                property,
+                label,
+                labels,
+                selectedIndex,
+                (current, index) => current.boxedValue = GetOptionValue(options[index], dropdownAttribute));
         }
 
         private List<object> GetOptions(object target, string propertyName)

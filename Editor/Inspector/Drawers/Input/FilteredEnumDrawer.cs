@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -55,6 +56,49 @@ namespace LoogaSoft.Inspector.Editor
                     return;
                 }
             }
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            Type enumType = fieldInfo?.FieldType;
+            if (property.propertyType != SerializedPropertyType.Enum || enumType == null || !enumType.IsEnum)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, enumType);
+
+            FilteredEnumAttribute filteredEnum = (FilteredEnumAttribute)attribute;
+            List<int> values = GetFilteredValues(
+                PropertyUtils.GetTargetObjectWithProperty(property),
+                enumType,
+                filteredEnum.ProviderMemberName);
+            if (values.Count == 0)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, enumType);
+
+            Array rawValues = Enum.GetValues(enumType);
+            List<string> names = new(values.Count);
+            for (int i = 0; i < values.Count; i++)
+            {
+                string name = Enum.GetName(enumType, values[i]) ?? values[i].ToString();
+                names.Add(ObjectNames.NicifyVariableName(name));
+            }
+
+            int currentValue = Convert.ToInt32(rawValues.GetValue(property.enumValueIndex));
+            int selectedIndex = Mathf.Max(0, values.IndexOf(currentValue));
+            return LoogaPropertyDrawerUi.CreatePopup(
+                property,
+                label,
+                names,
+                selectedIndex,
+                (current, index) =>
+                {
+                    int selectedValue = values[Mathf.Clamp(index, 0, values.Count - 1)];
+                    for (int i = 0; i < rawValues.Length; i++)
+                    {
+                        if (Convert.ToInt32(rawValues.GetValue(i)) == selectedValue)
+                        {
+                            current.enumValueIndex = i;
+                            break;
+                        }
+                    }
+                });
         }
 
         private static List<int> GetFilteredValues(object target, Type enumType, string providerMemberName)

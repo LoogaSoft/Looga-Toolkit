@@ -1,6 +1,8 @@
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.UIElements;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -46,6 +48,40 @@ namespace LoogaSoft.Inspector.Editor
                 EditorGUIUtility.PingObject(asset);
                 Selection.activeObject = asset;
             }
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.ObjectReference)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            AssetLinkAttribute link = (AssetLinkAttribute)attribute;
+            ObjectField field = new(label)
+            {
+                objectType = fieldInfo?.FieldType ?? typeof(Object),
+                allowSceneObjects = false
+            };
+            field.BindProperty(property);
+            field.SetEnabled(!link.ReadOnly);
+            SerializedObject owner = property.serializedObject;
+            string path = property.propertyPath;
+            Button open = new(() => WithAsset(owner, path, asset => AssetDatabase.OpenAsset(asset))) { text = "Open" };
+            if (!link.ShowPingButton)
+                return LoogaPropertyDrawerUi.CreateFieldWithButtons(field, open);
+
+            Button ping = new(() => WithAsset(owner, path, asset =>
+            {
+                EditorGUIUtility.PingObject(asset);
+                Selection.activeObject = asset;
+            })) { text = "Ping" };
+            return LoogaPropertyDrawerUi.CreateFieldWithButtons(field, open, ping);
+        }
+
+        private static void WithAsset(SerializedObject owner, string path, System.Action<Object> action)
+        {
+            SerializedProperty property = owner?.FindProperty(path);
+            if (property?.objectReferenceValue != null)
+                action(property.objectReferenceValue);
         }
     }
 }

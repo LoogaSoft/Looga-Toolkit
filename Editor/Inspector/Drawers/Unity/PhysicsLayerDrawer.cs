@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -30,6 +32,33 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            List<string> names = new() { "None" };
+            List<int> indices = new() { 0 };
+            for (int i = 0; i < 32; i++)
+            {
+                string name = LayerMask.LayerToName(i);
+                if (string.IsNullOrEmpty(name))
+                    continue;
+                names.Add(name);
+                indices.Add(i);
+            }
+
+            int layer = property.propertyType == SerializedPropertyType.String
+                ? Mathf.Max(0, LayerMask.NameToLayer(property.stringValue))
+                : property.intValue;
+            int selected = Mathf.Max(0, indices.IndexOf(layer));
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, names, selected, (current, index) =>
+            {
+                int selectedLayer = indices[index];
+                if (current.propertyType == SerializedPropertyType.String)
+                    current.stringValue = LayerMask.LayerToName(selectedLayer);
+                else
+                    current.intValue = selectedLayer;
+            });
         }
     }
 }

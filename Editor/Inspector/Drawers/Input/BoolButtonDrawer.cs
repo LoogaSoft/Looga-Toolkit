@@ -4,34 +4,40 @@ using UnityEngine;
 using System.Reflection;
 using System.Collections;
 using LoogaSoft.Inspector.Runtime;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
     [CustomPropertyDrawer(typeof(BoolButtonAttribute))]
-    public class BoolButtonDrawer : PropertyDrawer
+    public class BoolButtonDrawer : PropertyDrawerBase
     {
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
         {
-            var buttonAttribute = (BoolButtonAttribute)attribute;
-
+            BoolButtonAttribute buttonAttribute = (BoolButtonAttribute)attribute;
             if (GUI.Button(position, buttonAttribute.buttonLabel))
+                Invoke(property, buttonAttribute);
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            BoolButtonAttribute buttonAttribute = (BoolButtonAttribute)attribute;
+            return new Button(() => Invoke(property, buttonAttribute))
             {
-                //get the parent object of the property, which should be the object containing the field
-                var parentObject = GetTargetObjectOfProperty(property);
+                text = buttonAttribute.buttonLabel
+            };
+        }
 
-                if (parentObject == null)
-                    return;
+        private static void Invoke(SerializedProperty property, BoolButtonAttribute buttonAttribute)
+        {
+            object parentObject = GetTargetObjectOfProperty(property);
+            if (parentObject == null)
+                return;
 
-                //find the method using reflection, using the parent object's type and the specified method name
-                var method = FindMethod(parentObject.GetType(), buttonAttribute.methodName);
-
-                //if the method is found, invoke it on the parent object
-                //otherwise, log an error
-                if (method != null)
-                    method.Invoke(parentObject, null);
-                else
-                    Debug.LogError($"Could not find method {buttonAttribute.methodName} on object {parentObject}");
-            }
+            MethodInfo method = FindMethod(parentObject.GetType(), buttonAttribute.methodName);
+            if (method != null)
+                method.Invoke(parentObject, null);
+            else
+                Debug.LogError($"Could not find method {buttonAttribute.methodName} on object {parentObject}");
         }
 
         private static MethodInfo FindMethod(Type type, string methodName)

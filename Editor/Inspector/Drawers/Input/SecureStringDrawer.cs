@@ -1,6 +1,7 @@
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -65,6 +66,52 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+                return LoogaPropertyDrawerUi.CreateMessage("SecureString is for strings only.", HelpBoxMessageType.Warning);
+
+            SecureStringAttribute secureString = (SecureStringAttribute)attribute;
+            string stateKey = GetStateKey(property);
+            bool editing = SessionState.GetBool(stateKey, false);
+            TextField field = new(label)
+            {
+                value = property.stringValue,
+                isPasswordField = secureString.Obscure && !editing
+            };
+            Button button = new() { text = editing ? "Done" : "Edit" };
+            SerializedObject owner = property.serializedObject;
+            string path = property.propertyPath;
+
+            void ApplyEditingState(bool nextEditing)
+            {
+                editing = nextEditing;
+                SessionState.SetBool(stateKey, editing);
+                field.SetEnabled(editing);
+                field.isPasswordField = secureString.Obscure && !editing;
+                button.text = editing ? "Done" : "Edit";
+                if (editing)
+                    field.Focus();
+            }
+
+            field.RegisterValueChangedCallback(evt =>
+            {
+                if (editing)
+                    LoogaPropertyDrawerUi.Commit(owner, path, current => current.stringValue = evt.newValue);
+            });
+            field.RegisterCallback<KeyDownEvent>(evt =>
+            {
+                if (editing && (evt.keyCode == KeyCode.Return || evt.keyCode == KeyCode.KeypadEnter))
+                {
+                    ApplyEditingState(false);
+                    evt.StopPropagation();
+                }
+            });
+            button.clicked += () => ApplyEditingState(!editing);
+            ApplyEditingState(editing);
+            return LoogaPropertyDrawerUi.CreateFieldWithButtons(field, button);
         }
 
         private static string GetStateKey(SerializedProperty property)

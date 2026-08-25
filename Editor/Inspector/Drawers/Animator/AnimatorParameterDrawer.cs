@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -71,6 +73,50 @@ namespace LoogaSoft.Inspector.Editor
             }
             
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.Integer &&
+                property.propertyType != SerializedPropertyType.String)
+            {
+                return LoogaPropertyDrawerUi.CreateMessage(
+                    "AnimatorParameter is for integer and string fields only.",
+                    HelpBoxMessageType.Warning);
+            }
+
+            AnimatorParameterAttribute parameter = (AnimatorParameterAttribute)attribute;
+            AnimatorController controller = AnimatorHelper.GetAnimatorController(property, parameter.animatorControllerName);
+            if (controller == null)
+                return LoogaPropertyDrawerUi.CreateMessage("Animator Controller not found.", HelpBoxMessageType.Warning);
+
+            bool filter = parameter.filterByParameterType || IsTriggerProperty(property);
+            AnimatorControllerParameterType type = parameter.filterByParameterType
+                ? parameter.parameterType
+                : AnimatorControllerParameterType.Trigger;
+            string cacheKey = $"animator.parameters:{controller.GetInstanceID()}:{filter}:{type}";
+            List<string> names = LoogaDrawerOptionCache.GetOrCreate(cacheKey, () =>
+            {
+                AnimatorControllerParameter[] values = LoogaInspectorQueryUtility.FilterAnimatorParameters(
+                    controller.parameters,
+                    filter,
+                    type);
+                List<string> result = new(values.Length + 1) { "None" };
+                for (int i = 0; i < values.Length; i++)
+                    result.Add(values[i].name);
+                return result;
+            });
+            int selected = property.propertyType == SerializedPropertyType.String
+                ? Mathf.Max(0, names.IndexOf(property.stringValue))
+                : Mathf.Max(0, names.FindIndex(name => name != "None" && Animator.StringToHash(name) == property.intValue));
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, names, selected, (current, index) =>
+            {
+                string name = index == 0 ? string.Empty : names[index];
+                if (current.propertyType == SerializedPropertyType.String)
+                    current.stringValue = name;
+                else
+                    current.intValue = string.IsNullOrEmpty(name) ? 0 : Animator.StringToHash(name);
+            });
         }
 
         private static bool IsTriggerProperty(SerializedProperty property)

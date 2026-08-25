@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.Animations;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -40,6 +42,35 @@ namespace LoogaSoft.Inspector.Editor
                 property.stringValue = clipNames[newIndex];
             
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+            {
+                return LoogaPropertyDrawerUi.CreateMessage(
+                    "AnimatorClip is for string fields only.",
+                    HelpBoxMessageType.Warning);
+            }
+
+            AnimatorClipAttribute clip = (AnimatorClipAttribute)attribute;
+            AnimatorController controller = AnimatorHelper.GetAnimatorController(property, clip.animatorControllerName);
+            if (controller == null)
+                return LoogaPropertyDrawerUi.CreateMessage("Animator Controller not found.", HelpBoxMessageType.Warning);
+
+            List<string> names = LoogaDrawerOptionCache.GetOrCreate(
+                $"animator.clips:{controller.GetInstanceID()}",
+                () =>
+                {
+                    List<string> values = LoogaInspectorQueryUtility.GetAnimationClipNames(controller.animationClips);
+                    values.Insert(0, "None");
+                    return values;
+                });
+            int selected = Mathf.Max(0, names.IndexOf(property.stringValue));
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, names, selected, (current, index) =>
+            {
+                current.stringValue = index == 0 ? string.Empty : names[index];
+            });
         }
     }
 }

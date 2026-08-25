@@ -2,6 +2,7 @@ using System.Reflection;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -24,6 +25,43 @@ namespace LoogaSoft.Inspector.Editor
 
             using (new EditorGUI.DisabledScope(!useCustomName))
                 EditorGUI.PropertyField(position, property, label, true);
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            AssetDisplayNameAttribute displayName = (AssetDisplayNameAttribute)attribute;
+            TextField field = new(label);
+            SerializedObject owner = property.serializedObject;
+            string path = property.propertyPath;
+
+            void Refresh(SerializedProperty current)
+            {
+                bool useCustomName = GetUseCustomName(current, displayName.useCustomNameMember);
+                if (!useCustomName)
+                {
+                    string value = GetDefaultDisplayName(current);
+                    if (current.stringValue != value)
+                        LoogaPropertyDrawerUi.Commit(owner, path, item => item.stringValue = value);
+                    field.SetValueWithoutNotify(value);
+                }
+                else
+                {
+                    field.SetValueWithoutNotify(current.stringValue);
+                }
+
+                field.SetEnabled(useCustomName);
+            }
+
+            field.RegisterValueChangedCallback(evt => LoogaPropertyDrawerUi.Commit(
+                owner,
+                path,
+                current => current.stringValue = evt.newValue));
+            Refresh(property);
+            LoogaPropertyDrawerUi.Track(field, property, Refresh);
+            return field;
         }
 
         private static bool GetUseCustomName(SerializedProperty property, string memberName)

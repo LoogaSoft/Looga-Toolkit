@@ -1,13 +1,14 @@
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
     [CustomPropertyDrawer(typeof(SingleEnumFlagAttribute))]
-    public class SingleEnumFlagDrawer : PropertyDrawer
+    public class SingleEnumFlagDrawer : PropertyDrawerBase
     {
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
         {
             if (property.propertyType != SerializedPropertyType.Enum)
             {
@@ -19,6 +20,19 @@ namespace LoogaSoft.Inspector.Editor
             int nextIndex = LoogaGUI.Popup(position, label, selectedIndex, property.enumDisplayNames);
             if (nextIndex != selectedIndex)
                 property.enumValueIndex = nextIndex;
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.Enum)
+                return LoogaPropertyDrawerUi.CreateDefaultField(property, label, fieldInfo?.FieldType);
+
+            return LoogaPropertyDrawerUi.CreatePopup(
+                property,
+                label,
+                property.enumDisplayNames,
+                property.enumValueIndex,
+                (current, index) => current.enumValueIndex = index);
         }
     }
 }

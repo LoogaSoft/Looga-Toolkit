@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -33,6 +34,28 @@ namespace LoogaSoft.Inspector.Editor
             }
             
             EditorGUI.EndProperty();
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            List<string> scenes = LoogaDrawerOptionCache.GetOrCreate(
+                "unity.scenes",
+                () =>
+                {
+                    List<string> values = LoogaInspectorQueryUtility.GetSceneNames(EditorBuildSettings.scenes);
+                    values.Insert(0, "None");
+                    return values;
+                });
+            int selected = property.propertyType == SerializedPropertyType.String
+                ? Mathf.Max(0, scenes.IndexOf(property.stringValue))
+                : Mathf.Clamp(property.intValue, 0, scenes.Count - 1);
+            return LoogaPropertyDrawerUi.CreatePopup(property, label, scenes, selected, (current, index) =>
+            {
+                if (current.propertyType == SerializedPropertyType.String)
+                    current.stringValue = scenes[index];
+                else
+                    current.intValue = index;
+            });
         }
     }
 }
