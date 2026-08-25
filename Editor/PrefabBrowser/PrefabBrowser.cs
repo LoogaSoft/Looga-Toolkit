@@ -20,6 +20,9 @@ namespace LoogaSoft.PrefabBrowser.Editor
         private readonly List<PrefabData> _filteredPrefabs = new();
         private List<PrefabData> _displayedPrefabs = new();
         private readonly Dictionary<int, Texture2D> _prefabThumbnails = new();
+        private readonly HashSet<int> _pendingThumbnailIds = new();
+        private readonly HashSet<int> _visibleThumbnailIds = new();
+        private readonly List<int> _thumbnailRemovalBuffer = new();
         private readonly List<PrefabData> _selectedPrefabs = new();
         private int _lastSelectedPrefabIndex = -1;
 
@@ -28,15 +31,20 @@ namespace LoogaSoft.PrefabBrowser.Editor
         private GUIStyle _noMarginLabelStyle;
         private GUIStyle _mainCategoryButtonStyle;
         private GUIStyle _subCategoryButtonStyle;
+        private GUIStyle _prefabTileStyle;
 
         private string _searchText = "";
         
         
         private Vector2 _scrollPos;
         private bool _mouseDown;
+        private bool _previewPollRequested;
+        private bool _pollPendingPreviews;
+        private double _nextPreviewPollTime;
         
         private const float Spacing = 8f;
         private const float TileSize = 100f;
+        private const double PreviewPollInterval = 0.2d;
 
         [MenuItem("Window/LoogaSoft/Prefab Browser/Browser Window")]
         public static void ShowWindow()
@@ -50,13 +58,17 @@ namespace LoogaSoft.PrefabBrowser.Editor
             _prefabDatabase = PrefabBrowserDatabase.GetOrCreateDatabase();
             
             RefreshFilter();
-            AssetPreview.SetPreviewTextureCacheSize(Mathf.Max(100, _filteredPrefabs.Count * 2));
             wantsMouseMove = true;
+            EditorApplication.update -= PollPendingPreviews;
+            EditorApplication.update += PollPendingPreviews;
         }
         private void OnDestroy()
         {
+            EditorApplication.update -= PollPendingPreviews;
+
             // Flush the thumbnail cache so we don't leak texture memory when the window closes
             _prefabThumbnails.Clear();
+            _pendingThumbnailIds.Clear();
             _displayedPrefabs.Clear();
             _filteredPrefabs.Clear();
             _selectedPrefabs.Clear();
@@ -73,6 +85,10 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 _browserConfig = PrefabBrowserConfig.GetOrCreateConfig();
             
             Event e = Event.current;
+            _pollPendingPreviews = e.type == EventType.Repaint && _previewPollRequested;
+            if (_pollPendingPreviews)
+                _previewPollRequested = false;
+
             if (e.type == EventType.MouseUp)
             {
                 _mouseDown = false;
@@ -317,6 +333,8 @@ namespace LoogaSoft.PrefabBrowser.Editor
 
         private void UpdateFilterWithSearch()
         {
+            _prefabThumbnails.Clear();
+
             if (string.IsNullOrEmpty(_searchText))
             {
                 _displayedPrefabs.Clear();
@@ -351,11 +369,21 @@ namespace LoogaSoft.PrefabBrowser.Editor
             int columnCount = Mathf.Max(1, Mathf.FloorToInt((usableWidth + gap) / (TileSize + gap)));
             float totalGapSpace = (columnCount - 1) * gap;
             float dynamicTileWidth = Mathf.Floor((usableWidth - totalGapSpace) / columnCount);
+            float rowHeight = dynamicTileWidth + 16f + gap;
+            int rowCount = Mathf.CeilToInt((float)_displayedPrefabs.Count / columnCount);
+            int firstVisibleRow = Mathf.Clamp(Mathf.FloorToInt(_scrollPos.y / rowHeight) - 1, 0, rowCount);
+            int visibleRowCount = Mathf.CeilToInt(position.height / rowHeight) + 2;
+            int lastVisibleRow = Mathf.Min(rowCount, firstVisibleRow + visibleRowCount);
+            _visibleThumbnailIds.Clear();
 
             EditorGUILayout.BeginVertical(GUIStyle.none);
 
-            for (int i = 0; i < _displayedPrefabs.Count; i += columnCount)
+            if (firstVisibleRow > 0)
+                GUILayout.Space(firstVisibleRow * rowHeight);
+
+            for (int row = firstVisibleRow; row < lastVisibleRow; row++)
             {
+                int rowStartIndex = row * columnCount;
                 EditorGUILayout.BeginHorizontal(GUIStyle.none);
         
                 // THE FIX: Explicitly shove the entire row to the right by 2 pixels. 
@@ -364,10 +392,10 @@ namespace LoogaSoft.PrefabBrowser.Editor
         
                 for (int j = 0; j < columnCount; j++)
                 {
-                    int index = i + j;
+                    int index = rowStartIndex + j;
                     if (index < _displayedPrefabs.Count)
                     {
-                        DrawPrefab(_displayedPrefabs[index], dynamicTileWidth);
+                        DrawPrefab(_displayedPrefabs[index], index, dynamicTileWidth);
                     }
                     else
                     {
@@ -384,21 +412,27 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 EditorGUILayout.Space(gap); 
             }
 
+            if (lastVisibleRow < rowCount)
+                GUILayout.Space((rowCount - lastVisibleRow) * rowHeight);
+
             EditorGUILayout.EndVertical();
             EditorGUILayout.EndScrollView();
+
+            PruneThumbnailCache();
         }
         
-        private void DrawPrefab(PrefabData data, float size)
+        private void DrawPrefab(PrefabData data, int index, float size)
         {
             GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(data.Path);
             if (prefab == null) return;
             
             int id = prefab.GetInstanceID();
+            _visibleThumbnailIds.Add(id);
             float extraHeight = 16f;
             
             Rect prefabRect = EditorGUILayout.BeginVertical(GUIStyle.none, GUILayout.Width(size), GUILayout.Height(size + extraHeight));
 
-            GUIStyle boxStyle = new GUIStyle(EditorStyles.miniButton)
+            _prefabTileStyle ??= new GUIStyle(EditorStyles.miniButton)
             {
                 fixedHeight = 0f,
                 stretchHeight = true
@@ -414,12 +448,12 @@ namespace LoogaSoft.PrefabBrowser.Editor
                 if (e.type == EventType.MouseDown)
                 {
                     _mouseDown = true;
-                    HandleSelection(data, _displayedPrefabs.IndexOf(data));
+                    HandleSelection(data, index);
                 }
             }
 
             if (e.type == EventType.Repaint)
-                boxStyle.Draw(prefabRect, hovering, _mouseDown && hovering, selected, false);
+                _prefabTileStyle.Draw(prefabRect, hovering, _mouseDown && hovering, selected, false);
 
             var thumbnail = LoadPrefabThumbnail(prefab, id);
             Rect thumbnailRect = GUILayoutUtility.GetRect(size, size);
@@ -485,6 +519,32 @@ namespace LoogaSoft.PrefabBrowser.Editor
             EditorGUILayout.EndVertical();
         }
 
+        private void PruneThumbnailCache()
+        {
+            if (_prefabThumbnails.Count == 0 && _pendingThumbnailIds.Count == 0)
+                return;
+
+            _thumbnailRemovalBuffer.Clear();
+            foreach (int id in _prefabThumbnails.Keys)
+            {
+                if (!_visibleThumbnailIds.Contains(id))
+                    _thumbnailRemovalBuffer.Add(id);
+            }
+
+            foreach (int id in _thumbnailRemovalBuffer)
+                _prefabThumbnails.Remove(id);
+
+            _thumbnailRemovalBuffer.Clear();
+            foreach (int id in _pendingThumbnailIds)
+            {
+                if (!_visibleThumbnailIds.Contains(id))
+                    _thumbnailRemovalBuffer.Add(id);
+            }
+
+            foreach (int id in _thumbnailRemovalBuffer)
+                _pendingThumbnailIds.Remove(id);
+        }
+
         private void ResetSelection()
         {
             _selectedPrefabs.Clear();
@@ -525,25 +585,37 @@ namespace LoogaSoft.PrefabBrowser.Editor
         {
             if (!_prefabThumbnails.TryGetValue(id, out Texture2D thumbnail) || thumbnail == null)
             {
-                thumbnail = AssetPreview.GetAssetPreview(prefab);
+                bool isPending = _pendingThumbnailIds.Contains(id);
+                if (!isPending || _pollPendingPreviews)
+                    thumbnail = AssetPreview.GetAssetPreview(prefab);
 
                 if (thumbnail != null)
                 {
                     _prefabThumbnails[id] = thumbnail;
+                    _pendingThumbnailIds.Remove(id);
                 }
                 else
                 {
                     thumbnail = AssetPreview.GetMiniThumbnail(prefab);
 
                     if (AssetPreview.IsLoadingAssetPreview(id))
-                    {
-                        if (Time.realtimeSinceStartup % 0.5f < 0.25f)
-                            Repaint();
-                    }
+                        _pendingThumbnailIds.Add(id);
+                    else if (thumbnail != null)
+                        _prefabThumbnails[id] = thumbnail;
                 }
             }
 
             return thumbnail;
+        }
+
+        private void PollPendingPreviews()
+        {
+            if (_pendingThumbnailIds.Count == 0 || EditorApplication.timeSinceStartup < _nextPreviewPollTime)
+                return;
+
+            _nextPreviewPollTime = EditorApplication.timeSinceStartup + PreviewPollInterval;
+            _previewPollRequested = true;
+            Repaint();
         }
     }
 }
