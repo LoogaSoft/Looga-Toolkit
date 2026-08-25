@@ -1,5 +1,6 @@
 ﻿using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
 
 namespace LoogaSoft.Inspector.Editor
@@ -37,6 +38,27 @@ namespace LoogaSoft.Inspector.Editor
             property.stringValue = EditorGUI.TextArea(textRect, property.stringValue, TextStyle);
 
             EditorGUI.EndProperty();
+        }
+
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            if (property.propertyType != SerializedPropertyType.String)
+            {
+                return LoogaPropertyDrawerUi.CreateMessage(
+                    "FittedText can only be used with strings.",
+                    UnityEngine.UIElements.HelpBoxMessageType.Error);
+            }
+
+            FittedTextAttribute fittedText = (FittedTextAttribute)attribute;
+            UnityEngine.UIElements.TextField field = new(label)
+            {
+                multiline = true
+            };
+            field.style.minHeight = Mathf.Max(1, fittedText.minimumLines) * EditorGUIUtility.singleLineHeight;
+            field.BindProperty(property);
+            return field;
         }
 
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)

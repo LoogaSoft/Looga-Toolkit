@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -47,6 +48,30 @@ namespace LoogaSoft.Inspector.Editor
                 height += WarningSpacing + EditorGUIUtility.singleLineHeight * 2f;
 
             return height;
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            NoDuplicateEntriesAttribute duplicateAttribute = (NoDuplicateEntriesAttribute)attribute;
+            VisualElement root = new();
+            root.Add(LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType));
+            HelpBox warning = LoogaPropertyDrawerUi.CreateMessage(
+                duplicateAttribute.message,
+                HelpBoxMessageType.Warning);
+            root.Add(warning);
+
+            void Refresh(SerializedProperty current)
+            {
+                warning.style.display = HasDuplicates(current, duplicateAttribute.memberName)
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
+            }
+
+            Refresh(property);
+            LoogaPropertyDrawerUi.Track(root, property, Refresh);
+            return root;
         }
 
         private static bool HasDuplicates(SerializedProperty property, string memberName)

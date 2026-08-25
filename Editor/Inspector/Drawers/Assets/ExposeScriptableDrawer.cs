@@ -419,6 +419,94 @@ namespace LoogaSoft.Inspector.Editor
             return ObjectNames.NicifyVariableName(scriptableObjectType.Name);
         }
 
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            ExposeScriptableAttribute exposeAttribute = (ExposeScriptableAttribute)attribute;
+            TryGetScriptableObjectType(out Type scriptableObjectType);
+            SerializedObject owner = property.serializedObject;
+            string propertyPath = property.propertyPath;
+            string expansionKey = GetExpansionTouchedKey(property);
+            bool useDefaultExpansion = exposeAttribute.expandedByDefault
+                && !SessionState.GetBool(expansionKey, false);
+            UnityEngine.UIElements.Foldout foldout = new()
+            {
+                text = label,
+                value = useDefaultExpansion || property.isExpanded
+            };
+            LoogaUiToolkitStyle.StyleFoldout(foldout);
+            UnityEngine.UIElements.VisualElement header = new();
+            header.style.flexDirection = UnityEngine.UIElements.FlexDirection.Row;
+            header.style.alignItems = UnityEngine.UIElements.Align.Center;
+            UnityEditor.UIElements.ObjectField objectField = new()
+            {
+                objectType = scriptableObjectType ?? typeof(ScriptableObject),
+                allowSceneObjects = false
+            };
+            objectField.style.flexGrow = 1f;
+            objectField.BindProperty(property);
+            UnityEngine.UIElements.Button create = new()
+            {
+                text = exposeAttribute.createButtonLabel
+            };
+            create.clicked += () =>
+            {
+                owner.UpdateIfRequiredOrScript();
+                SerializedProperty current = owner.FindProperty(propertyPath);
+                if (current != null && scriptableObjectType != null)
+                    ShowCreateMenu(current, scriptableObjectType);
+            };
+            header.Add(objectField);
+            header.Add(create);
+            UnityEngine.UIElements.VisualElement inline = new();
+            foldout.Add(header);
+            foldout.Add(inline);
+            UnityEngine.Object renderedObject = null;
+
+            void Rebuild(SerializedProperty current)
+            {
+                if (current == null)
+                    return;
+
+                UnityEngine.Object value = current.objectReferenceValue;
+                create.style.display = value == null && scriptableObjectType != null
+                    ? UnityEngine.UIElements.DisplayStyle.Flex
+                    : UnityEngine.UIElements.DisplayStyle.None;
+                if (value == renderedObject)
+                    return;
+
+                renderedObject = value;
+                inline.Clear();
+                if (value == null)
+                    return;
+
+                SerializedObject nestedOwner = new(value);
+                SerializedProperty iterator = nestedOwner.GetIterator();
+                bool enterChildren = true;
+                while (iterator.NextVisible(enterChildren))
+                {
+                    enterChildren = false;
+                    if (!exposeAttribute.showScriptField && iterator.propertyPath == "m_Script")
+                        continue;
+
+                    UnityEditor.UIElements.PropertyField nestedField = new(iterator.Copy());
+                    nestedField.SetEnabled(iterator.propertyPath != "m_Script");
+                    nestedField.Bind(nestedOwner);
+                    inline.Add(nestedField);
+                }
+            }
+
+            foldout.RegisterValueChangedCallback(evt =>
+            {
+                SessionState.SetBool(expansionKey, true);
+                LoogaPropertyDrawerUi.Commit(owner, propertyPath, current => current.isExpanded = evt.newValue);
+            });
+            Rebuild(property);
+            LoogaPropertyDrawerUi.Track(foldout, property, Rebuild);
+            return foldout;
+        }
+
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
             float height = LoogaEditorFoldouts.GetLargeFoldoutHeaderHeight();

@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -29,6 +31,36 @@ namespace LoogaSoft.Inspector.Editor
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
             return InlineRowEditorUtility.SingleLineHeight;
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            if (property.propertyType != SerializedPropertyType.Generic
+                || !property.hasVisibleChildren
+                || property.isArray)
+            {
+                return LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType);
+            }
+
+            VisualElement row = new();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+
+            Label rowLabel = new(label);
+            rowLabel.style.minWidth = EditorGUIUtility.labelWidth;
+            rowLabel.style.flexShrink = 0f;
+            row.Add(rowLabel);
+
+            foreach (SerializedProperty child in LoogaPropertyDrawerUi.EnumerateVisibleChildren(property))
+            {
+                PropertyField field = new(child.Copy(), child.displayName);
+                field.style.flexGrow = 1f;
+                field.style.flexBasis = 0f;
+                field.Bind(property.serializedObject);
+                row.Add(field);
+            }
+
+            return row;
         }
     }
 }

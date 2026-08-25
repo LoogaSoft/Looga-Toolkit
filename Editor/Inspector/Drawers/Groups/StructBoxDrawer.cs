@@ -1,7 +1,9 @@
 using System.Collections.Generic;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -54,6 +56,34 @@ namespace LoogaSoft.Inspector.Editor
                 height += EditorGUI.GetPropertyHeight(children[i], true) + EditorGUIUtility.standardVerticalSpacing;
 
             return height;
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            StructBoxAttribute boxAttribute = (StructBoxAttribute)attribute;
+            VisualElement box = LoogaUiToolkitStyle.CreateCard();
+            string title = string.IsNullOrWhiteSpace(boxAttribute.Title) ? label : boxAttribute.Title;
+            Label heading = new(title);
+            heading.style.unityFontStyleAndWeight = FontStyle.Bold;
+            heading.style.marginBottom = Spacing;
+            box.Add(heading);
+
+            if (property.propertyType != SerializedPropertyType.Generic
+                || !property.hasVisibleChildren
+                || property.isArray)
+            {
+                box.Add(LoogaPropertyDrawerUi.CreateSerializedField(property, string.Empty, fieldInfo?.FieldType));
+                return box;
+            }
+
+            foreach (SerializedProperty child in LoogaPropertyDrawerUi.EnumerateVisibleChildren(property))
+            {
+                PropertyField field = new(child.Copy());
+                field.Bind(property.serializedObject);
+                box.Add(field);
+            }
+
+            return box;
         }
     }
 }

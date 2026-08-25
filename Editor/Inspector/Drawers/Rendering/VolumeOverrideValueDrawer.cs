@@ -59,6 +59,98 @@ namespace LoogaSoft.Inspector.Editor
             return EditorGUIUtility.singleLineHeight * 2f + LineSpacing;
         }
 
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            if (!TryGetValueType(out Type valueType))
+                return LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType);
+
+            SerializedObject owner = property.serializedObject;
+            string propertyPath = property.propertyPath;
+            UnityEngine.UIElements.VisualElement root = new();
+            UnityEditor.UIElements.PopupField<string> componentField = new(label, new List<string> { "None" }, 0);
+            UnityEditor.UIElements.PopupField<string> parameterField = new("Value", new List<string> { "None" }, 0);
+            parameterField.style.marginLeft = IndentWidth;
+            root.Add(componentField);
+            root.Add(parameterField);
+            bool refreshing = false;
+            List<ComponentOption> componentOptions = new();
+            List<ParameterOption> parameterOptions = new();
+
+            void Refresh(SerializedProperty current)
+            {
+                SerializedProperty profileProperty = current?.FindPropertyRelative("_volumeProfile");
+                SerializedProperty componentProperty = current?.FindPropertyRelative("_componentTypeName");
+                SerializedProperty parameterProperty = current?.FindPropertyRelative("_parameterName");
+                if (profileProperty == null || componentProperty == null || parameterProperty == null)
+                    return;
+
+                VolumeOverrideValueAttribute volumeAttribute = (VolumeOverrideValueAttribute)attribute;
+                VolumeProfile profile = ResolveVolumeProfile(current, volumeAttribute.volumeProfileMember);
+                if (profileProperty.objectReferenceValue != profile)
+                {
+                    profileProperty.objectReferenceValue = profile;
+                    owner.ApplyModifiedPropertiesWithoutUndo();
+                }
+
+                refreshing = true;
+                componentOptions = BuildComponentOptions(profile, valueType);
+                componentField.choices = componentOptions.Count == 0
+                    ? new List<string> { $"No {ObjectNames.NicifyVariableName(valueType.Name)} Overrides" }
+                    : new List<string>(ToLabels(componentOptions));
+                int componentIndex = componentOptions.Count == 0
+                    ? 0
+                    : Mathf.Clamp(FindComponentIndex(componentOptions, componentProperty.stringValue), 0, componentOptions.Count - 1);
+                componentField.SetValueWithoutNotify(componentField.choices[componentIndex]);
+
+                parameterOptions = BuildParameterOptions(profile, componentProperty.stringValue, valueType);
+                parameterField.choices = parameterOptions.Count == 0
+                    ? new List<string> { "No Compatible Values" }
+                    : new List<string>(ToLabels(parameterOptions));
+                int parameterIndex = parameterOptions.Count == 0
+                    ? 0
+                    : Mathf.Clamp(FindParameterIndex(parameterOptions, parameterProperty.stringValue), 0, parameterOptions.Count - 1);
+                parameterField.SetValueWithoutNotify(parameterField.choices[parameterIndex]);
+                root.SetEnabled(profile != null);
+                refreshing = false;
+            }
+
+            componentField.RegisterValueChangedCallback(evt =>
+            {
+                if (refreshing || componentOptions.Count == 0)
+                    return;
+
+                int index = componentField.choices.IndexOf(evt.newValue);
+                if (index < 0 || index >= componentOptions.Count)
+                    return;
+
+                ComponentOption selected = componentOptions[index];
+                LoogaPropertyDrawerUi.Commit(owner, propertyPath, current =>
+                {
+                    current.FindPropertyRelative("_componentTypeName").stringValue = selected.TypeName;
+                    current.FindPropertyRelative("_parameterName").stringValue =
+                        FirstParameterName(selected.Component, valueType);
+                });
+            });
+            parameterField.RegisterValueChangedCallback(evt =>
+            {
+                if (refreshing || parameterOptions.Count == 0)
+                    return;
+
+                int index = parameterField.choices.IndexOf(evt.newValue);
+                if (index < 0 || index >= parameterOptions.Count)
+                    return;
+
+                LoogaPropertyDrawerUi.Commit(owner, propertyPath, current =>
+                    current.FindPropertyRelative("_parameterName").stringValue = parameterOptions[index].Name);
+            });
+
+            Refresh(property);
+            LoogaPropertyDrawerUi.Track(root, property, Refresh);
+            return root;
+        }
+
         private void DrawComponentDropdown(
             Rect rect,
             GUIContent label,

@@ -1,6 +1,8 @@
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
@@ -65,6 +67,123 @@ namespace LoogaSoft.Inspector.Editor
 
             int rowCount = property.arraySize + 1 + (tableAttribute.allowAddRemove ? 1 : 0);
             return lineHeight + RowGap + rowCount * lineHeight + Mathf.Max(0, rowCount - 1) * RowGap;
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(SerializedProperty property, string label)
+        {
+            TableListAttribute tableAttribute = (TableListAttribute)attribute;
+            if (!CanDrawTable(property, tableAttribute))
+                return LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType);
+
+            SerializedObject owner = property.serializedObject;
+            string propertyPath = property.propertyPath;
+            Foldout foldout = new()
+            {
+                text = label,
+                value = property.isExpanded
+            };
+            VisualElement table = new();
+            int renderedSize = -1;
+
+            void Rebuild(SerializedProperty current)
+            {
+                if (current == null || renderedSize == current.arraySize)
+                    return;
+
+                renderedSize = current.arraySize;
+                table.Clear();
+                table.Add(CreateHeader(tableAttribute));
+
+                for (int rowIndex = 0; rowIndex < current.arraySize; rowIndex++)
+                {
+                    SerializedProperty element = current.GetArrayElementAtIndex(rowIndex);
+                    table.Add(CreateRow(element, tableAttribute, owner));
+                }
+
+                if (tableAttribute.allowAddRemove)
+                    table.Add(CreateResizeButtons(owner, propertyPath, current.arraySize));
+            }
+
+            foldout.RegisterValueChangedCallback(evt =>
+                LoogaPropertyDrawerUi.Commit(owner, propertyPath, current => current.isExpanded = evt.newValue));
+            foldout.Add(table);
+            Rebuild(property);
+            LoogaPropertyDrawerUi.Track(foldout, property, Rebuild);
+            return foldout;
+        }
+
+        private static VisualElement CreateHeader(TableListAttribute tableAttribute)
+        {
+            VisualElement row = CreateUiRow();
+            for (int i = 0; i < tableAttribute.columns.Length; i++)
+            {
+                Label header = new(ObjectNames.NicifyVariableName(tableAttribute.columns[i]));
+                header.style.flexGrow = 1f;
+                header.style.flexBasis = 0f;
+                header.style.unityFontStyleAndWeight = FontStyle.Bold;
+                row.Add(header);
+            }
+
+            return row;
+        }
+
+        private static VisualElement CreateRow(
+            SerializedProperty element,
+            TableListAttribute tableAttribute,
+            SerializedObject owner)
+        {
+            VisualElement row = CreateUiRow();
+            for (int i = 0; i < tableAttribute.columns.Length; i++)
+            {
+                SerializedProperty column = element.FindPropertyRelative(tableAttribute.columns[i]);
+                VisualElement cell = column != null
+                    ? new PropertyField(column.Copy(), string.Empty)
+                    : new Label("-");
+                cell.style.flexGrow = 1f;
+                cell.style.flexBasis = 0f;
+                if (cell is PropertyField field)
+                    field.Bind(owner);
+                row.Add(cell);
+            }
+
+            return row;
+        }
+
+        private static VisualElement CreateResizeButtons(SerializedObject owner, string propertyPath, int size)
+        {
+            VisualElement buttons = CreateUiRow();
+            buttons.style.justifyContent = Justify.FlexEnd;
+            Button add = new(() =>
+                LoogaPropertyDrawerUi.Commit(owner, propertyPath, current => current.arraySize++))
+            {
+                text = "+",
+                tooltip = "Add entry"
+            };
+            Button remove = new(() =>
+                LoogaPropertyDrawerUi.Commit(owner, propertyPath, current =>
+                {
+                    if (current.arraySize > 0)
+                        current.arraySize--;
+                }))
+            {
+                text = "-",
+                tooltip = "Remove last entry"
+            };
+            add.style.width = ButtonWidth;
+            remove.style.width = ButtonWidth;
+            remove.SetEnabled(size > 0);
+            buttons.Add(add);
+            buttons.Add(remove);
+            return buttons;
+        }
+
+        private static VisualElement CreateUiRow()
+        {
+            VisualElement row = new();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.marginBottom = RowGap;
+            return row;
         }
 
         private static bool CanDrawTable(SerializedProperty property, TableListAttribute tableAttribute)

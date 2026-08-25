@@ -26,6 +26,34 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUI.PropertyField(position, property, label, true);
         }
 
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            NoticeAttribute noticeAttribute = (NoticeAttribute)attribute;
+            UnityEngine.UIElements.VisualElement root = new();
+            UnityEngine.UIElements.HelpBox notice = new(
+                string.Empty,
+                ToHelpBoxMessageType(noticeAttribute.Type));
+            root.Add(notice);
+            root.Add(LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType));
+
+            void Refresh(SerializedProperty current)
+            {
+                object target = PropertyUtils.GetTargetObjectWithProperty(current);
+                string message = ResolveMessage(target, noticeAttribute);
+                bool show = ShouldShow(target, noticeAttribute) && !string.IsNullOrWhiteSpace(message);
+                notice.text = message;
+                notice.style.display = show
+                    ? UnityEngine.UIElements.DisplayStyle.Flex
+                    : UnityEngine.UIElements.DisplayStyle.None;
+            }
+
+            Refresh(property);
+            LoogaPropertyDrawerUi.Track(root, property, Refresh);
+            return root;
+        }
+
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
             float height = EditorGUI.GetPropertyHeight(property, label, true);
@@ -40,6 +68,16 @@ namespace LoogaSoft.Inspector.Editor
                 LoogaNoticeType.Warning => MessageType.Warning,
                 LoogaNoticeType.Error => MessageType.Error,
                 _ => MessageType.Info
+            };
+        }
+
+        internal static UnityEngine.UIElements.HelpBoxMessageType ToHelpBoxMessageType(LoogaNoticeType type)
+        {
+            return type switch
+            {
+                LoogaNoticeType.Warning => UnityEngine.UIElements.HelpBoxMessageType.Warning,
+                LoogaNoticeType.Error => UnityEngine.UIElements.HelpBoxMessageType.Error,
+                _ => UnityEngine.UIElements.HelpBoxMessageType.Info
             };
         }
 

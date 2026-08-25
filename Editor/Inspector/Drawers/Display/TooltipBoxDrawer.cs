@@ -34,6 +34,24 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUI.EndProperty();
         }
 
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            TooltipBoxAttribute boxAttribute = (TooltipBoxAttribute)attribute;
+            UnityEngine.UIElements.HelpBoxMessageType messageType = boxAttribute.type switch
+            {
+                TooltipType.Warning => UnityEngine.UIElements.HelpBoxMessageType.Warning,
+                TooltipType.Error => UnityEngine.UIElements.HelpBoxMessageType.Error,
+                _ => UnityEngine.UIElements.HelpBoxMessageType.Info
+            };
+
+            UnityEngine.UIElements.VisualElement root = new();
+            root.Add(new UnityEngine.UIElements.HelpBox(boxAttribute.tooltip, messageType));
+            root.Add(LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType));
+            return root;
+        }
+
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
             TooltipBoxAttribute boxAttribute = (TooltipBoxAttribute)attribute;

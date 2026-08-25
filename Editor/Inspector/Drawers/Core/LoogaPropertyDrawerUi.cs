@@ -11,6 +11,7 @@ namespace LoogaSoft.Inspector.Editor
     internal static class LoogaPropertyDrawerUi
     {
         private const float ControlGap = 4f;
+        private const float CollectionButtonWidth = 24f;
 
         public static VisualElement CreateRoot(VisualElement content, string tooltip = null)
         {
@@ -64,6 +65,8 @@ namespace LoogaSoft.Inspector.Editor
                 SerializedPropertyType.Vector3Int => new Vector3IntField(label),
                 SerializedPropertyType.RectInt => new RectIntField(label),
                 SerializedPropertyType.BoundsInt => new BoundsIntField(label),
+                SerializedPropertyType.AnimationCurve => new CurveField(label),
+                SerializedPropertyType.Gradient => new GradientField(label),
                 _ => null
             };
 
@@ -71,6 +74,129 @@ namespace LoogaSoft.Inspector.Editor
                 bindable.BindProperty(property);
 
             return field;
+        }
+
+        public static VisualElement CreateSerializedField(
+            SerializedProperty property,
+            string label,
+            Type declaredType = null,
+            bool allowArrayResize = true)
+        {
+            if (property == null)
+                return null;
+
+            if (property.isArray && property.propertyType != SerializedPropertyType.String)
+                return CreateArrayField(property, label, allowArrayResize);
+
+            if (property.propertyType == SerializedPropertyType.Generic && property.hasVisibleChildren)
+                return CreateCompositeField(property, label);
+
+            return CreateDefaultField(property, label, declaredType)
+                ?? CreateUnsupportedField(property, label);
+        }
+
+        public static VisualElement CreateArrayField(
+            SerializedProperty property,
+            string label,
+            bool allowResize = true)
+        {
+            SerializedObject owner = property.serializedObject;
+            string propertyPath = property.propertyPath;
+            Foldout foldout = new()
+            {
+                text = label,
+                value = property.isExpanded
+            };
+            VisualElement rows = new();
+            int renderedSize = -1;
+
+            void Rebuild(SerializedProperty current)
+            {
+                if (current == null || renderedSize == current.arraySize)
+                    return;
+
+                renderedSize = current.arraySize;
+                rows.Clear();
+                for (int i = 0; i < current.arraySize; i++)
+                {
+                    SerializedProperty element = current.GetArrayElementAtIndex(i);
+                    PropertyField field = new(element, $"Element {i}");
+                    field.Bind(owner);
+                    rows.Add(field);
+                }
+
+                if (!allowResize)
+                    return;
+
+                Button add = new(() => Commit(owner, propertyPath, value => value.arraySize++))
+                {
+                    text = "+",
+                    tooltip = "Add entry"
+                };
+                Button remove = new(() => Commit(owner, propertyPath, value =>
+                {
+                    if (value.arraySize > 0)
+                        value.arraySize--;
+                }))
+                {
+                    text = "-",
+                    tooltip = "Remove last entry"
+                };
+                add.style.width = CollectionButtonWidth;
+                remove.style.width = CollectionButtonWidth;
+                remove.SetEnabled(current.arraySize > 0);
+
+                VisualElement buttons = new();
+                buttons.style.flexDirection = FlexDirection.Row;
+                buttons.style.justifyContent = Justify.FlexEnd;
+                buttons.Add(add);
+                buttons.Add(remove);
+                rows.Add(buttons);
+            }
+
+            foldout.RegisterValueChangedCallback(evt =>
+                Commit(owner, propertyPath, current => current.isExpanded = evt.newValue));
+            foldout.Add(rows);
+            Rebuild(property);
+            Track(foldout, property, Rebuild);
+            return foldout;
+        }
+
+        public static VisualElement CreateCompositeField(SerializedProperty property, string label)
+        {
+            SerializedObject owner = property.serializedObject;
+            string propertyPath = property.propertyPath;
+            Foldout foldout = new()
+            {
+                text = label,
+                value = property.isExpanded
+            };
+
+            foreach (SerializedProperty child in EnumerateVisibleChildren(property))
+            {
+                PropertyField field = new(child.Copy());
+                field.Bind(owner);
+                foldout.Add(field);
+            }
+
+            foldout.RegisterValueChangedCallback(evt =>
+                Commit(owner, propertyPath, current => current.isExpanded = evt.newValue));
+            return foldout;
+        }
+
+        public static IEnumerable<SerializedProperty> EnumerateVisibleChildren(SerializedProperty property)
+        {
+            SerializedProperty iterator = property.Copy();
+            SerializedProperty end = iterator.GetEndProperty();
+            int parentDepth = iterator.depth;
+            bool enterChildren = true;
+
+            while (iterator.NextVisible(enterChildren) && !SerializedProperty.EqualContents(iterator, end))
+            {
+                enterChildren = false;
+                if (iterator.depth == parentDepth + 1)
+                    yield return iterator.Copy();
+            }
         }
 
         public static PopupField<string> CreatePopup(
@@ -239,6 +365,18 @@ namespace LoogaSoft.Inspector.Editor
                 options.Add("None");
 
             return options;
+        }
+
+        private static VisualElement CreateUnsupportedField(SerializedProperty property, string label)
+        {
+            VisualElement root = new();
+            Label name = new(label);
+            name.style.unityFontStyleAndWeight = FontStyle.Bold;
+            root.Add(name);
+            root.Add(CreateMessage(
+                $"UI Toolkit does not expose a bindable control for {property.propertyType}.",
+                HelpBoxMessageType.Warning));
+            return root;
         }
     }
 }

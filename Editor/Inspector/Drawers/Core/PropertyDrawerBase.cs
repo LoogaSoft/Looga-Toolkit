@@ -2,11 +2,14 @@ using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Unity.Profiling;
 
 namespace LoogaSoft.Inspector.Editor
 {
     public abstract class PropertyDrawerBase : PropertyDrawer
     {
+        private static readonly ProfilerMarker CreateUiMarker = new("Looga Inspector.CreatePropertyGUI");
+
         public sealed override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
             bool visible = PropertyUtils.IsVisible(property);
@@ -29,9 +32,12 @@ namespace LoogaSoft.Inspector.Editor
 
         public sealed override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
+            using ProfilerMarker.AutoScope _ = CreateUiMarker.Auto();
             GUIContent label = GetResolvedLabel(property, null);
             VisualElement content = CreatePropertyGUI_Internal(property, label.text)
-                ?? CreateLegacyPropertyGUI(property, label);
+                ?? LoogaPropertyDrawerUi.CreateMessage(
+                    $"{GetType().Name} has no UI Toolkit implementation.",
+                    HelpBoxMessageType.Error);
             VisualElement root = LoogaPropertyDrawerUi.CreateRoot(content, label.tooltip);
             SerializedObject owner = property.serializedObject;
             string propertyPath = property.propertyPath;
@@ -77,31 +83,6 @@ namespace LoogaSoft.Inspector.Editor
         protected virtual float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
             return EditorGUI.GetPropertyHeight(property, includeChildren: true);
-        }
-
-        private VisualElement CreateLegacyPropertyGUI(
-            SerializedProperty property,
-            GUIContent label)
-        {
-            SerializedObject owner = property.serializedObject;
-            string propertyPath = property.propertyPath;
-            return new IMGUIContainer(() =>
-            {
-                owner.UpdateIfRequiredOrScript();
-                SerializedProperty current = owner.FindProperty(propertyPath);
-                if (current == null)
-                    return;
-
-                float height = GetPropertyHeight_Internal(current, label);
-                Rect position = EditorGUILayout.GetControlRect(true, height);
-                EditorGUI.BeginChangeCheck();
-                OnGUI_Internal(position, current, PropertyUtils.GetFittedLabel(label, position));
-                if (!EditorGUI.EndChangeCheck())
-                    return;
-
-                owner.ApplyModifiedProperties();
-                PropertyUtils.CallOnFieldChangedCallbacks(current);
-            });
         }
 
         private static GUIContent GetResolvedLabel(SerializedProperty property, GUIContent label)

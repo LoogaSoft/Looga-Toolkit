@@ -66,6 +66,185 @@ namespace LoogaSoft.Inspector.Editor
             return GetHeight(property, catalog, entryType);
         }
 
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            LoogaCatalogAttribute catalog = (LoogaCatalogAttribute)attribute;
+            Type entryType = GetEntryType(fieldInfo?.FieldType);
+            if (!CanDraw(property, entryType))
+                return LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType);
+
+            SerializedObject owner = property.serializedObject;
+            string propertyPath = property.propertyPath;
+            UnityEngine.UIElements.VisualElement root = LoogaUiToolkitStyle.CreateCard();
+            UnityEngine.UIElements.Label title = new();
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            UnityEngine.UIElements.VisualElement toolbar = new();
+            toolbar.style.flexDirection = UnityEngine.UIElements.FlexDirection.Row;
+            UnityEngine.UIElements.VisualElement rows = new();
+            root.Add(title);
+            root.Add(toolbar);
+            root.Add(rows);
+            int renderedSignature = int.MinValue;
+
+            SerializedProperty CurrentProperty()
+            {
+                owner.UpdateIfRequiredOrScript();
+                return owner.FindProperty(propertyPath);
+            }
+
+            int GetSignature(SerializedProperty current)
+            {
+                if (current == null)
+                    return 0;
+
+                unchecked
+                {
+                    int signature = current.arraySize;
+                    for (int i = 0; i < current.arraySize; i++)
+                    {
+                        UnityEngine.Object value = current.GetArrayElementAtIndex(i).objectReferenceValue;
+                        signature = signature * 397 ^ (value != null ? value.GetInstanceID() : 0);
+                    }
+
+                    return signature;
+                }
+            }
+
+            void Rebuild(SerializedProperty current, bool force = false)
+            {
+                if (current == null)
+                    return;
+
+                int signature = GetSignature(current);
+                if (!force && signature == renderedSignature)
+                    return;
+
+                renderedSignature = signature;
+                string catalogTitle = string.IsNullOrWhiteSpace(catalog.Title) ? label : catalog.Title;
+                title.text = $"{catalogTitle} ({current.arraySize})";
+                toolbar.Clear();
+                rows.Clear();
+
+                bool canSync = CanSyncFromSubAssets(current, entryType);
+                if (catalog.AllowAdd)
+                {
+                    UnityEngine.UIElements.Button add = new(() =>
+                    {
+                        SerializedProperty fresh = CurrentProperty();
+                        if (fresh != null)
+                            AddEntry(fresh, catalog, entryType, GetDefaultCreateName(catalog, entryType));
+                    })
+                    {
+                        text = $"Add {ObjectNames.NicifyVariableName(entryType.Name)}"
+                    };
+                    toolbar.Add(add);
+                }
+
+                if (canSync)
+                {
+                    UnityEngine.UIElements.Button sync = new(() =>
+                    {
+                        SerializedProperty fresh = CurrentProperty();
+                        if (fresh != null)
+                            SyncFromSubAssets(fresh, entryType);
+                    })
+                    {
+                        text = "Sync"
+                    };
+                    toolbar.Add(sync);
+                }
+
+                toolbar.style.display = toolbar.childCount > 0
+                    ? UnityEngine.UIElements.DisplayStyle.Flex
+                    : UnityEngine.UIElements.DisplayStyle.None;
+
+                if (current.arraySize == 0)
+                {
+                    rows.Add(new UnityEngine.UIElements.Label(
+                        $"No {ObjectNames.NicifyVariableName(entryType.Name)} entries."));
+                    return;
+                }
+
+                for (int i = 0; i < current.arraySize; i++)
+                {
+                    int index = i;
+                    ScriptableObject definition = current.GetArrayElementAtIndex(i).objectReferenceValue as ScriptableObject;
+                    UnityEngine.UIElements.VisualElement row = new();
+                    row.style.flexDirection = UnityEngine.UIElements.FlexDirection.Row;
+                    row.style.alignItems = UnityEngine.UIElements.Align.Center;
+                    row.style.minHeight = RowHeight;
+                    GUIContent content = definition != null
+                        ? EditorGUIUtility.ObjectContent(definition, entryType)
+                        : new GUIContent("<Missing>");
+                    UnityEngine.UIElements.Image icon = new()
+                    {
+                        image = content.image
+                    };
+                    icon.style.width = IconGlyphSize;
+                    icon.style.height = IconGlyphSize;
+                    icon.style.marginRight = Gap;
+                    row.Add(icon);
+
+                    UnityEngine.UIElements.Label entryLabel = new(
+                        definition != null ? GetEntryLabel(definition, catalog) : "<Missing>");
+                    entryLabel.style.flexGrow = 1f;
+                    entryLabel.RegisterCallback<UnityEngine.UIElements.MouseDownEvent>(evt =>
+                    {
+                        if (evt.button != 0 || definition == null)
+                            return;
+
+                        Selection.activeObject = definition;
+                        EditorGUIUtility.PingObject(definition);
+                    });
+                    row.Add(entryLabel);
+
+                    UnityEngine.UIElements.Button edit = new(() =>
+                    {
+                        if (definition == null)
+                            return;
+
+                        Selection.activeObject = definition;
+                        EditorGUIUtility.PingObject(definition);
+                    })
+                    {
+                        text = "Edit",
+                        tooltip = "Select and edit this definition"
+                    };
+                    edit.SetEnabled(definition != null);
+                    row.Add(edit);
+
+                    UnityEngine.UIElements.Button delete = new(() =>
+                    {
+                        SerializedProperty fresh = CurrentProperty();
+                        if (fresh != null)
+                            DeleteEntry(fresh, index, definition, catalog);
+                    })
+                    {
+                        text = "Delete"
+                    };
+                    delete.SetEnabled(catalog.AllowDelete);
+                    row.Add(delete);
+                    rows.Add(row);
+                }
+            }
+
+            void RefreshFromProject()
+            {
+                SerializedProperty current = CurrentProperty();
+                Rebuild(current, force: true);
+            }
+
+            root.RegisterCallback<UnityEngine.UIElements.AttachToPanelEvent>(_ =>
+                EditorApplication.projectChanged += RefreshFromProject);
+            root.RegisterCallback<UnityEngine.UIElements.DetachFromPanelEvent>(_ =>
+                EditorApplication.projectChanged -= RefreshFromProject);
+            Rebuild(property, force: true);
+            LoogaPropertyDrawerUi.Track(root, property, current => Rebuild(current));
+            return root;
+        }
+
         public static void Draw(Rect position, SerializedProperty property, LoogaCatalogAttribute catalog, Type entryType)
         {
             EditorGUI.DrawRect(position, CatalogColor);

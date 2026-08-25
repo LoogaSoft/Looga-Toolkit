@@ -10,6 +10,25 @@ namespace LoogaSoft.Inspector.Editor
         private const float ButtonWidth = 82f;
         private const float Gap = 4f;
 
+        protected override UnityEngine.UIElements.VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            OpenEditorWindowAttribute openAttribute = (OpenEditorWindowAttribute)attribute;
+            UnityEngine.UIElements.VisualElement field = LoogaPropertyDrawerUi.CreateSerializedField(
+                property,
+                label,
+                fieldInfo?.FieldType);
+            UnityEngine.UIElements.Button button = new(() =>
+                EditorApplication.ExecuteMenuItem(openAttribute.MenuPath))
+            {
+                text = openAttribute.Label
+            };
+            button.style.width = ButtonWidth;
+            button.SetEnabled(!string.IsNullOrWhiteSpace(openAttribute.MenuPath));
+            return LoogaPropertyDrawerUi.CreateFieldWithButtons(field, button);
+        }
+
         protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
         {
             OpenEditorWindowAttribute openAttribute = (OpenEditorWindowAttribute)attribute;

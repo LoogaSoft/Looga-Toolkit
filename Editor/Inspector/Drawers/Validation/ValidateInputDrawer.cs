@@ -1,17 +1,19 @@
 using System.Reflection;
 using LoogaSoft.Inspector.Runtime;
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.Inspector.Editor
 {
     [CustomPropertyDrawer(typeof(ValidateInputAttribute))]
-    public class ValidateInputDrawer : PropertyDrawer
+    public class ValidateInputDrawer : PropertyDrawerBase
     {
         private const float BOX_HEIGHT = 30f;
         private readonly float _spacing = EditorGUIUtility.standardVerticalSpacing;
         
-        public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
+        protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
             if (IsPropertyValid(property))
                 return EditorGUI.GetPropertyHeight(property, label) + BOX_HEIGHT + _spacing;
@@ -19,7 +21,7 @@ namespace LoogaSoft.Inspector.Editor
             return EditorGUI.GetPropertyHeight(property, label);
         }
 
-        public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
+        protected override void OnGUI_Internal(Rect position, SerializedProperty property, GUIContent label)
         {
             ValidateInputAttribute attr = attribute as ValidateInputAttribute;
             
@@ -35,6 +37,30 @@ namespace LoogaSoft.Inspector.Editor
             {
                 EditorGUI.PropertyField(position, property, label, true);
             }
+        }
+
+        protected override VisualElement CreatePropertyGUI_Internal(
+            SerializedProperty property,
+            string label)
+        {
+            ValidateInputAttribute validationAttribute = (ValidateInputAttribute)attribute;
+            VisualElement root = new();
+            HelpBox message = LoogaPropertyDrawerUi.CreateMessage(
+                validationAttribute.message,
+                GetHelpBoxMessageType(validationAttribute.messageMode));
+            root.Add(message);
+            root.Add(LoogaPropertyDrawerUi.CreateSerializedField(property, label, fieldInfo?.FieldType));
+
+            void Refresh(SerializedProperty current)
+            {
+                message.style.display = IsPropertyValid(current)
+                    ? DisplayStyle.Flex
+                    : DisplayStyle.None;
+            }
+
+            Refresh(property);
+            LoogaPropertyDrawerUi.Track(root, property, Refresh);
+            return root;
         }
 
         private bool IsPropertyValid(SerializedProperty property)
@@ -74,6 +100,17 @@ namespace LoogaSoft.Inspector.Editor
                 MessageMode.Warning => MessageType.Warning,
                 MessageMode.Info => MessageType.Info,
                 _ => MessageType.None
+            };
+        }
+
+        private static HelpBoxMessageType GetHelpBoxMessageType(MessageMode mode)
+        {
+            return mode switch
+            {
+                MessageMode.Error => HelpBoxMessageType.Error,
+                MessageMode.Warning => HelpBoxMessageType.Warning,
+                MessageMode.Info => HelpBoxMessageType.Info,
+                _ => HelpBoxMessageType.None
             };
         }
     }
