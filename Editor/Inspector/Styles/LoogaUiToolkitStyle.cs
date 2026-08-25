@@ -66,6 +66,7 @@ namespace LoogaSoft.Inspector.Editor
             StyleInteractiveRow(header);
             header.style.marginBottom = 0f;
             header.style.paddingLeft = RowHorizontalPadding;
+            header.style.flexDirection = FlexDirection.Row;
             header.style.alignItems = Align.Center;
 
             Label label = header.Q<Label>(className: "unity-toggle__label");
@@ -74,9 +75,17 @@ namespace LoogaSoft.Inspector.Editor
                 label.style.unityFontStyleAndWeight = FontStyle.Normal;
                 label.style.unityTextAlign = TextAnchor.MiddleLeft;
                 label.style.alignSelf = Align.Center;
+                label.style.height = InteractiveRowHeight;
                 label.style.flexGrow = 1f;
+                label.style.flexShrink = 1f;
                 label.style.marginLeft = 0f;
+                label.style.marginRight = 0f;
+                label.style.marginTop = 0f;
+                label.style.marginBottom = 0f;
                 label.style.paddingLeft = 0f;
+                label.style.paddingRight = 0f;
+                label.style.paddingTop = 0f;
+                label.style.paddingBottom = 0f;
             }
 
             VisualElement input = header.Q<VisualElement>(className: "unity-toggle__input");
@@ -85,18 +94,17 @@ namespace LoogaSoft.Inspector.Editor
                 input.style.opacity = 1f;
                 input.style.position = Position.Relative;
                 input.style.marginLeft = 0f;
-                input.style.marginRight = 6f;
+                input.style.marginRight = 0f;
                 input.style.marginTop = 0f;
                 input.style.marginBottom = 0f;
                 input.style.paddingLeft = 0f;
                 input.style.paddingRight = 0f;
-                input.style.width = 10f;
-                input.style.minWidth = 10f;
-                input.style.maxWidth = 10f;
-                input.style.height = 10f;
-                input.style.minHeight = 10f;
-                input.style.maxHeight = 10f;
-                input.style.flexShrink = 0f;
+                input.style.width = StyleKeyword.Auto;
+                input.style.minWidth = 0f;
+                input.style.flexGrow = 1f;
+                input.style.flexShrink = 1f;
+                input.style.flexDirection = FlexDirection.Row;
+                input.style.alignItems = Align.Center;
                 input.style.alignSelf = Align.Center;
             }
 
@@ -107,7 +115,7 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             if (input != null && input.Q<LoogaFoldoutTriangle>() == null)
-                input.Add(new LoogaFoldoutTriangle(foldout));
+                input.Insert(0, new LoogaFoldoutTriangle(foldout));
         }
 
         public static VisualElement CreateInspectorRoot()
@@ -170,6 +178,38 @@ namespace LoogaSoft.Inspector.Editor
                 row.Add(control);
             }
 
+            return row;
+        }
+
+        public static VisualElement CreateNavigationRow(float height = 32f)
+        {
+            VisualElement row = new();
+            row.style.height = height;
+            row.style.minHeight = height;
+            row.style.maxHeight = height;
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.alignItems = Align.Center;
+            row.style.justifyContent = Justify.Center;
+            row.style.paddingLeft = 6f;
+            row.style.paddingRight = 6f;
+
+            Label label = new();
+            label.style.height = height;
+            label.style.minHeight = height;
+            label.style.maxHeight = height;
+            label.style.flexGrow = 1f;
+            label.style.flexShrink = 1f;
+            label.style.alignSelf = Align.Center;
+            label.style.marginLeft = 0f;
+            label.style.marginRight = 0f;
+            label.style.marginTop = 0f;
+            label.style.marginBottom = 0f;
+            label.style.paddingLeft = 0f;
+            label.style.paddingRight = 0f;
+            label.style.paddingTop = 0f;
+            label.style.paddingBottom = 0f;
+            label.style.unityTextAlign = TextAnchor.MiddleLeft;
+            row.Add(label);
             return row;
         }
 
@@ -259,6 +299,7 @@ namespace LoogaSoft.Inspector.Editor
             style.minHeight = 10f;
             style.maxHeight = 10f;
             style.flexShrink = 0f;
+            style.marginRight = 6f;
             style.opacity = 1f;
             generateVisualContent += DrawTriangle;
             _foldout.RegisterValueChangedCallback(_ => MarkDirtyRepaint());

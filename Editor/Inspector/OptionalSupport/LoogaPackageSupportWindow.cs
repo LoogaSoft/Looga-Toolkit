@@ -99,9 +99,9 @@ namespace LoogaSoft.Inspector.Editor
             {
                 selectionType = SelectionType.Single,
                 fixedItemHeight = 32f,
-                makeItem = CreateNavigationRow,
+                makeItem = () => LoogaUiToolkitStyle.CreateNavigationRow(),
                 bindItem = (element, index) =>
-                    ((Label)element).text = GetNavigationLabel(index)
+                    element.Q<Label>().text = GetNavigationLabel(index)
             };
             _navigationList.style.flexGrow = 1f;
             _navigationList.itemsSource = BuildNavigationItems();
@@ -240,22 +240,6 @@ namespace LoogaSoft.Inspector.Editor
             changes.SetEnabled(!string.IsNullOrWhiteSpace(package.ChangesUrl));
             card.Add(LoogaUiToolkitStyle.CreateButtonRow(update, changes));
             return card;
-        }
-
-        private static Label CreateNavigationRow()
-        {
-            Label label = new();
-            label.style.height = 32f;
-            label.style.marginLeft = 0f;
-            label.style.marginRight = 0f;
-            label.style.marginTop = 0f;
-            label.style.marginBottom = 0f;
-            label.style.paddingLeft = 6f;
-            label.style.paddingRight = 6f;
-            label.style.paddingTop = 6f;
-            label.style.paddingBottom = 6f;
-            label.style.unityTextAlign = TextAnchor.MiddleLeft;
-            return label;
         }
 
         private static Label CreatePackageMetadataLabel(string text, bool wrap = false)
