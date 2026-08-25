@@ -26,6 +26,8 @@ namespace LoogaSoft.Inspector.Editor
         private LoogaSidebarSerializedView _sidebarView;
         private SerializedObject _nestedSerializedObject;
         private readonly HashSet<int> _inlineObjectStack = new();
+        private readonly List<SerializedProperty> _rootSerializedProperties = new();
+        private readonly Dictionary<string, SerializedProperty> _rootPropertiesByName = new(StringComparer.Ordinal);
         private static readonly Dictionary<Type, InspectorLayout> _layoutCache = new();
         private static readonly Dictionary<Type, LoogaInspectorMessageAttribute[]> _messageCache = new();
         private static readonly Dictionary<Type, NoticeAttribute[]> _noticeCache = new();
@@ -48,6 +50,8 @@ namespace LoogaSoft.Inspector.Editor
             _hoveredListIndex = -1;
             _nestedSerializedObject = null;
             _inlineObjectStack.Clear();
+            _rootSerializedProperties.Clear();
+            _rootPropertiesByName.Clear();
         }
 
         public override void OnInspectorGUI()
@@ -2057,7 +2061,8 @@ namespace LoogaSoft.Inspector.Editor
         #region Getters
         private List<SerializedProperty> GetSerializedProperties()
         {
-            List<SerializedProperty> serializedProperties = new List<SerializedProperty>();
+            _rootSerializedProperties.Clear();
+            _rootPropertiesByName.Clear();
 
             using SerializedProperty iterator = InspectedSerializedObject.GetIterator();
             
@@ -2067,11 +2072,15 @@ namespace LoogaSoft.Inspector.Editor
                 do
                 {
                     if (iterator.name != "m_Script")
-                        serializedProperties.Add(iterator.Copy());
+                    {
+                        SerializedProperty property = iterator.Copy();
+                        _rootSerializedProperties.Add(property);
+                        _rootPropertiesByName[property.name] = property;
+                    }
                 } while (iterator.NextVisible(false));
             }
             
-            return serializedProperties;
+            return _rootSerializedProperties;
         }
 
         private List<SerializedProperty> GetNestedSerializedProperties(SerializedProperty property)
@@ -2334,8 +2343,13 @@ namespace LoogaSoft.Inspector.Editor
                 "Cancel");
         }
 
-        private static SerializedProperty FindSerializedPropertyByName(List<SerializedProperty> properties, string propertyName)
+        private SerializedProperty FindSerializedPropertyByName(List<SerializedProperty> properties, string propertyName)
         {
+            if (ReferenceEquals(properties, _rootSerializedProperties))
+                return _rootPropertiesByName.TryGetValue(propertyName, out SerializedProperty property)
+                    ? property
+                    : null;
+
             for (int i = 0; i < properties.Count; i++)
             {
                 if (properties[i].name == propertyName)

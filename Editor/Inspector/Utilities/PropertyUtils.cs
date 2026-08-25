@@ -312,6 +312,9 @@ namespace LoogaSoft.Inspector.Editor
                 return null;
             
             object obj = property.serializedObject.targetObject;
+            if (property.depth == 0)
+                return obj;
+
             string path = property.propertyPath.Replace(".Array.data[", "[");
             string[] elements = path.Split('.');
 
