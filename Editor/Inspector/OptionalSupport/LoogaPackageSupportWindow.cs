@@ -95,16 +95,22 @@ namespace LoogaSoft.Inspector.Editor
             split.style.flexGrow = 1f;
             root.Add(split);
 
+            List<string> navigationItems = BuildNavigationItems();
             _navigationList = new ListView
             {
                 selectionType = SelectionType.Single,
                 fixedItemHeight = 32f,
                 makeItem = () => LoogaUiToolkitStyle.CreateNavigationRow(),
                 bindItem = (element, index) =>
-                    element.Q<Label>().text = GetNavigationLabel(index)
+                {
+                    element.Q<Label>().text = GetNavigationLabel(index);
+                    LoogaUiToolkitStyle.SetNavigationRowSeparator(
+                        element,
+                        index < navigationItems.Count - 1);
+                }
             };
             _navigationList.style.flexGrow = 1f;
-            _navigationList.itemsSource = BuildNavigationItems();
+            _navigationList.itemsSource = navigationItems;
             _navigationList.selectedIndex = Mathf.Clamp(_selectedPage, 0, _pages.Count);
             _navigationList.selectionChanged += _ =>
             {
@@ -180,11 +186,13 @@ namespace LoogaSoft.Inspector.Editor
 
             if (!string.IsNullOrWhiteSpace(LoogaPackageUpdateService.OperationMessage))
             {
-                section.Add(new HelpBox(
+                HelpBox notice = new(
                     LoogaPackageUpdateService.OperationMessage,
                     LoogaPackageUpdateService.IsChecking
                         ? HelpBoxMessageType.Info
-                        : HelpBoxMessageType.None));
+                        : HelpBoxMessageType.None);
+                LoogaUiToolkitStyle.StyleWorkspaceNotice(notice);
+                section.Add(notice);
             }
 
             IReadOnlyList<LoogaPackageUpdateInfo> packages = LoogaPackageUpdateService.Packages;
@@ -201,7 +209,7 @@ namespace LoogaSoft.Inspector.Editor
 
         private VisualElement CreatePackageCard(LoogaPackageUpdateInfo package)
         {
-            VisualElement card = LoogaUiToolkitStyle.CreateCard();
+            VisualElement card = LoogaUiToolkitStyle.CreateWorkspaceCard();
             VisualElement heading = new();
             heading.style.flexDirection = FlexDirection.Row;
             Label title = new(package.DisplayName);
@@ -255,7 +263,7 @@ namespace LoogaSoft.Inspector.Editor
 
         private VisualElement CreateProviderCard(OptionalSupportProvider provider)
         {
-            VisualElement card = LoogaUiToolkitStyle.CreateCard();
+            VisualElement card = LoogaUiToolkitStyle.CreateWorkspaceCard();
             VisualElement heading = new();
             heading.style.flexDirection = FlexDirection.Row;
             Label title = new(provider.IntegrationName);

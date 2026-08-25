@@ -166,6 +166,45 @@ namespace LoogaSoft.Inspector.Editor
             return card;
         }
 
+        /// <summary>
+        /// Creates a Unity-styled result card for editor workspaces and navigation pages.
+        /// </summary>
+        public static VisualElement CreateWorkspaceCard()
+        {
+            VisualElement card = CreateCard();
+            float borderWidth = LoogaEditorStyle.Pixels(1f);
+            Color borderColor = LoogaEditorStyle.SeparatorColor;
+
+            card.style.backgroundColor = LoogaEditorStyle.HoverColor;
+            card.style.borderLeftWidth = borderWidth;
+            card.style.borderRightWidth = borderWidth;
+            card.style.borderTopWidth = borderWidth;
+            card.style.borderBottomWidth = borderWidth;
+            card.style.borderLeftColor = borderColor;
+            card.style.borderRightColor = borderColor;
+            card.style.borderTopColor = borderColor;
+            card.style.borderBottomColor = borderColor;
+            card.style.borderTopLeftRadius = 2f;
+            card.style.borderTopRightRadius = 2f;
+            card.style.borderBottomLeftRadius = 2f;
+            card.style.borderBottomRightRadius = 2f;
+            return card;
+        }
+
+        /// <summary>
+        /// Aligns a workspace notice with the cards that follow it.
+        /// </summary>
+        public static void StyleWorkspaceNotice(VisualElement notice)
+        {
+            if (notice == null)
+                return;
+
+            notice.style.alignSelf = Align.Stretch;
+            notice.style.flexGrow = 1f;
+            notice.style.marginLeft = 0f;
+            notice.style.marginRight = 0f;
+        }
+
         public static VisualElement CreateButtonRow(params VisualElement[] controls)
         {
             VisualElement row = new();
@@ -211,6 +250,18 @@ namespace LoogaSoft.Inspector.Editor
             label.style.unityTextAlign = TextAnchor.MiddleLeft;
             row.Add(label);
             return row;
+        }
+
+        /// <summary>
+        /// Shows a divider below a navigation row unless that row is the final entry.
+        /// </summary>
+        public static void SetNavigationRowSeparator(VisualElement row, bool visible)
+        {
+            if (row == null)
+                return;
+
+            row.style.borderBottomWidth = visible ? LoogaEditorStyle.Pixels(1f) : 0f;
+            row.style.borderBottomColor = LoogaEditorStyle.TreeLineColor;
         }
 
         public static Toolbar CreateTabBar(
