@@ -1,131 +1,226 @@
-using System;
 using LoogaSoft.PrefabBrowser.Runtime;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace LoogaSoft.PrefabBrowser.Editor
 {
-    public class PrefabBrowserConfigWindow : EditorWindow
+    /// <summary>
+    /// Edits Prefab Browser categories through retained UI Toolkit controls.
+    /// </summary>
+    public sealed class PrefabBrowserConfigWindow : EditorWindow
     {
         private PrefabBrowserConfig _settings;
-        private Vector2 _scrollPos;
+        private ScrollView _categoryList;
 
         [MenuItem("Window/LoogaSoft/Prefab Browser/Browser Config")]
         public static void ShowWindow()
         {
             GetWindow<PrefabBrowserConfigWindow>("Prefab Browser Config");
         }
+
         private void OnEnable()
         {
             _settings = PrefabBrowserConfig.GetOrCreateConfig();
         }
 
-        private void OnGUI()
+        public void CreateGUI()
         {
+            VisualElement root = rootVisualElement;
+            root.Clear();
+            root.style.paddingLeft = 6f;
+            root.style.paddingRight = 6f;
+            root.style.paddingTop = 6f;
+            root.style.paddingBottom = 6f;
+
+            Label title = new("Category Manager");
+            title.style.fontSize = 14f;
+            title.style.unityFontStyleAndWeight = FontStyle.Bold;
+            title.style.marginBottom = 5f;
+            root.Add(title);
+
             if (_settings == null)
             {
-                EditorGUILayout.HelpBox("Config not found", MessageType.Error);
+                root.Add(new HelpBox("Prefab Browser configuration was not found.", HelpBoxMessageType.Error));
                 return;
             }
-            
-            EditorGUILayout.LabelField("Category Manager", EditorStyles.boldLabel);
-            EditorGUILayout.Space();
-            
-            _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
 
-            for (int i = 0; i < _settings.Categories.Count; i++)
-            {
-                DrawCategory(_settings.Categories[i], i);
-                GUILayout.Space(5);
-            }
+            _categoryList = new ScrollView(ScrollViewMode.Vertical);
+            _categoryList.style.flexGrow = 1f;
+            root.Add(_categoryList);
 
-            EditorGUILayout.Space();
+            Button addCategory = new(AddCategory) { text = "Add Category" };
+            addCategory.style.height = 30f;
+            addCategory.style.marginTop = 5f;
+            root.Add(addCategory);
 
-            if (GUILayout.Button("Add New Category", GUILayout.Height(30)))
-            {
-                Undo.RecordObject(_settings, "Add Category");
-                _settings.Categories.Add(new BrowserCategory { Name = "New Category" } );
-                EditorUtility.SetDirty(_settings);
-            }
-            
-            EditorGUILayout.EndScrollView();
-            
-            if (GUI.changed)
-                EditorUtility.SetDirty(_settings);
+            RebuildCategoryList();
         }
 
-        private void DrawCategory(BrowserCategory category, int index)
+        private void RebuildCategoryList()
         {
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.BeginHorizontal();
-            
-            category.IsExpanded = EditorGUILayout.Foldout(category.IsExpanded, category.Name, true);
-
-            Color oldColor = GUI.backgroundColor;
-            GUI.backgroundColor = new Color(1f, 0.6f, 0.6f);
-            if (GUILayout.Button("X", GUILayout.Width(25f)))
-            {
-                Undo.RecordObject(_settings, "Remove Category");
-                _settings.Categories.RemoveAt(index);
-                EditorGUILayout.EndHorizontal();
-                EditorGUILayout.EndVertical();
+            if (_categoryList == null || _settings == null)
                 return;
-            }
-            
-            GUI.backgroundColor = oldColor;
-            
-            EditorGUILayout.EndHorizontal();
-            
-            if (category.IsExpanded)
+
+            _categoryList.Clear();
+            for (int index = 0; index < _settings.Categories.Count; index++)
+                _categoryList.Add(CreateCategoryElement(_settings.Categories[index], index));
+        }
+
+        private VisualElement CreateCategoryElement(BrowserCategory category, int categoryIndex)
+        {
+            VisualElement container = new();
+            container.style.marginBottom = 5f;
+            container.style.paddingLeft = 5f;
+            container.style.paddingRight = 5f;
+            container.style.paddingTop = 3f;
+            container.style.paddingBottom = 5f;
+            container.style.borderBottomWidth = 1f;
+            container.style.borderLeftWidth = 1f;
+            container.style.borderRightWidth = 1f;
+            container.style.borderTopWidth = 1f;
+            Color border = EditorGUIUtility.isProSkin
+                ? new Color(0.15f, 0.15f, 0.15f)
+                : new Color(0.62f, 0.62f, 0.62f);
+            container.style.borderBottomColor = border;
+            container.style.borderLeftColor = border;
+            container.style.borderRightColor = border;
+            container.style.borderTopColor = border;
+
+            VisualElement header = new();
+            header.style.flexDirection = FlexDirection.Row;
+
+            Foldout foldout = new() { text = category.Name, value = category.IsExpanded };
+            foldout.style.flexGrow = 1f;
+            foldout.RegisterValueChangedCallback(evt =>
             {
-                EditorGUI.indentLevel++;
-                
-                string newName = EditorGUILayout.TextField("Category Name", category.Name);
-                if (newName != category.Name)
-                {
-                    Undo.RecordObject(_settings, "Rename Category");
-                    category.Name = newName;
-                }
+                RecordChange("Change Category Foldout");
+                category.IsExpanded = evt.newValue;
+                MarkChanged();
+            });
+            header.Add(foldout);
 
-                EditorGUILayout.Space();
-                EditorGUILayout.LabelField("Subcategories", EditorStyles.miniBoldLabel);
+            Button remove = new(() => RemoveCategory(categoryIndex))
+            {
+                text = "-",
+                tooltip = "Remove this category."
+            };
+            remove.style.width = 26f;
+            remove.style.height = 20f;
+            header.Add(remove);
+            container.Add(header);
 
-                for (int i = 0; i < category.SubCategories.Count; i++)
-                {
-                    EditorGUILayout.BeginHorizontal();
-                    
-                    category.SubCategories[i] = EditorGUILayout.TextField(category.SubCategories[i]);
+            VisualElement details = new();
+            details.style.paddingLeft = 14f;
+            details.style.paddingTop = 3f;
+            details.style.display = category.IsExpanded ? DisplayStyle.Flex : DisplayStyle.None;
+            container.Add(details);
+            foldout.RegisterValueChangedCallback(evt =>
+                details.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None);
 
-                    if (GUILayout.Button("-", GUILayout.Width(25f)))
-                    {
-                        Undo.RecordObject(_settings, "Remove Subcategory");
-                        category.SubCategories.RemoveAt(i);
-                        break;
-                    }
-                    
-                    EditorGUILayout.EndHorizontal();
-                }
+            TextField nameField = new("Category Name") { value = category.Name };
+            nameField.RegisterValueChangedCallback(evt =>
+            {
+                RecordChange("Rename Category");
+                category.Name = evt.newValue;
+                foldout.text = evt.newValue;
+                MarkChanged();
+            });
+            details.Add(nameField);
 
-                if (GUILayout.Button("Add Subcategory"))
-                {
-                    Undo.RecordObject(_settings, "Add Subcategory");
-                    category.SubCategories.Add("New Subcategory");
-                }
-                
-                EditorGUI.indentLevel--;
-            }
-            
-            EditorGUILayout.EndVertical();
+            Label subcategoryTitle = new("Subcategories");
+            subcategoryTitle.style.unityFontStyleAndWeight = FontStyle.Bold;
+            subcategoryTitle.style.marginTop = 5f;
+            subcategoryTitle.style.marginBottom = 2f;
+            details.Add(subcategoryTitle);
+
+            for (int subcategoryIndex = 0; subcategoryIndex < category.SubCategories.Count; subcategoryIndex++)
+                details.Add(CreateSubcategoryRow(category, subcategoryIndex));
+
+            Button addSubcategory = new(() => AddSubcategory(category)) { text = "Add Subcategory" };
+            addSubcategory.style.marginTop = 3f;
+            details.Add(addSubcategory);
+            return container;
+        }
+
+        private VisualElement CreateSubcategoryRow(BrowserCategory category, int subcategoryIndex)
+        {
+            VisualElement row = new();
+            row.style.flexDirection = FlexDirection.Row;
+            row.style.marginBottom = 2f;
+
+            TextField field = new() { value = category.SubCategories[subcategoryIndex] };
+            field.style.flexGrow = 1f;
+            field.RegisterValueChangedCallback(evt =>
+            {
+                RecordChange("Rename Subcategory");
+                category.SubCategories[subcategoryIndex] = evt.newValue;
+                MarkChanged();
+            });
+            row.Add(field);
+
+            Button remove = new(() => RemoveSubcategory(category, subcategoryIndex))
+            {
+                text = "-",
+                tooltip = "Remove this subcategory."
+            };
+            remove.style.width = 26f;
+            remove.style.marginLeft = 3f;
+            row.Add(remove);
+            return row;
+        }
+
+        private void AddCategory()
+        {
+            RecordChange("Add Category");
+            _settings.Categories.Add(new BrowserCategory { Name = "New Category" });
+            MarkChanged();
+            ScheduleRebuild();
+        }
+
+        private void RemoveCategory(int index)
+        {
+            if (index < 0 || index >= _settings.Categories.Count)
+                return;
+
+            RecordChange("Remove Category");
+            _settings.Categories.RemoveAt(index);
+            MarkChanged();
+            ScheduleRebuild();
+        }
+
+        private void AddSubcategory(BrowserCategory category)
+        {
+            RecordChange("Add Subcategory");
+            category.SubCategories.Add("New Subcategory");
+            MarkChanged();
+            ScheduleRebuild();
+        }
+
+        private void RemoveSubcategory(BrowserCategory category, int index)
+        {
+            if (index < 0 || index >= category.SubCategories.Count)
+                return;
+
+            RecordChange("Remove Subcategory");
+            category.SubCategories.RemoveAt(index);
+            MarkChanged();
+            ScheduleRebuild();
+        }
+
+        private void ScheduleRebuild()
+        {
+            rootVisualElement.schedule.Execute(RebuildCategoryList);
+        }
+
+        private void RecordChange(string undoName)
+        {
+            Undo.RecordObject(_settings, undoName);
+        }
+
+        private void MarkChanged()
+        {
+            EditorUtility.SetDirty(_settings);
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
