@@ -18,6 +18,9 @@ namespace LoogaSoft.Tools.Editor
     internal sealed class EditorPerformanceRecorderWindow : EditorWindow
     {
         private const string MenuPath = "LoogaSoft/Toolkit/Editor Performance Recorder";
+        private const string NativeProfilerPreference = "LoogaSoft.EditorPerformanceRecorder.CaptureNativeProfiler";
+
+        private bool _captureNativeProfiler;
 
         [MenuItem(MenuPath, priority = 25)]
         private static void Open()
@@ -27,6 +30,7 @@ namespace LoogaSoft.Tools.Editor
 
         private void OnEnable()
         {
+            _captureNativeProfiler = EditorPrefs.GetBool(NativeProfilerPreference, false);
             EditorPerformanceRecorder.StateChanged += Repaint;
         }
 
@@ -40,8 +44,30 @@ namespace LoogaSoft.Tools.Editor
             EditorGUILayout.LabelField("Editor Performance Recorder", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "Record only the actions that reproduce the delay. The capture includes Editor stalls, memory, " +
-                "selection, drag, import, compilation, and a native Unity Profiler timeline.",
+                "selection, drag, import, compilation, and the Editor log.",
                 MessageType.Info);
+
+            using (new EditorGUI.DisabledScope(EditorPerformanceRecorder.IsRecording))
+            {
+                EditorGUI.BeginChangeCheck();
+                _captureNativeProfiler = EditorGUILayout.Toggle(
+                    new GUIContent(
+                        "Native Profiler Timeline",
+                        "Records Unity's full Editor profiler timeline. This has substantial overhead and can distort the delay being measured."),
+                    _captureNativeProfiler);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    EditorPrefs.SetBool(NativeProfilerPreference, _captureNativeProfiler);
+                }
+            }
+
+            if (_captureNativeProfiler)
+            {
+                EditorGUILayout.HelpBox(
+                    "High overhead: native timeline recording can create large traces and introduce additional Editor stalls. " +
+                    "Use it only for a short follow-up capture after a lightweight capture identifies the affected action.",
+                    MessageType.Warning);
+            }
 
             EditorGUILayout.Space(4f);
             EditorGUILayout.LabelField("Status", EditorPerformanceRecorder.IsRecording ? "Recording" : "Idle");
@@ -58,7 +84,7 @@ namespace LoogaSoft.Tools.Editor
             {
                 if (GUILayout.Button("Start Recording", GUILayout.Height(28f)))
                 {
-                    EditorPerformanceRecorder.Start();
+                    EditorPerformanceRecorder.Start(_captureNativeProfiler);
                 }
             }
 
@@ -72,7 +98,9 @@ namespace LoogaSoft.Tools.Editor
 
             EditorGUILayout.Space(6f);
             EditorGUILayout.HelpBox(
-                "Keep captures short, ideally 10 to 30 seconds. Recording stops automatically after two minutes.",
+                _captureNativeProfiler
+                    ? "Keep native timeline captures under 15 seconds. Recording stops automatically at that limit."
+                    : "Keep captures short, ideally 10 to 30 seconds. Recording stops automatically after two minutes.",
                 MessageType.None);
 
             string lastCapture = EditorPerformanceRecorder.LastCaptureDirectory;
@@ -98,13 +126,13 @@ namespace LoogaSoft.Tools.Editor
         private const double SampleIntervalSeconds = 0.25d;
         private const double StallThresholdSeconds = 0.10d;
         private const double MaximumDurationSeconds = 120d;
+        private const double MaximumNativeProfilerDurationSeconds = 15d;
 
         private static readonly List<PerformanceSample> Samples = new List<PerformanceSample>(512);
         private static readonly List<PerformanceEvent> Events = new List<PerformanceEvent>(128);
-        private static readonly Process CurrentProcess = Process.GetCurrentProcess();
-
         private static bool _previousProfilerEnabled;
         private static bool _previousProfileEditor;
+        private static bool _captureNativeProfiler;
         private static double _startedAt;
         private static double _lastUpdateAt;
         private static double _lastSampleAt;
@@ -128,7 +156,7 @@ namespace LoogaSoft.Tools.Editor
 
         internal static string LastCaptureDirectory { get; private set; }
 
-        internal static void Start()
+        internal static void Start(bool captureNativeProfiler = false)
         {
             if (IsRecording)
             {
@@ -145,12 +173,16 @@ namespace LoogaSoft.Tools.Editor
             _captureDirectory = CreateCaptureDirectory();
             _editorLogPath = Application.consoleLogPath;
             _editorLogStartPosition = GetFileLength(_editorLogPath);
+            _captureNativeProfiler = captureNativeProfiler;
 
-            _previousProfilerEnabled = ProfilerDriver.enabled;
-            _previousProfileEditor = ProfilerDriver.profileEditor;
-            ProfilerDriver.ClearAllFrames();
-            ProfilerDriver.profileEditor = true;
-            ProfilerDriver.enabled = true;
+            if (_captureNativeProfiler)
+            {
+                _previousProfilerEnabled = ProfilerDriver.enabled;
+                _previousProfileEditor = ProfilerDriver.profileEditor;
+                ProfilerDriver.ClearAllFrames();
+                ProfilerDriver.profileEditor = true;
+                ProfilerDriver.enabled = true;
+            }
 
             Subscribe();
             IsRecording = true;
@@ -173,21 +205,24 @@ namespace LoogaSoft.Tools.Editor
 
             string profilePath = Path.Combine(_captureDirectory, "unity-profiler.data");
             bool profileSaved = false;
-            try
+            if (_captureNativeProfiler)
             {
-                profileSaved = ProfilerDriver.SaveProfile(profilePath);
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning($"Looga Toolkit could not save the native Unity Profiler capture: {exception.Message}");
-            }
-            finally
-            {
-                ProfilerDriver.enabled = _previousProfilerEnabled;
-                ProfilerDriver.profileEditor = _previousProfileEditor;
+                try
+                {
+                    profileSaved = ProfilerDriver.SaveProfile(profilePath);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning($"Looga Toolkit could not save the native Unity Profiler capture: {exception.Message}");
+                }
+                finally
+                {
+                    ProfilerDriver.enabled = _previousProfilerEnabled;
+                    ProfilerDriver.profileEditor = _previousProfileEditor;
+                }
             }
 
-            WriteCaptureFiles(profileSaved);
+            WriteCaptureFiles(_captureNativeProfiler, profileSaved);
             WriteEditorLogExcerpt();
             LastCaptureDirectory = _captureDirectory;
             EditorPrefs.SetString("LoogaSoft.EditorPerformanceRecorder.LastCapture", LastCaptureDirectory);
@@ -267,9 +302,14 @@ namespace LoogaSoft.Tools.Editor
 
             TrackDragState();
 
-            if (now - _startedAt >= MaximumDurationSeconds)
+            double maximumDuration = _captureNativeProfiler
+                ? MaximumNativeProfilerDurationSeconds
+                : MaximumDurationSeconds;
+            if (now - _startedAt >= maximumDuration)
             {
-                Stop("Stopped automatically at the two-minute limit");
+                Stop(_captureNativeProfiler
+                    ? "Stopped automatically at the 15-second native timeline limit"
+                    : "Stopped automatically at the two-minute limit");
             }
 
             if (sampled)
@@ -282,13 +322,13 @@ namespace LoogaSoft.Tools.Editor
         {
             double now = EditorApplication.timeSinceStartup;
             _lastSampleAt = now;
-            CurrentProcess.Refresh();
+            GetProcessMemory(out long workingSetBytes, out long privateMemoryBytes);
 
             Samples.Add(new PerformanceSample(
                 (now - _startedAt) * 1000d,
                 updateGap * 1000d,
-                CurrentProcess.WorkingSet64,
-                CurrentProcess.PrivateMemorySize64,
+                workingSetBytes,
+                privateMemoryBytes,
                 GC.GetTotalMemory(false),
                 Profiler.GetTotalAllocatedMemoryLong(),
                 Profiler.GetMonoUsedSizeLong(),
@@ -424,9 +464,11 @@ namespace LoogaSoft.Tools.Editor
             return directory;
         }
 
-        private static void WriteCaptureFiles(bool profileSaved)
+        private static void WriteCaptureFiles(bool nativeProfilerRequested, bool profileSaved)
         {
-            File.WriteAllText(Path.Combine(_captureDirectory, "report.md"), BuildReport(profileSaved));
+            File.WriteAllText(
+                Path.Combine(_captureDirectory, "report.md"),
+                BuildReport(nativeProfilerRequested, profileSaved));
             File.WriteAllText(Path.Combine(_captureDirectory, "samples.csv"), BuildSamplesCsv());
             File.WriteAllText(Path.Combine(_captureDirectory, "events.csv"), BuildEventsCsv());
         }
@@ -475,7 +517,7 @@ namespace LoogaSoft.Tools.Editor
             }
         }
 
-        private static string BuildReport(bool profileSaved)
+        private static string BuildReport(bool nativeProfilerRequested, bool profileSaved)
         {
             PerformanceSample peakWorkingSet = FindPeak(sample => sample.WorkingSetBytes);
             PerformanceSample peakPrivateMemory = FindPeak(sample => sample.PrivateMemoryBytes);
@@ -496,7 +538,10 @@ namespace LoogaSoft.Tools.Editor
             builder.AppendLine($"- CPU: {SystemInfo.processorType} ({SystemInfo.processorCount} logical processors)");
             builder.AppendLine($"- GPU: {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsDeviceType})");
             builder.AppendLine($"- System memory: {SystemInfo.systemMemorySize} MB");
-            builder.AppendLine($"- Native profiler capture: {(profileSaved ? "unity-profiler.data" : "Save failed")}");
+            string profilerStatus = !nativeProfilerRequested
+                ? "Not requested (lightweight capture)"
+                : profileSaved ? "unity-profiler.data" : "Save failed";
+            builder.AppendLine($"- Native profiler capture: {profilerStatus}");
             builder.AppendLine();
             builder.AppendLine("## Summary");
             builder.AppendLine();
@@ -527,7 +572,10 @@ namespace LoogaSoft.Tools.Editor
             builder.AppendLine();
             builder.AppendLine("## Files");
             builder.AppendLine();
-            builder.AppendLine("- `unity-profiler.data`: Load this in Unity's Profiler window.");
+            if (profileSaved)
+            {
+                builder.AppendLine("- `unity-profiler.data`: Load this in Unity's Profiler window.");
+            }
             builder.AppendLine("- `samples.csv`: Memory, update gaps, selection, and drag state.");
             builder.AppendLine("- `events.csv`: Selection, asset, hierarchy, compilation, and stall markers.");
             builder.AppendLine("- `editor-log-excerpt.txt`: Unity log output produced during this recording.");
@@ -604,6 +652,21 @@ namespace LoogaSoft.Tools.Editor
         {
             const double gigabyte = 1024d * 1024d * 1024d;
             return (bytes / gigabyte).ToString("F2", CultureInfo.InvariantCulture) + " GB";
+        }
+
+        private static void GetProcessMemory(out long workingSetBytes, out long privateMemoryBytes)
+        {
+            try
+            {
+                using Process process = Process.GetCurrentProcess();
+                workingSetBytes = process.WorkingSet64;
+                privateMemoryBytes = process.PrivateMemorySize64;
+            }
+            catch (Exception)
+            {
+                workingSetBytes = 0L;
+                privateMemoryBytes = 0L;
+            }
         }
 
         private readonly struct PerformanceSample
