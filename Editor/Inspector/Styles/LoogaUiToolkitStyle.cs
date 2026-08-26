@@ -261,7 +261,7 @@ namespace LoogaSoft.Inspector.Editor
                 return;
 
             row.style.borderBottomWidth = visible ? LoogaEditorStyle.Pixels(1f) : 0f;
-            row.style.borderBottomColor = LoogaEditorStyle.TreeLineColor;
+            row.style.borderBottomColor = LoogaEditorStyle.SeparatorColor;
         }
 
         public static Toolbar CreateTabBar(
