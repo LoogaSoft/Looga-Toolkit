@@ -136,6 +136,18 @@ namespace LoogaSoft.Hierarchy.Editor
             return _kind == PreviewKind.Icon && TargetIds.Contains(gameObject.GetInstanceID());
         }
 
+        internal static bool TryGetIcon(
+            GameObject gameObject,
+            out bool hasIcon,
+            out string iconName)
+        {
+            bool applies = _kind == PreviewKind.Icon &&
+                TargetIds.Contains(gameObject.GetInstanceID());
+            hasIcon = applies && _hasValue;
+            iconName = applies ? _iconName : string.Empty;
+            return applies;
+        }
+
         private static void ApplyNativeIcon(Texture2D icon)
         {
             foreach (int targetId in TargetIds)

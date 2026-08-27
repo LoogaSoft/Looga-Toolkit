@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Drew stored and previewed object icons directly in Hierarchy rows, including objects without custom row colors.
 - Matched colored rows to Unity's native icon, label, and foldout geometry and deferred the custom color window until the click completed.
 - Replaced the row gradient and accent rail with solid group headers and inherited descendant fills.
 - Invalidated Unity's Hierarchy item cache after native object icon changes and previews.

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Drew stored and previewed object icons directly in Hierarchy rows instead of relying on Unity's stale row cache.
 - Matched colored Hierarchy content to Unity's native row styles and stabilized the custom color picker.
 - Replaced Hierarchy row gradients with solid group headers and lighter descendant fills.
 - Refreshed Unity's Hierarchy item cache immediately after native object icon changes.

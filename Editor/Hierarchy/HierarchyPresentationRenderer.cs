@@ -28,6 +28,10 @@ namespace LoogaSoft.Hierarchy.Editor
 
             HierarchyPresentationStore.instance.TryGet(gameObject, out HierarchyPresentation presentation);
             bool hasColor = TryResolveColor(gameObject, out Color color, out int levelsFromOwner);
+            bool hasCustomIcon = TryResolveCustomIcon(
+                gameObject,
+                presentation,
+                out Texture customIcon);
 
             if (presentation != null &&
                 presentation.HasIcon &&
@@ -36,20 +40,56 @@ namespace LoogaSoft.Hierarchy.Editor
                 SynchronizeNativeIcon(gameObject, presentation.IconName);
             }
 
+            RowState rowState = ResolveRowState(gameObject, rowRect);
             if (hasColor)
             {
                 bool isRenaming = EditorGUIUtility.editingTextField &&
                     Selection.activeGameObject == gameObject;
                 if (!isRenaming)
                 {
-                    RowState rowState = ResolveRowState(gameObject, rowRect);
                     ClearNativeName(gameObject, rowRect, rowState);
+                    if (hasCustomIcon)
+                    {
+                        ClearNativeIcon(rowRect, rowState);
+                    }
+
                     DrawColor(rowRect, color, levelsFromOwner);
-                    DrawNativeRowContent(gameObject, rowRect, rowState);
+                    DrawNativeRowContent(
+                        gameObject,
+                        rowRect,
+                        rowState,
+                        customIcon);
                 }
+            }
+            else if (hasCustomIcon)
+            {
+                ClearNativeIcon(rowRect, rowState);
+                DrawNativeIcon(gameObject, rowRect, rowState, customIcon);
             }
 
             return false;
+        }
+
+        private static bool TryResolveCustomIcon(
+            GameObject gameObject,
+            HierarchyPresentation presentation,
+            out Texture icon)
+        {
+            if (HierarchyPresentationPreview.TryGetIcon(
+                    gameObject,
+                    out bool previewHasIcon,
+                    out string previewIconName))
+            {
+                icon = previewHasIcon
+                    ? HierarchyIconCatalog.GetTexture(previewIconName)
+                    : null;
+                return icon != null;
+            }
+
+            icon = presentation != null && presentation.HasIcon
+                ? HierarchyIconCatalog.GetTexture(presentation.IconName)
+                : null;
+            return icon != null;
         }
 
         private static bool TryResolveColor(
@@ -138,13 +178,20 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorGUI.DrawRect(clearRect, ResolveNativeBackground(rowState));
         }
 
+        private static void ClearNativeIcon(Rect rowRect, RowState rowState)
+        {
+            Rect clearRect = new(rowRect.x, rowRect.y, IconSize, rowRect.height);
+            EditorGUI.DrawRect(clearRect, ResolveNativeBackground(rowState));
+        }
+
         private static void DrawNativeRowContent(
             GameObject gameObject,
             Rect rowRect,
-            RowState rowState)
+            RowState rowState,
+            Texture customIcon)
         {
             DrawNativeFoldout(gameObject, rowRect);
-            DrawNativeIcon(gameObject, rowRect, rowState);
+            DrawNativeIcon(gameObject, rowRect, rowState, customIcon);
             DrawNativeName(gameObject, rowRect, rowState);
         }
 
@@ -175,10 +222,13 @@ namespace LoogaSoft.Hierarchy.Editor
         private static void DrawNativeIcon(
             GameObject gameObject,
             Rect rowRect,
-            RowState rowState)
+            RowState rowState,
+            Texture customIcon)
         {
-            Texture icon = EditorGUIUtility.GetIconForObject(gameObject);
-            icon ??= EditorGUIUtility.ObjectContent(gameObject, typeof(GameObject)).image;
+            Texture icon = customIcon ?? PrefabUtility.GetIconForGameObject(gameObject);
+            icon ??= EditorGUIUtility.ObjectContent(
+                gameObject,
+                typeof(GameObject)).image;
             if (icon == null)
             {
                 return;
