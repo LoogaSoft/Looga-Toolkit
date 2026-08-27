@@ -5,6 +5,7 @@
 - Replaced hierarchy status badges with bounded, cached component summaries.
 - Aggregated generic MonoBehaviours under one counted script icon while preserving distinct component icons.
 - Retained static-state tooltips and added a configurable component-icon limit.
+- Moved component counts beside their icons, collapsed MeshFilter and MeshRenderer pairs, and replaced the static `S` with a pushpin.
 
 ## 0.8.0 - 2026-08-02
 

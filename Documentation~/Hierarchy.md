@@ -41,17 +41,18 @@ components to scene objects.
 
 Compact row icons summarize important components without duplicating Transform or RectTransform.
 Components with distinct Unity icons keep those icons. Repeated component types use one icon with
-a count. Generic MonoBehaviours share a C# script icon with a total count. Missing scripts are
-included in that count and tint the script icon orange. Tooltips identify each component type and
-report missing scripts.
+a compact count beside it, so the icon remains unobstructed. Generic MonoBehaviours share a C#
+script icon with a total count. Missing scripts are included in that count and tint the script icon
+orange. Tooltips identify each component type and report missing scripts. A MeshFilter is omitted
+when the same object has a MeshRenderer because the renderer already represents the mesh pair.
 
 The **Maximum Component Icons** project setting limits each row to between one and eight component
 indicators. The default is five. An overflow indicator replaces component types that do not fit.
 The limit does not include the static indicator.
 
-Static objects retain a bold `S` indicator. Hover over it to see `Fully Static` or each enabled
-static flag on a separate line. Component summaries are cached and refresh after hierarchy,
-project, or Undo state changes rather than scanning components on every repaint.
+Static objects use a neutral pushpin icon. Hover over it to see `Fully Static` or each enabled static
+flag on a separate line. Component summaries are cached and refresh after hierarchy, project, or
+Undo state changes rather than scanning components on every repaint.
 
 ### Hierarchy Actions
 

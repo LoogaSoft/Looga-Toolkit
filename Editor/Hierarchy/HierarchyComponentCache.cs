@@ -136,11 +136,14 @@ namespace LoogaSoft.Hierarchy.Editor
 
             int missingScriptCount = GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(gameObject);
             int monoBehaviourCount = missingScriptCount;
+            bool hasMeshRenderer = gameObject.TryGetComponent(out MeshRenderer _);
 
             for (int componentIndex = 0; componentIndex < Components.Count; componentIndex++)
             {
                 Component component = Components[componentIndex];
-                if (component == null || component is Transform)
+                if (component == null ||
+                    component is Transform ||
+                    (hasMeshRenderer && component is MeshFilter))
                 {
                     continue;
                 }
