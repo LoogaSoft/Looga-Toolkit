@@ -16,7 +16,7 @@ namespace LoogaSoft.Inspector.Editor
         private const float BoxHorizontalInset = 3f;
         private const float HeaderLeftInset = 6f;
         private const float HeaderTextArrowGap = 6f;
-        private const float HoverInset = 1f;
+        private const float HoverInsetPixels = 1f;
         private const float HoverCornerRadius = 3f;
         private const int HoverMaskSize = 12;
         private const int HoverMaskBorder = 5;
@@ -1091,11 +1091,12 @@ namespace LoogaSoft.Inspector.Editor
             if (Event.current.type != EventType.Repaint)
                 return;
 
-            Rect hoverRect = new(
-                rect.x + HoverInset,
-                rect.y + HoverInset,
-                Mathf.Max(0f, rect.width - HoverInset * 2f),
-                Mathf.Max(0f, rect.height - HoverInset * 2f));
+            float hoverInset = LoogaEditorStyle.Pixels(HoverInsetPixels);
+            Rect hoverRect = LoogaEditorStyle.PixelSnapInside(new Rect(
+                rect.x + hoverInset,
+                rect.y + hoverInset,
+                Mathf.Max(0f, rect.width - hoverInset * 2f),
+                Mathf.Max(0f, rect.height - hoverInset * 2f)));
 
             if (hoverRect.width <= 0f || hoverRect.height <= 0f)
                 return;
@@ -1105,7 +1106,7 @@ namespace LoogaSoft.Inspector.Editor
 
             Color previousColor = GUI.color;
             GUI.color = hoverColor;
-            GUI.Box(LoogaEditorStyle.PixelSnap(hoverRect), GUIContent.none, _hoverStyle);
+            GUI.Box(hoverRect, GUIContent.none, _hoverStyle);
             GUI.color = previousColor;
         }
 

@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Kept foldout hover fills inside their rounded outlines with a tighter corner radius.
+- Kept foldout hover fills inside their rounded outlines with DPI-aware bounds and a tighter corner radius.
 - Replaced size-specific foldout controls and attributes with one `LoogaFoldout` presentation based on the former large foldout style.
 - Renamed the box-only size selector to `LoogaBoxStyle`.
 - Kept optional-integration status labels readable across all Unity Editor themes and IMGUI states.

@@ -91,6 +91,16 @@ namespace LoogaSoft.Inspector.Editor
                 PixelSnapValue(rect.yMax));
         }
 
+        public static Rect PixelSnapInside(Rect rect)
+        {
+            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
+            return Rect.MinMaxRect(
+                Mathf.Ceil(rect.xMin * pixelsPerPoint) / pixelsPerPoint,
+                Mathf.Ceil(rect.yMin * pixelsPerPoint) / pixelsPerPoint,
+                Mathf.Floor(rect.xMax * pixelsPerPoint) / pixelsPerPoint,
+                Mathf.Floor(rect.yMax * pixelsPerPoint) / pixelsPerPoint);
+        }
+
         public static float PixelSnapValue(float value)
         {
             float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
