@@ -17,6 +17,7 @@ namespace LoogaSoft.Inspector.Editor
         private const float HeaderLeftInset = 6f;
         private const float HeaderTextArrowGap = 6f;
         private const float HoverInsetPixels = 1f;
+        private const float HoverOffsetXPixels = -1f;
         private const float HoverCornerRadius = 3f;
         private const int HoverMaskSize = 12;
         private const int HoverMaskBorder = 5;
@@ -1097,6 +1098,7 @@ namespace LoogaSoft.Inspector.Editor
                 rect.y + hoverInset,
                 Mathf.Max(0f, rect.width - hoverInset * 2f),
                 Mathf.Max(0f, rect.height - hoverInset * 2f)));
+            hoverRect.x += LoogaEditorStyle.Pixels(HoverOffsetXPixels);
 
             if (hoverRect.width <= 0f || hoverRect.height <= 0f)
                 return;
