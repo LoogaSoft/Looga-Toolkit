@@ -84,13 +84,23 @@ namespace LoogaSoft.Hierarchy.Editor
                 ? HeaderOpacity
                 : DescendantOpacity;
 
-            EditorGUI.DrawRect(
-                new Rect(
-                    groupStartX,
-                    rowRect.y,
-                    rowRect.xMax - groupStartX,
-                    rowRect.height),
-                color);
+            int previousDepth = GUI.depth;
+            GUI.depth = previousDepth + 1;
+
+            try
+            {
+                EditorGUI.DrawRect(
+                    new Rect(
+                        groupStartX,
+                        rowRect.y,
+                        rowRect.xMax - groupStartX,
+                        rowRect.height),
+                    color);
+            }
+            finally
+            {
+                GUI.depth = previousDepth;
+            }
         }
 
         private static void SynchronizeNativeIcon(GameObject gameObject, string iconName)

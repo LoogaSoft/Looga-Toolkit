@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Moved Hierarchy color fills behind Unity's native row content.
 - Replaced Hierarchy row gradients with solid group headers and lighter descendant fills.
 - Refreshed Unity's Hierarchy item cache immediately after native object icon changes.
 - Stabilized Alt-right-click actions and native icon previews outside Unity's context-menu lifecycle.
