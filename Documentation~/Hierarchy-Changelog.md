@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Redrew native row content above solid colors and deferred the custom color window until the click completed.
+- Matched colored rows to Unity's native icon, label, and foldout geometry and deferred the custom color window until the click completed.
 - Replaced the row gradient and accent rail with solid group headers and inherited descendant fills.
 - Invalidated Unity's Hierarchy item cache after native object icon changes and previews.
 - Replaced the transient Alt-right-click menu with a delayed dropdown outside Unity's context event.

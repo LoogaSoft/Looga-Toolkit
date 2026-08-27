@@ -11,10 +11,13 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float IconSize = 16f;
         private const float LabelSpacing = 2f;
 
-        private static readonly GUIContent RowIconContent = new();
-        private static GUIStyle _rowLabelStyle;
-        private static GUIStyle _selectedRowLabelStyle;
-        private static GUIStyle _prefabRowLabelStyle;
+        private static readonly GUIContent RowNameContent = new();
+
+        private static GUIStyle _foldoutStyle;
+        private static GUIStyle _lineStyle;
+        private static GUIStyle _prefabLabelStyle;
+        private static GUIStyle _disabledLabelStyle;
+        private static GUIStyle _disabledPrefabLabelStyle;
 
         internal static bool Draw(GameObject gameObject, Rect rowRect)
         {
@@ -39,8 +42,10 @@ namespace LoogaSoft.Hierarchy.Editor
                     Selection.activeGameObject == gameObject;
                 if (!isRenaming)
                 {
+                    RowState rowState = ResolveRowState(gameObject, rowRect);
+                    ClearNativeName(gameObject, rowRect, rowState);
                     DrawColor(rowRect, color, levelsFromOwner);
-                    DrawRowContent(gameObject, rowRect);
+                    DrawNativeRowContent(gameObject, rowRect, rowState);
                 }
             }
 
@@ -106,78 +111,196 @@ namespace LoogaSoft.Hierarchy.Editor
                 color);
         }
 
-        private static void DrawRowContent(GameObject gameObject, Rect rowRect)
+        private static RowState ResolveRowState(GameObject gameObject, Rect rowRect)
+        {
+            bool selected = Selection.Contains(gameObject);
+            bool focused = EditorWindow.focusedWindow != null &&
+                EditorWindow.focusedWindow.GetType().Name == "SceneHierarchyWindow";
+            bool hovered = rowRect.Contains(Event.current.mousePosition);
+            return new RowState(selected, focused, hovered);
+        }
+
+        private static void ClearNativeName(
+            GameObject gameObject,
+            Rect rowRect,
+            RowState rowState)
+        {
+            GUIStyle labelStyle = GetNativeLabelStyle(gameObject);
+            RowNameContent.text = gameObject.name;
+            float nameWidth = labelStyle.CalcSize(RowNameContent).x + LabelSpacing;
+            float availableWidth = Mathf.Max(0f, rowRect.width - IconSize);
+            Rect clearRect = new(
+                rowRect.x + IconSize,
+                rowRect.y,
+                Mathf.Min(nameWidth, availableWidth),
+                rowRect.height);
+
+            EditorGUI.DrawRect(clearRect, ResolveNativeBackground(rowState));
+        }
+
+        private static void DrawNativeRowContent(
+            GameObject gameObject,
+            Rect rowRect,
+            RowState rowState)
+        {
+            DrawNativeFoldout(gameObject, rowRect);
+            DrawNativeIcon(gameObject, rowRect, rowState);
+            DrawNativeName(gameObject, rowRect, rowState);
+        }
+
+        private static void DrawNativeFoldout(GameObject gameObject, Rect rowRect)
         {
             if (gameObject.transform.childCount > 0)
             {
+                GUIStyle foldoutStyle = GetFoldoutStyle();
+                float foldoutWidth = foldoutStyle.fixedWidth > 0f
+                    ? foldoutStyle.fixedWidth
+                    : IndentWidth;
                 Rect foldoutRect = new(
-                    rowRect.x - IndentWidth,
+                    rowRect.x - foldoutWidth - GetLineStyle().margin.left,
                     rowRect.y,
-                    IndentWidth,
+                    foldoutWidth,
                     rowRect.height);
-                EditorGUI.Foldout(
+
+                foldoutStyle.Draw(
                     foldoutRect,
-                    HierarchyGuideRenderer.IsExpanded(gameObject),
                     GUIContent.none,
+                    false,
+                    false,
+                    HierarchyGuideRenderer.IsExpanded(gameObject),
                     false);
             }
+        }
 
+        private static void DrawNativeIcon(
+            GameObject gameObject,
+            Rect rowRect,
+            RowState rowState)
+        {
             Texture icon = EditorGUIUtility.GetIconForObject(gameObject);
             icon ??= EditorGUIUtility.ObjectContent(gameObject, typeof(GameObject)).image;
-            if (icon != null)
+            if (icon == null)
             {
-                Rect iconRect = new(
-                    rowRect.x,
-                    rowRect.y + Mathf.Floor((rowRect.height - IconSize) * 0.5f),
-                    IconSize,
-                    IconSize);
-                RowIconContent.image = icon;
-                GUI.Label(iconRect, RowIconContent, GUIStyle.none);
+                return;
             }
 
+            if (rowState.Selected && rowState.Focused && icon.name == "GameObject Icon")
+            {
+                icon = EditorGUIUtility.IconContent("GameObject On Icon").image ?? icon;
+            }
+
+            Rect iconRect = new(rowRect.x, rowRect.y, IconSize, rowRect.height);
+            Color iconColor = gameObject.activeInHierarchy
+                ? Color.white
+                : new Color(1f, 1f, 1f, 0.5f);
+            GUI.DrawTexture(
+                iconRect,
+                icon,
+                ScaleMode.ScaleToFit,
+                true,
+                0f,
+                iconColor,
+                0f,
+                0f);
+
+            if (PrefabUtility.IsAddedGameObjectOverride(gameObject))
+            {
+                Texture addedOverlay = EditorGUIUtility.IconContent(
+                    "PrefabOverlayAdded Icon").image;
+                if (addedOverlay != null)
+                {
+                    GUI.DrawTexture(iconRect, addedOverlay, ScaleMode.ScaleToFit, true);
+                }
+            }
+        }
+
+        private static void DrawNativeName(
+            GameObject gameObject,
+            Rect rowRect,
+            RowState rowState)
+        {
             Rect labelRect = new(
                 rowRect.x + IconSize + LabelSpacing,
                 rowRect.y,
                 rowRect.width - IconSize - LabelSpacing,
                 rowRect.height);
 
-            bool previousEnabled = GUI.enabled;
-            GUI.enabled = gameObject.activeInHierarchy;
-            GUI.Label(labelRect, gameObject.name, GetRowLabelStyle(gameObject));
-            GUI.enabled = previousEnabled;
+            GetNativeLabelStyle(gameObject).Draw(
+                labelRect,
+                gameObject.name,
+                false,
+                false,
+                rowState.Selected,
+                rowState.Focused);
         }
 
-        private static GUIStyle GetRowLabelStyle(GameObject gameObject)
+        private static GUIStyle GetNativeLabelStyle(GameObject gameObject)
         {
-            if (Selection.Contains(gameObject))
+            if (PrefabUtility.IsPartOfAnyPrefab(gameObject))
             {
-                _selectedRowLabelStyle ??= CreateRowLabelStyle(Color.white);
-                return _selectedRowLabelStyle;
+                if (gameObject.activeInHierarchy)
+                {
+                    _prefabLabelStyle ??= GUI.skin.GetStyle("PR PrefabLabel");
+                    return _prefabLabelStyle;
+                }
+
+                _disabledPrefabLabelStyle ??= GUI.skin.GetStyle(
+                    "PR DisabledPrefabLabel");
+                return _disabledPrefabLabelStyle;
             }
 
-            if (PrefabUtility.IsAnyPrefabInstanceRoot(gameObject))
+            if (!gameObject.activeInHierarchy)
             {
-                Color prefabColor = EditorGUIUtility.isProSkin
-                    ? new Color(0.40f, 0.68f, 1f, 1f)
-                    : new Color(0.08f, 0.34f, 0.72f, 1f);
-                _prefabRowLabelStyle ??= CreateRowLabelStyle(prefabColor);
-                return _prefabRowLabelStyle;
+                _disabledLabelStyle ??= GUI.skin.GetStyle("PR DisabledLabel");
+                return _disabledLabelStyle;
             }
 
-            _rowLabelStyle ??= CreateRowLabelStyle(EditorStyles.label.normal.textColor);
-            return _rowLabelStyle;
+            return GetLineStyle();
         }
 
-        private static GUIStyle CreateRowLabelStyle(Color textColor)
+        private static GUIStyle GetFoldoutStyle()
         {
-            GUIStyle style = new(EditorStyles.label)
+            _foldoutStyle ??= GUI.skin.GetStyle("IN Foldout");
+            return _foldoutStyle;
+        }
+
+        private static GUIStyle GetLineStyle()
+        {
+            _lineStyle ??= GUI.skin.GetStyle("TV Line");
+            return _lineStyle;
+        }
+
+        private static Color ResolveNativeBackground(RowState rowState)
+        {
+            if (rowState.Selected)
             {
-                alignment = TextAnchor.MiddleLeft,
-                clipping = TextClipping.Clip,
-                padding = new RectOffset(0, 0, 0, 0)
-            };
-            style.normal.textColor = textColor;
-            return style;
+                if (rowState.Focused)
+                {
+                    return EditorGUIUtility.isProSkin
+                        ? new Color(0.17f, 0.365f, 0.535f, 1f)
+                        : new Color(0.24f, 0.45f, 0.666f, 1f);
+                }
+
+                float unfocusedValue = EditorGUIUtility.isProSkin ? 0.3f : 0.68f;
+                return new Color(
+                    unfocusedValue,
+                    unfocusedValue,
+                    unfocusedValue,
+                    1f);
+            }
+
+            if (rowState.Hovered)
+            {
+                float hoverValue = EditorGUIUtility.isProSkin ? 0.265f : 0.7f;
+                return new Color(hoverValue, hoverValue, hoverValue, 1f);
+            }
+
+            float backgroundValue = EditorGUIUtility.isProSkin ? 0.22f : 0.78f;
+            return new Color(
+                backgroundValue,
+                backgroundValue,
+                backgroundValue,
+                1f);
         }
 
         private static void SynchronizeNativeIcon(GameObject gameObject, string iconName)
@@ -192,6 +315,21 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorApplication.DirtyHierarchyWindowSorting();
         }
 
+        private readonly struct RowState
+        {
+            internal RowState(bool selected, bool focused, bool hovered)
+            {
+                Selected = selected;
+                Focused = focused;
+                Hovered = hovered;
+            }
+
+            internal bool Selected { get; }
+
+            internal bool Focused { get; }
+
+            internal bool Hovered { get; }
+        }
     }
 
 }

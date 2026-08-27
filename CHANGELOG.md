@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Kept native Hierarchy row content above solid colors and stabilized the custom color picker.
+- Matched colored Hierarchy content to Unity's native row styles and stabilized the custom color picker.
 - Replaced Hierarchy row gradients with solid group headers and lighter descendant fills.
 - Refreshed Unity's Hierarchy item cache immediately after native object icon changes.
 - Stabilized Alt-right-click actions and native icon previews outside Unity's context-menu lifecycle.
