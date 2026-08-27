@@ -1,0 +1,337 @@
+using System;
+using System.Collections.Generic;
+using UnityEditor;
+using UnityEngine;
+
+namespace LoogaSoft.Hierarchy.Editor
+{
+    internal sealed class HierarchyPresentationPopup : PopupWindowContent
+    {
+        private const int ColumnCount = 12;
+        private const float CellSize = 20f;
+        private const float CellSpacing = 3f;
+        private const float Padding = 8f;
+        private const float SectionSpacing = 8f;
+
+        private static readonly Color[] Colors =
+        {
+            new(0.78f, 0.28f, 0.34f, 1f),
+            new(0.91f, 0.47f, 0.23f, 1f),
+            new(0.92f, 0.68f, 0.22f, 1f),
+            new(0.56f, 0.72f, 0.28f, 1f),
+            new(0.30f, 0.68f, 0.40f, 1f),
+            new(0.20f, 0.67f, 0.65f, 1f),
+            new(0.25f, 0.56f, 0.84f, 1f),
+            new(0.42f, 0.42f, 0.82f, 1f),
+            new(0.66f, 0.38f, 0.82f, 1f),
+            new(0.82f, 0.34f, 0.67f, 1f)
+        };
+
+        private readonly int[] _targetIds;
+        private static GUIStyle _centeredLabelStyle;
+
+        private bool _hasColor;
+        private Color _selectedColor;
+        private string _selectedIconName;
+
+        private HierarchyPresentationPopup(GameObject[] targets)
+        {
+            _targetIds = new int[targets.Length];
+            for (int index = 0; index < targets.Length; index++)
+            {
+                _targetIds[index] = targets[index].GetInstanceID();
+            }
+
+            ReadCurrentPresentation(targets[0]);
+        }
+
+        internal static void Open(Rect anchor, GameObject[] targets)
+        {
+            if (targets == null || targets.Length == 0)
+            {
+                return;
+            }
+
+            PopupWindow.Show(anchor, new HierarchyPresentationPopup(targets));
+        }
+
+        public override Vector2 GetWindowSize()
+        {
+            int iconCount = HierarchyIconCatalog.All.Count + 1;
+            int iconRows = Mathf.CeilToInt(iconCount / (float)ColumnCount);
+            float width = Padding * 2f + ColumnCount * CellSize + (ColumnCount - 1) * CellSpacing;
+            float height = Padding * 2f + CellSize + SectionSpacing +
+                iconRows * CellSize + (iconRows - 1) * CellSpacing;
+            return new Vector2(width, height);
+        }
+
+        public override void OnGUI(Rect rect)
+        {
+            float y = Padding;
+            DrawColorOptions(ref y);
+            y += SectionSpacing;
+            DrawIconOptions(y);
+        }
+
+        private void DrawColorOptions(ref float y)
+        {
+            int column = 0;
+            Rect clearRect = GetCellRect(column++, 0, y);
+            DrawClearButton(clearRect, "Clear object color", !_hasColor, ClearColor);
+
+            for (int index = 0; index < Colors.Length; index++)
+            {
+                Color color = Colors[index];
+                Rect colorRect = GetCellRect(column++, 0, y);
+                DrawColorButton(colorRect, color, _hasColor && ColorsMatch(color, _selectedColor));
+            }
+
+            Rect customRect = GetCellRect(column, 0, y);
+            DrawTextButton(customRect, "+", "Choose a custom color", OpenCustomColorWindow);
+            y += CellSize;
+        }
+
+        private void DrawIconOptions(float y)
+        {
+            int itemIndex = 0;
+            Rect clearRect = GetCellRect(0, 0, y);
+            DrawClearButton(
+                clearRect,
+                "Clear object icon",
+                string.IsNullOrEmpty(_selectedIconName),
+                ClearIcon);
+            itemIndex++;
+
+            IReadOnlyList<HierarchyIconOption> options = HierarchyIconCatalog.All;
+            for (int index = 0; index < options.Count; index++)
+            {
+                HierarchyIconOption option = options[index];
+                int column = itemIndex % ColumnCount;
+                int row = itemIndex / ColumnCount;
+                Rect iconRect = GetCellRect(column, row, y);
+                DrawIconButton(iconRect, option, option.IconName == _selectedIconName);
+                itemIndex++;
+            }
+        }
+
+        private void DrawColorButton(Rect rect, Color color, bool selected)
+        {
+            DrawCellBackground(rect, selected);
+            Rect swatchRect = new(rect.x + 3f, rect.y + 3f, rect.width - 6f, rect.height - 6f);
+            EditorGUI.DrawRect(swatchRect, color);
+
+            if (GUI.Button(rect, new GUIContent(string.Empty, "Set object color"), GUIStyle.none))
+            {
+                Apply(target => HierarchyPresentationStore.instance.SetLabelColor(target, color));
+                _hasColor = true;
+                _selectedColor = color;
+            }
+        }
+
+        private void DrawIconButton(Rect rect, HierarchyIconOption option, bool selected)
+        {
+            Texture icon = HierarchyIconCatalog.GetTexture(option.IconName);
+            if (icon == null)
+            {
+                return;
+            }
+
+            DrawCellBackground(rect, selected);
+            GUI.DrawTexture(
+                new Rect(rect.x + 2f, rect.y + 2f, rect.width - 4f, rect.height - 4f),
+                icon,
+                ScaleMode.ScaleToFit,
+                true);
+
+            if (GUI.Button(rect, new GUIContent(string.Empty, option.Name), GUIStyle.none))
+            {
+                Apply(target => HierarchyPresentationStore.instance.SetIcon(target, option.IconName));
+                _selectedIconName = option.IconName;
+            }
+        }
+
+        private void DrawClearButton(Rect rect, string tooltip, bool selected, Action action)
+        {
+            DrawCellBackground(rect, selected);
+            GUI.Label(rect, new GUIContent("×", tooltip), CenteredLabelStyle);
+            if (GUI.Button(rect, new GUIContent(string.Empty, tooltip), GUIStyle.none))
+            {
+                action();
+            }
+        }
+
+        private void DrawTextButton(Rect rect, string text, string tooltip, Action action)
+        {
+            DrawCellBackground(rect, false);
+            GUI.Label(rect, new GUIContent(text, tooltip), CenteredLabelStyle);
+            if (GUI.Button(rect, new GUIContent(string.Empty, tooltip), GUIStyle.none))
+            {
+                action();
+            }
+        }
+
+        private static void DrawCellBackground(Rect rect, bool selected)
+        {
+            Color border = selected
+                ? new Color(0.24f, 0.58f, 0.94f, 1f)
+                : new Color(0f, 0f, 0f, 0.30f);
+            Color fill = rect.Contains(Event.current.mousePosition)
+                ? new Color(1f, 1f, 1f, 0.12f)
+                : new Color(1f, 1f, 1f, 0.04f);
+
+            EditorGUI.DrawRect(rect, border);
+            EditorGUI.DrawRect(new Rect(rect.x + 1f, rect.y + 1f, rect.width - 2f, rect.height - 2f), fill);
+        }
+
+        private void ClearColor()
+        {
+            Apply(HierarchyPresentationStore.instance.ClearLabelColor);
+            _hasColor = false;
+        }
+
+        private void ClearIcon()
+        {
+            Apply(HierarchyPresentationStore.instance.ClearIcon);
+            _selectedIconName = string.Empty;
+        }
+
+        private void OpenCustomColorWindow()
+        {
+            HierarchyColorWindow.Open(ResolveTargets());
+            editorWindow.Close();
+        }
+
+        private void ReadCurrentPresentation(GameObject target)
+        {
+            if (!HierarchyPresentationStore.instance.TryGet(target, out HierarchyPresentation presentation))
+            {
+                return;
+            }
+
+            _hasColor = presentation.HasLabelColor;
+            _selectedColor = presentation.LabelColor;
+            _selectedIconName = presentation.IconName;
+        }
+
+        private void Apply(Action<GameObject> action)
+        {
+            GameObject[] targets = ResolveTargets();
+            for (int index = 0; index < targets.Length; index++)
+            {
+                action(targets[index]);
+            }
+        }
+
+        private GameObject[] ResolveTargets()
+        {
+            List<GameObject> targets = new(_targetIds.Length);
+            for (int index = 0; index < _targetIds.Length; index++)
+            {
+#pragma warning disable CS0618
+                GameObject target = EditorUtility.InstanceIDToObject(_targetIds[index]) as GameObject;
+#pragma warning restore CS0618
+                if (target != null)
+                {
+                    targets.Add(target);
+                }
+            }
+
+            return targets.ToArray();
+        }
+
+        private static Rect GetCellRect(int column, int row, float y)
+        {
+            return new Rect(
+                Padding + column * (CellSize + CellSpacing),
+                y + row * (CellSize + CellSpacing),
+                CellSize,
+                CellSize);
+        }
+
+        private static bool ColorsMatch(Color left, Color right)
+        {
+            const float tolerance = 0.001f;
+            return Mathf.Abs(left.r - right.r) < tolerance &&
+                   Mathf.Abs(left.g - right.g) < tolerance &&
+                   Mathf.Abs(left.b - right.b) < tolerance &&
+                   Mathf.Abs(left.a - right.a) < tolerance;
+        }
+
+        private static GUIStyle CenteredLabelStyle
+        {
+            get
+            {
+                _centeredLabelStyle ??= new GUIStyle(EditorStyles.miniLabel)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontSize = 14
+                };
+                return _centeredLabelStyle;
+            }
+        }
+    }
+
+    internal sealed class HierarchyColorWindow : EditorWindow
+    {
+        private const float Width = 280f;
+        private const float Height = 88f;
+
+        private int[] _targetIds = Array.Empty<int>();
+        private Color _color = HierarchyPresentationStore.DefaultLabelColor;
+
+        internal static void Open(GameObject[] targets)
+        {
+            if (targets == null || targets.Length == 0)
+            {
+                return;
+            }
+
+            HierarchyColorWindow window = CreateInstance<HierarchyColorWindow>();
+            window.titleContent = new GUIContent("Object Color");
+            window._targetIds = new int[targets.Length];
+
+            for (int index = 0; index < targets.Length; index++)
+            {
+                window._targetIds[index] = targets[index].GetInstanceID();
+            }
+
+            if (HierarchyPresentationStore.instance.TryGet(targets[0], out HierarchyPresentation presentation) &&
+                presentation.HasLabelColor)
+            {
+                window._color = presentation.LabelColor;
+            }
+
+            window.minSize = new Vector2(Width, Height);
+            window.maxSize = window.minSize;
+            window.ShowAuxWindow();
+        }
+
+        private void OnGUI()
+        {
+            EditorGUILayout.Space(8f);
+            _color = EditorGUILayout.ColorField("Color", _color);
+            EditorGUILayout.Space(6f);
+
+            using (new EditorGUI.DisabledScope(_targetIds.Length == 0))
+            {
+                if (!GUILayout.Button("Apply", GUILayout.Height(22f)))
+                {
+                    return;
+                }
+            }
+
+            for (int index = 0; index < _targetIds.Length; index++)
+            {
+#pragma warning disable CS0618
+                GameObject target = EditorUtility.InstanceIDToObject(_targetIds[index]) as GameObject;
+#pragma warning restore CS0618
+                if (target != null)
+                {
+                    HierarchyPresentationStore.instance.SetLabelColor(target, _color);
+                }
+            }
+
+            Close();
+        }
+    }
+}

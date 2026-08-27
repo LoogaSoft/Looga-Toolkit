@@ -74,6 +74,8 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
+            HierarchyInteractionHandler.Handle(gameObject, rowRect);
+
             TrackHoveredRow(gameObject, rowRect, settings);
             TrackVisibleRow(gameObject);
 

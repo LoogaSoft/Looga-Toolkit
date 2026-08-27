@@ -6,79 +6,80 @@ namespace LoogaSoft.Hierarchy.Editor
 {
     internal static class HierarchyContextMenus
     {
-        private const string Root = "GameObject/Looga Hierarchy/";
-
-        private static readonly Color Blue = new(0.22f, 0.52f, 0.82f, 1f);
-        private static readonly Color Green = new(0.28f, 0.66f, 0.46f, 1f);
-        private static readonly Color Amber = new(0.92f, 0.64f, 0.20f, 1f);
-        private static readonly Color Red = new(0.82f, 0.34f, 0.32f, 1f);
-        private static readonly Color Purple = new(0.62f, 0.43f, 0.82f, 1f);
-        private static readonly Color Gray = new(0.52f, 0.56f, 0.61f, 1f);
-
-        [MenuItem(Root + "Toggle Favorite", false, 0)]
-        private static void ToggleFavorite()
+        internal static void Show(GameObject[] targets)
         {
-            GameObject[] selection = GetEditableSelection();
-            for (int index = 0; index < selection.Length; index++)
+            GameObject[] editableTargets = GetEditableTargets(targets);
+            if (editableTargets.Length == 0)
             {
-                HierarchyFavoriteStore.instance.Toggle(selection[index]);
+                return;
+            }
+
+            GenericMenu menu = new();
+            AddFavoriteItem(menu, editableTargets);
+            menu.AddSeparator(string.Empty);
+
+            bool hasDescendants = HasDescendants(editableTargets);
+            AddAction(menu, "Move Children To Parent", hasDescendants, () => MoveChildrenToParent(editableTargets));
+            AddAction(menu, "Select Descendants", hasDescendants, () => SelectDescendants(editableTargets));
+            AddAction(menu, "Enable Descendants", hasDescendants, () => SetDescendantsActive(editableTargets, true));
+            AddAction(menu, "Disable Descendants", hasDescendants, () => SetDescendantsActive(editableTargets, false));
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(
+                new GUIContent("Bulk Rename..."),
+                false,
+                () => HierarchyBulkRenameWindow.Open(GetEditableTargets(editableTargets)));
+            menu.ShowAsContext();
+        }
+
+        private static void AddFavoriteItem(GenericMenu menu, GameObject[] targets)
+        {
+            bool allFavorites = true;
+            for (int index = 0; index < targets.Length; index++)
+            {
+                if (!HierarchyFavoriteStore.instance.Contains(targets[index]))
+                {
+                    allFavorites = false;
+                    break;
+                }
+            }
+
+            string label = allFavorites ? "Remove From Favorites" : "Add To Favorites";
+            menu.AddItem(new GUIContent(label), false, () => SetFavoriteState(targets, !allFavorites));
+        }
+
+        private static void AddAction(
+            GenericMenu menu,
+            string label,
+            bool enabled,
+            GenericMenu.MenuFunction action)
+        {
+            GUIContent content = new(label);
+            if (enabled)
+            {
+                menu.AddItem(content, false, action);
+            }
+            else
+            {
+                menu.AddDisabledItem(content);
             }
         }
 
-        [MenuItem(Root + "Toggle Favorite", true)]
-        [MenuItem(Root + "Color/Blue", true)]
-        [MenuItem(Root + "Color/Green", true)]
-        [MenuItem(Root + "Color/Amber", true)]
-        [MenuItem(Root + "Color/Red", true)]
-        [MenuItem(Root + "Color/Purple", true)]
-        [MenuItem(Root + "Color/Gray", true)]
-        [MenuItem(Root + "Color/Custom...", true)]
-        [MenuItem(Root + "Color/Default", true)]
-        [MenuItem(Root + "Move Children To Parent", true)]
-        [MenuItem(Root + "Select Descendants", true)]
-        [MenuItem(Root + "Enable Descendants", true)]
-        [MenuItem(Root + "Disable Descendants", true)]
-        [MenuItem(Root + "Bulk Rename...", true)]
-        private static bool ValidateSelection()
+        private static void SetFavoriteState(GameObject[] targets, bool favorite)
         {
-            return GetEditableSelection().Length > 0;
+            GameObject[] editableTargets = GetEditableTargets(targets);
+            for (int index = 0; index < editableTargets.Length; index++)
+            {
+                GameObject target = editableTargets[index];
+                if (HierarchyFavoriteStore.instance.Contains(target) != favorite)
+                {
+                    HierarchyFavoriteStore.instance.Toggle(target);
+                }
+            }
         }
 
-        [MenuItem(Root + "Color/Blue", false, 1)]
-        private static void SetBlueObjectColor() => SetObjectColor(Blue);
-
-        [MenuItem(Root + "Color/Green", false, 2)]
-        private static void SetGreenObjectColor() => SetObjectColor(Green);
-
-        [MenuItem(Root + "Color/Amber", false, 3)]
-        private static void SetAmberObjectColor() => SetObjectColor(Amber);
-
-        [MenuItem(Root + "Color/Red", false, 4)]
-        private static void SetRedObjectColor() => SetObjectColor(Red);
-
-        [MenuItem(Root + "Color/Purple", false, 5)]
-        private static void SetPurpleObjectColor() => SetObjectColor(Purple);
-
-        [MenuItem(Root + "Color/Gray", false, 6)]
-        private static void SetGrayObjectColor() => SetObjectColor(Gray);
-
-        [MenuItem(Root + "Color/Custom...", false, 7)]
-        private static void SetCustomObjectColor()
+        private static void MoveChildrenToParent(GameObject[] targets)
         {
-            HierarchyColorWindow.Open(GetEditableSelection());
-        }
-
-        [MenuItem(Root + "Color/Default", false, 8)]
-        private static void ClearObjectColor()
-        {
-            ForEachSelected(HierarchyPresentationStore.instance.ClearLabelColor);
-        }
-
-        // The priority gap preserves a divider between presentation and hierarchy operations.
-        [MenuItem(Root + "Move Children To Parent", false, 100)]
-        private static void MoveChildrenToParent()
-        {
-            List<Transform> roots = GetTopLevelSelection();
+            List<Transform> roots = GetTopLevelSelection(targets);
             int undoGroup = Undo.GetCurrentGroup();
             Undo.SetCurrentGroupName("Move Children To Parent");
 
@@ -104,66 +105,63 @@ namespace LoogaSoft.Hierarchy.Editor
             Undo.CollapseUndoOperations(undoGroup);
         }
 
-        [MenuItem(Root + "Select Descendants", false, 101)]
-        private static void SelectDescendants()
+        private static void SelectDescendants(GameObject[] targets)
         {
-            List<GameObject> descendants = new();
-            GameObject[] selection = GetEditableSelection();
-
-            for (int index = 0; index < selection.Length; index++)
-            {
-                CollectDescendants(selection[index].transform, descendants);
-            }
-
+            List<GameObject> descendants = CollectDescendants(targets);
             Selection.objects = descendants.ToArray();
         }
 
-        [MenuItem(Root + "Enable Descendants", false, 102)]
-        private static void EnableDescendants() => SetDescendantsActive(true);
-
-        [MenuItem(Root + "Disable Descendants", false, 103)]
-        private static void DisableDescendants() => SetDescendantsActive(false);
-
-        [MenuItem(Root + "Bulk Rename...", false, 104)]
-        private static void OpenBulkRename()
+        private static void SetDescendantsActive(GameObject[] targets, bool active)
         {
-            HierarchyBulkRenameWindow.Open(GetEditableSelection());
-        }
+            List<GameObject> descendants = CollectDescendants(targets);
+            Undo.RecordObjects(descendants.ToArray(), active ? "Enable Descendants" : "Disable Descendants");
 
-        private static void SetObjectColor(Color color)
-        {
-            ForEachSelected(gameObject =>
-                HierarchyPresentationStore.instance.SetLabelColor(gameObject, color));
-        }
-
-        private static void ForEachSelected(System.Action<GameObject> action)
-        {
-            GameObject[] selection = GetEditableSelection();
-            for (int index = 0; index < selection.Length; index++)
+            for (int index = 0; index < descendants.Count; index++)
             {
-                action(selection[index]);
+                descendants[index].SetActive(active);
             }
         }
 
-        private static void CollectDescendants(Transform parent, List<GameObject> results)
+        private static List<GameObject> CollectDescendants(GameObject[] targets)
+        {
+            List<GameObject> descendants = new();
+            HashSet<int> seen = new();
+            GameObject[] editableTargets = GetEditableTargets(targets);
+
+            for (int index = 0; index < editableTargets.Length; index++)
+            {
+                CollectDescendants(editableTargets[index].transform, descendants, seen);
+            }
+
+            return descendants;
+        }
+
+        private static void CollectDescendants(
+            Transform parent,
+            List<GameObject> results,
+            HashSet<int> seen)
         {
             for (int index = 0; index < parent.childCount; index++)
             {
                 Transform child = parent.GetChild(index);
-                results.Add(child.gameObject);
-                CollectDescendants(child, results);
+                if (seen.Add(child.gameObject.GetInstanceID()))
+                {
+                    results.Add(child.gameObject);
+                }
+
+                CollectDescendants(child, results, seen);
             }
         }
 
-        private static List<Transform> GetTopLevelSelection()
+        private static List<Transform> GetTopLevelSelection(GameObject[] targets)
         {
-            GameObject[] selection = GetEditableSelection();
+            GameObject[] editableTargets = GetEditableTargets(targets);
             HashSet<Transform> selected = new();
             List<Transform> roots = new();
 
-            for (int index = 0; index < selection.Length; index++)
+            for (int index = 0; index < editableTargets.Length; index++)
             {
-                selected.Add(selection[index].transform);
+                selected.Add(editableTargets[index].transform);
             }
 
             foreach (Transform transform in selected)
@@ -191,99 +189,36 @@ namespace LoogaSoft.Hierarchy.Editor
             return roots;
         }
 
-        private static void SetDescendantsActive(bool active)
+        private static bool HasDescendants(GameObject[] targets)
         {
-            List<GameObject> descendants = new();
-            GameObject[] selection = GetEditableSelection();
-
-            for (int index = 0; index < selection.Length; index++)
+            for (int index = 0; index < targets.Length; index++)
             {
-                CollectDescendants(selection[index].transform, descendants);
+                if (targets[index] != null && targets[index].transform.childCount > 0)
+                {
+                    return true;
+                }
             }
 
-            Undo.RecordObjects(descendants.ToArray(), active ? "Enable Descendants" : "Disable Descendants");
-            for (int index = 0; index < descendants.Count; index++)
-            {
-                descendants[index].SetActive(active);
-            }
+            return false;
         }
 
-        private static GameObject[] GetEditableSelection()
-        {
-            GameObject[] selection = Selection.gameObjects;
-            List<GameObject> editable = new(selection.Length);
-
-            for (int index = 0; index < selection.Length; index++)
-            {
-                if (selection[index] != null)
-                    editable.Add(selection[index]);
-            }
-
-            return editable.ToArray();
-        }
-    }
-
-    internal sealed class HierarchyColorWindow : EditorWindow
-    {
-        private const float Width = 280f;
-        private const float Height = 88f;
-
-        private int[] _targetIds = System.Array.Empty<int>();
-        private Color _color = HierarchyPresentationStore.DefaultLabelColor;
-
-        internal static void Open(GameObject[] targets)
+        private static GameObject[] GetEditableTargets(GameObject[] targets)
         {
             if (targets == null || targets.Length == 0)
             {
-                return;
+                return System.Array.Empty<GameObject>();
             }
 
-            HierarchyColorWindow window = CreateInstance<HierarchyColorWindow>();
-            window.titleContent = new GUIContent("Object Color");
-            window._targetIds = new int[targets.Length];
-
+            List<GameObject> editable = new(targets.Length);
             for (int index = 0; index < targets.Length; index++)
             {
-                window._targetIds[index] = targets[index].GetInstanceID();
-            }
-
-            if (HierarchyPresentationStore.instance.TryGet(targets[0], out HierarchyPresentation presentation) &&
-                presentation.HasLabelColor)
-            {
-                window._color = presentation.LabelColor;
-            }
-
-            window.minSize = new Vector2(Width, Height);
-            window.maxSize = window.minSize;
-            window.ShowAuxWindow();
-        }
-
-        private void OnGUI()
-        {
-            EditorGUILayout.Space(8f);
-            _color = EditorGUILayout.ColorField("Color", _color);
-            EditorGUILayout.Space(6f);
-
-            using (new EditorGUI.DisabledScope(_targetIds.Length == 0))
-            {
-                if (!GUILayout.Button("Apply", GUILayout.Height(22f)))
+                if (targets[index] != null)
                 {
-                    return;
+                    editable.Add(targets[index]);
                 }
             }
 
-            for (int index = 0; index < _targetIds.Length; index++)
-            {
-#pragma warning disable CS0618
-                GameObject target = EditorUtility.InstanceIDToObject(_targetIds[index]) as GameObject;
-#pragma warning restore CS0618
-                if (target != null)
-                {
-                    HierarchyPresentationStore.instance.SetLabelColor(target, _color);
-                }
-            }
-
-            Close();
+            return editable.ToArray();
         }
     }
 }

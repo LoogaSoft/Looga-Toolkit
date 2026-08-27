@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added an Alt-left-click presentation palette for object colors and semantic icons.
+- Moved Looga Hierarchy actions to an Alt-right-click menu and removed the standard context submenu.
 - Replaced hierarchy status badges with bounded, cached component summaries.
 - Aggregated generic MonoBehaviours under one counted script icon while preserving distinct component icons.
 - Retained static-state tooltips and added a configurable component-icon limit.

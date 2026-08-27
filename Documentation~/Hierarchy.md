@@ -21,18 +21,19 @@ Settings are stored in `ProjectSettings/LoogaHierarchySettings.asset` and do not
 
 ### Favorites
 
-Hover a Hierarchy row and click its favorite icon. You can also use **GameObject > Looga Hierarchy >
-Toggle Favorite**. Each loaded scene receives a Favorites foldout at the top of its object tree.
-Its rows are transient, non-editable navigation proxies. They remain available during Play Mode
-transitions but are never serialized or included in builds. Favorites remain personal shortcuts
-stored under `UserSettings`, so they do not modify shared scene data.
+Hover a Hierarchy row and click its favorite icon. You can also use **Alt + Right Click** and select
+the favorite action. Favorites remain personal shortcuts stored under `UserSettings`, so they do
+not modify shared scene data.
 
-### Object Colors
+### Object Presentation
 
-Use **GameObject > Looga Hierarchy > Color** to apply a preset or custom accent to ordinary
-GameObjects. Colored rows retain Unity's standard hierarchy behavior while gaining a crisp left
-accent rail and a low-opacity color wash that fades smoothly across the row. Color metadata is
-project-shared and does not add components or runtime state.
+Use **Alt + Left Click** on a Hierarchy row to open the object presentation palette. The palette
+provides preset and custom row colors plus semantic object icons. The clear control at the start of
+each row removes that presentation value. A palette change applies to the complete selection when
+the clicked object is already selected.
+
+Colored rows retain Unity's standard hierarchy behavior while gaining a crisp left accent rail and
+a low-opacity color wash. Custom icons replace the ordinary object icon without adding a component.
 
 Visual metadata is stored in `ProjectSettings/LoogaHierarchyPresentation.asset` without adding
 components to scene objects.
@@ -58,8 +59,8 @@ Undo state changes rather than scanning components on every repaint.
 
 ### Hierarchy Actions
 
-The following commands appear directly under **GameObject > Looga Hierarchy**, separated from
-favorites and color commands by a divider:
+Use **Alt + Right Click** on a Hierarchy row to open Looga Hierarchy actions. These actions no
+longer occupy Unity's standard GameObject context menu:
 
 - moving children up to their parent's level;
 - selecting descendants;

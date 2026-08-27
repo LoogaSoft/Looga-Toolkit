@@ -22,6 +22,9 @@ namespace LoogaSoft.Hierarchy.Editor
         [SerializeField]
         private Color _labelColor;
 
+        [SerializeField]
+        private string _iconName;
+
         // Keep these fields until all pre-0.7.0 folder records are migrated.
         [SerializeField, HideInInspector]
         private bool _isSection;
@@ -42,6 +45,10 @@ namespace LoogaSoft.Hierarchy.Editor
         internal bool HasLabelColor => _hasLabelColor;
 
         internal Color LabelColor => _labelColor;
+
+        internal bool HasIcon => !string.IsNullOrEmpty(_iconName);
+
+        internal string IconName => _iconName;
 
         internal HierarchyPresentation(GameObject gameObject)
         {
@@ -80,9 +87,19 @@ namespace LoogaSoft.Hierarchy.Editor
             _hasLabelColor = false;
         }
 
+        internal void SetIcon(string iconName)
+        {
+            _iconName = iconName;
+        }
+
+        internal void ClearIcon()
+        {
+            _iconName = string.Empty;
+        }
+
         internal bool IsEmpty()
         {
-            return !_hasLabelColor && !_isSection && !_hasOriginalHideFlags;
+            return !_hasLabelColor && !HasIcon && !_isSection && !_hasOriginalHideFlags;
         }
 
         internal bool MigrateLegacyFolder(GameObject gameObject)
@@ -177,6 +194,24 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             presentation.ClearLabelColor();
+            RemoveIfEmpty(presentation);
+            SaveStore();
+        }
+
+        internal void SetIcon(GameObject gameObject, string iconName)
+        {
+            GetOrCreate(gameObject).SetIcon(iconName);
+            SaveStore();
+        }
+
+        internal void ClearIcon(GameObject gameObject)
+        {
+            if (!TryGet(gameObject, out HierarchyPresentation presentation))
+            {
+                return;
+            }
+
+            presentation.ClearIcon();
             RemoveIfEmpty(presentation);
             SaveStore();
         }

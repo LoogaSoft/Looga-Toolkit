@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added an Alt-left-click Hierarchy palette for row colors and semantic object icons.
+- Moved Looga Hierarchy operations to an Alt-right-click menu outside Unity's standard context menu.
 - Kept foldout hover fills aligned inside their rounded outlines with DPI-aware bounds and a tighter corner radius.
 - Replaced size-specific foldout controls and attributes with one `LoogaFoldout` presentation based on the former large foldout style.
 - Renamed the box-only size selector to `LoogaBoxStyle`.

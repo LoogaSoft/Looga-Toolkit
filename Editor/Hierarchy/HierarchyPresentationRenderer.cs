@@ -10,6 +10,7 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float GradientOpacity = 0.20f;
         private const float AccentWidth = 3f;
         private const float ContentSpacing = 4f;
+        private const float IconSize = 16f;
 
         private static readonly Dictionary<Color32, Texture2D> Gradients = new();
 
@@ -25,41 +26,64 @@ namespace LoogaSoft.Hierarchy.Editor
                 return false;
             }
 
-            Color color = presentation.HasLabelColor
-                ? presentation.LabelColor
-                : HierarchyPresentationStore.DefaultLabelColor;
-
             if (Event.current.type == EventType.Repaint)
             {
-                float decorationX = rowRect.x -
-                    AccentWidth -
-                    ContentSpacing;
+                if (presentation.HasLabelColor)
+                {
+                    DrawColor(rowRect, presentation.LabelColor);
+                }
 
-                Rect gradientRect = new(
-                    decorationX,
-                    rowRect.y,
-                    rowRect.xMax - decorationX,
-                    rowRect.height);
-
-                Color previousColor = GUI.color;
-                GUI.color = Color.white;
-                GUI.DrawTexture(gradientRect, GetGradient(color), ScaleMode.StretchToFill, true);
-                GUI.color = previousColor;
-
-                Color accent = color;
-                accent.a = 0.9f;
-                // Keep Unity's native icon, label, selection, and rename geometry intact. Drawing the
-                // rail before the shared content gap creates separation without replacing its UI.
-                EditorGUI.DrawRect(
-                    new Rect(
-                        decorationX,
-                        rowRect.y,
-                        AccentWidth,
-                        rowRect.height),
-                    accent);
+                if (presentation.HasIcon)
+                {
+                    DrawIcon(rowRect, presentation.IconName);
+                }
             }
 
             return false;
+        }
+
+        private static void DrawColor(Rect rowRect, Color color)
+        {
+            float decorationX = rowRect.x - AccentWidth - ContentSpacing;
+
+            Rect gradientRect = new(
+                decorationX,
+                rowRect.y,
+                rowRect.xMax - decorationX,
+                rowRect.height);
+
+            Color previousColor = GUI.color;
+            GUI.color = Color.white;
+            GUI.DrawTexture(gradientRect, GetGradient(color), ScaleMode.StretchToFill, true);
+            GUI.color = previousColor;
+
+            Color accent = color;
+            accent.a = 0.9f;
+            // Keep Unity's native icon, label, selection, and rename geometry intact.
+            EditorGUI.DrawRect(
+                new Rect(
+                    decorationX,
+                    rowRect.y,
+                    AccentWidth,
+                    rowRect.height),
+                accent);
+        }
+
+        private static void DrawIcon(Rect rowRect, string iconName)
+        {
+            Texture icon = HierarchyIconCatalog.GetTexture(iconName);
+            if (icon == null)
+            {
+                return;
+            }
+
+            Rect iconRect = new(
+                rowRect.x,
+                rowRect.y + Mathf.Floor((rowRect.height - IconSize) * 0.5f),
+                IconSize,
+                IconSize);
+
+            GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
         }
 
         private static Texture2D GetGradient(Color color)
