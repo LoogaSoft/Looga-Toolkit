@@ -6,7 +6,7 @@ namespace LoogaSoft.Tools.Runtime
     /// <summary>
     /// Stores an indirect reference to another Unity asset.
     /// </summary>
-    [CreateAssetMenu(fileName = "New Cross Reference", menuName = "LoogaSoft/Tools/Cross Reference")]
+    [CreateAssetMenu(fileName = "New Cross Reference", menuName = "LoogaSoft/Toolkit/Cross Reference")]
     public sealed class CrossReference : ScriptableObject
     {
         [FormerlySerializedAs("reference")]
