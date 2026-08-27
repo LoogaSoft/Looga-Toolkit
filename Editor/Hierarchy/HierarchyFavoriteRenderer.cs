@@ -8,7 +8,7 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float ButtonSize = 16f;
         private static readonly GUIContent FavoriteContent = CreateFavoriteContent();
 
-        internal static void Draw(GameObject gameObject, Rect rowRect, bool reserveStatusBadges)
+        internal static void Draw(GameObject gameObject, Rect rowRect, HierarchyGuideSettings settings)
         {
             bool favorite = HierarchyFavoriteStore.instance.Contains(gameObject);
             bool hovered = rowRect.Contains(Event.current.mousePosition);
@@ -19,7 +19,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
             Rect buttonRect = new(
                 rowRect.xMax -
-                (reserveStatusBadges ? HierarchyStatusRenderer.GetReservedWidth(gameObject) : 0f) -
+                (settings.ShowComponentIcons
+                    ? HierarchyComponentRenderer.GetReservedWidth(gameObject, settings.MaximumComponentIcons)
+                    : 0f) -
                 ButtonSize,
                 rowRect.y + Mathf.Floor((rowRect.height - ButtonSize) * 0.5f),
                 ButtonSize,

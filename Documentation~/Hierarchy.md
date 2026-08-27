@@ -37,18 +37,21 @@ project-shared and does not add components or runtime state.
 Visual metadata is stored in `ProjectSettings/LoogaHierarchyPresentation.asset` without adding
 components to scene objects.
 
-### Status Badges
+### Component Icons
 
-Compact row badges identify missing scripts, prefab overrides, static
-objects, and EditorOnly objects. Status is cached and refreshed when hierarchy, project, or Undo
-state changes rather than scanning every repaint. The static indicator is a decorative bold `S`.
-Hover over it to see `Fully Static` or each enabled static flag on a separate line. Actionable
-badges open their relevant actions when clicked:
+Compact row icons summarize important components without duplicating Transform or RectTransform.
+Components with distinct Unity icons keep those icons. Repeated component types use one icon with
+a count. Generic MonoBehaviours share a C# script icon with a total count. Missing scripts are
+included in that count and tint the script icon orange. Tooltips identify each component type and
+report missing scripts.
 
-- select and ping the affected object;
-- remove missing script references with confirmation and Undo support;
-- open a prefab asset or apply/revert its instance overrides;
-- clear the EditorOnly tag.
+The **Maximum Component Icons** project setting limits each row to between one and eight component
+indicators. The default is five. An overflow indicator replaces component types that do not fit.
+The limit does not include the static indicator.
+
+Static objects retain a bold `S` indicator. Hover over it to see `Fully Static` or each enabled
+static flag on a separate line. Component summaries are cached and refresh after hierarchy,
+project, or Undo state changes rather than scanning components on every repaint.
 
 ### Hierarchy Actions
 

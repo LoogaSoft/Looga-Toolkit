@@ -11,7 +11,8 @@ namespace LoogaSoft.Hierarchy.Editor
         private SerializedProperty _highlightInteractiveBranches;
         private SerializedProperty _showFavorites;
         private SerializedProperty _showPresentation;
-        private SerializedProperty _showStatusBadges;
+        private SerializedProperty _showComponentIcons;
+        private SerializedProperty _maximumComponentIcons;
         private SerializedProperty _useCustomColor;
         private SerializedProperty _customColor;
         private SerializedProperty _opacity;
@@ -74,7 +75,18 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorGUILayout.LabelField("Organization", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(_showFavorites, new GUIContent("Favorites"));
             EditorGUILayout.PropertyField(_showPresentation, new GUIContent("Object Colors"));
-            EditorGUILayout.PropertyField(_showStatusBadges, new GUIContent("Status Badges"));
+            EditorGUILayout.PropertyField(_showComponentIcons, new GUIContent("Component Icons"));
+
+            using (new EditorGUI.DisabledScope(!_showComponentIcons.boolValue))
+            {
+                EditorGUILayout.IntSlider(
+                    _maximumComponentIcons,
+                    1,
+                    8,
+                    new GUIContent(
+                        "Maximum Component Icons",
+                        "Maximum number of component summary icons shown on each row."));
+            }
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -98,7 +110,8 @@ namespace LoogaSoft.Hierarchy.Editor
             _highlightInteractiveBranches = _serializedSettings.FindProperty("_highlightInteractiveBranches");
             _showFavorites = _serializedSettings.FindProperty("_showFavorites");
             _showPresentation = _serializedSettings.FindProperty("_showPresentation");
-            _showStatusBadges = _serializedSettings.FindProperty("_showStatusBadges");
+            _showComponentIcons = _serializedSettings.FindProperty("_showComponentIcons");
+            _maximumComponentIcons = _serializedSettings.FindProperty("_maximumComponentIcons");
             _useCustomColor = _serializedSettings.FindProperty("_useCustomColor");
             _customColor = _serializedSettings.FindProperty("_customColor");
             _opacity = _serializedSettings.FindProperty("_opacity");

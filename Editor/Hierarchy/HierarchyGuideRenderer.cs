@@ -91,15 +91,14 @@ namespace LoogaSoft.Hierarchy.Editor
 
             }
 
-            // Status badges also receive mouse events, so they must participate outside Repaint.
-            if (settings.ShowStatusBadges)
+            if (settings.ShowComponentIcons)
             {
-                HierarchyStatusRenderer.Draw(gameObject, rowRect);
+                HierarchyComponentRenderer.Draw(gameObject, rowRect, settings.MaximumComponentIcons);
             }
 
             if (settings.ShowFavorites)
             {
-                HierarchyFavoriteRenderer.Draw(gameObject, rowRect, settings.ShowStatusBadges);
+                HierarchyFavoriteRenderer.Draw(gameObject, rowRect, settings);
             }
         }
 

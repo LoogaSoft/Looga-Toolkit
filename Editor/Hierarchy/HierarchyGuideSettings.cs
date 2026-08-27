@@ -16,10 +16,11 @@ namespace LoogaSoft.Hierarchy.Editor
         internal const bool DefaultHighlightInteractiveBranches = true;
         internal const bool DefaultShowFavorites = true;
         internal const bool DefaultShowPresentation = true;
-        internal const bool DefaultShowStatusBadges = true;
+        internal const bool DefaultShowComponentIcons = true;
         internal const bool DefaultUseCustomColor = false;
         internal const float DefaultOpacity = 0.52f;
         internal const int DefaultThickness = 1;
+        internal const int DefaultMaximumComponentIcons = 5;
 
         private static readonly Color DefaultCustomColor = new(0.48f, 0.52f, 0.58f, 1f);
 
@@ -36,8 +37,12 @@ namespace LoogaSoft.Hierarchy.Editor
         [SerializeField]
         private bool _showPresentation = DefaultShowPresentation;
 
+        [FormerlySerializedAs("_showStatusBadges")]
         [SerializeField]
-        private bool _showStatusBadges = DefaultShowStatusBadges;
+        private bool _showComponentIcons = DefaultShowComponentIcons;
+
+        [SerializeField, Range(1, 8)]
+        private int _maximumComponentIcons = DefaultMaximumComponentIcons;
 
         [SerializeField]
         private bool _useCustomColor = DefaultUseCustomColor;
@@ -59,7 +64,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
         internal bool ShowPresentation => _showPresentation;
 
-        internal bool ShowStatusBadges => _showStatusBadges;
+        internal bool ShowComponentIcons => _showComponentIcons;
+
+        internal int MaximumComponentIcons => _maximumComponentIcons;
 
         internal bool UseCustomColor => _useCustomColor;
 
@@ -107,7 +114,8 @@ namespace LoogaSoft.Hierarchy.Editor
             _highlightInteractiveBranches = DefaultHighlightInteractiveBranches;
             _showFavorites = DefaultShowFavorites;
             _showPresentation = DefaultShowPresentation;
-            _showStatusBadges = DefaultShowStatusBadges;
+            _showComponentIcons = DefaultShowComponentIcons;
+            _maximumComponentIcons = DefaultMaximumComponentIcons;
             _useCustomColor = DefaultUseCustomColor;
             _customColor = DefaultCustomColor;
             _opacity = DefaultOpacity;

@@ -5,7 +5,7 @@ Looga Toolkit combines Looga Inspector, Looga Hierarchy, Looga Tags, Prefab Brow
 ## Modules
 
 - **Inspector** provides attribute-driven inspectors, drawers, catalogs, sidebars, reusable GUI controls, and component clipboard tools.
-- **Hierarchy** provides hierarchy guides, favorites, presentation colors, status badges, context actions, and bulk rename tools.
+- **Hierarchy** provides hierarchy guides, favorites, presentation colors, component summaries, context actions, and bulk rename tools.
 - **Tags** provides project-defined, color-coded tags that can be assigned to GameObjects and queried at runtime.
 - **Prefab Browser** provides categorized prefab browsing, project-owned configuration, asset labels, and a generated prefab index.
 - **Tools** provides Curve Sketcher, assembly-definition helpers, cross-reference authoring, and shared runtime utilities.

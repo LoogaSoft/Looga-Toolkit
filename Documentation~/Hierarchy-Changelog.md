@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Replaced hierarchy status badges with bounded, cached component summaries.
+- Aggregated generic MonoBehaviours under one counted script icon while preserving distinct component icons.
+- Retained static-state tooltips and added a configurable component-icon limit.
+
 ## 0.8.0 - 2026-08-02
 
 - Made hierarchy status badges interactive with context-specific, Undo-safe actions.
