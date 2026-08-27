@@ -204,6 +204,7 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorGUIUtility.SetIconForObject(
                 gameObject,
                 HierarchyIconCatalog.GetTexture(iconName) as Texture2D);
+            EditorApplication.DirtyHierarchyWindowSorting();
             SaveStore();
         }
 
@@ -217,6 +218,7 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             EditorGUIUtility.SetIconForObject(gameObject, null);
+            EditorApplication.DirtyHierarchyWindowSorting();
             EditorApplication.RepaintHierarchyWindow();
         }
 

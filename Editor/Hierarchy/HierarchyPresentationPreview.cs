@@ -147,6 +147,7 @@ namespace LoogaSoft.Hierarchy.Editor
                 }
             }
 
+            EditorApplication.DirtyHierarchyWindowSorting();
             EditorApplication.RepaintHierarchyWindow();
         }
 
@@ -160,6 +161,8 @@ namespace LoogaSoft.Hierarchy.Editor
                     EditorGUIUtility.SetIconForObject(target, entry.Value);
                 }
             }
+
+            EditorApplication.DirtyHierarchyWindowSorting();
         }
 
         private static GameObject ResolveTarget(int instanceId)

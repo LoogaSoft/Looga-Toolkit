@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the row gradient and accent rail with solid group headers and inherited descendant fills.
+- Invalidated Unity's Hierarchy item cache after native object icon changes and previews.
 - Replaced the transient Alt-right-click menu with a delayed dropdown outside Unity's context event.
 - Kept the last palette preview active across option gaps and used native object icons for replacement.
 - Kept Alt-right-click actions open by handling Unity's context-click event.

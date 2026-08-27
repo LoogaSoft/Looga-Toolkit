@@ -33,8 +33,9 @@ each row removes that presentation value. A palette change applies to the comple
 the clicked object is already selected. Hovering a palette option previews it on every target.
 Moving across the space between options keeps the last preview stable.
 
-Colored rows retain Unity's standard hierarchy behavior while gaining a crisp left accent rail and
-a low-opacity color wash. Custom icons replace the ordinary object icon without adding a component.
+A colored object uses a uniform solid header fill. Its visible descendants inherit a lighter solid
+fill aligned to the colored object's hierarchy depth. Custom icons replace the ordinary object icon
+without adding a component.
 
 Visual metadata is stored in `ProjectSettings/LoogaHierarchyPresentation.asset` without adding
 components to scene objects.
