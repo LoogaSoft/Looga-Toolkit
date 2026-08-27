@@ -40,12 +40,12 @@ namespace LoogaSoft.Inspector.Editor
                 boxRect.x,
                 boxRect.y,
                 boxRect.width,
-                LoogaEditorFoldouts.GetLargeFoldoutHeaderHeight());
-            Rect contentLineRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(
+                LoogaEditorFoldouts.GetFoldoutHeaderHeight());
+            Rect contentLineRect = LoogaEditorFoldouts.GetFoldoutHeaderContentRect(
                 headerRect,
                 objectValid);
             Rect arrowRect = objectValid
-                ? LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect)
+                ? LoogaEditorFoldouts.GetFoldoutArrowRect(headerRect)
                 : default;
             Rect createButtonRect = canCreateAsset
                 ? new Rect(
@@ -96,10 +96,10 @@ namespace LoogaSoft.Inspector.Editor
             if (property.isExpanded && objectValid)
             {
                 Rect inlineContentRect = new(
-                    boxRect.x + LoogaEditorFoldouts.SmallPaddingX,
+                    boxRect.x + LoogaEditorFoldouts.FoldoutContentPaddingX,
                     headerRect.yMax + spacing,
-                    boxRect.width - LoogaEditorFoldouts.SmallPaddingX * 2f,
-                    Mathf.Max(0f, boxRect.yMax - headerRect.yMax - spacing - LoogaEditorFoldouts.SmallPaddingY));
+                    boxRect.width - LoogaEditorFoldouts.FoldoutContentPaddingX * 2f,
+                    Mathf.Max(0f, boxRect.yMax - headerRect.yMax - spacing - LoogaEditorFoldouts.FoldoutContentPaddingY));
 
                 DrawInlineScriptableObject(inlineContentRect, property.objectReferenceValue, exposeAttribute);
             }
@@ -129,16 +129,16 @@ namespace LoogaSoft.Inspector.Editor
                     property.isExpanded = true;
             }
 
-            using (LoogaEditorFoldouts.BeginLargeFoldoutLayout(
+            using (LoogaEditorFoldouts.BeginFoldoutLayout(
                        property.isExpanded,
                        out Rect headerRect,
                        out Rect clickRect))
             {
-                Rect contentLineRect = LoogaEditorFoldouts.GetLargeFoldoutHeaderContentRect(
+                Rect contentLineRect = LoogaEditorFoldouts.GetFoldoutHeaderContentRect(
                     headerRect,
                     objectValid);
                 Rect arrowRect = objectValid
-                    ? LoogaEditorFoldouts.GetLargeFoldoutArrowRect(headerRect)
+                    ? LoogaEditorFoldouts.GetFoldoutArrowRect(headerRect)
                     : default;
                 Rect createButtonRect = canCreateAsset
                     ? new Rect(
@@ -222,7 +222,7 @@ namespace LoogaSoft.Inspector.Editor
 
         private static void DrawFoldoutBackground(Rect boxRect, Rect headerRect, bool expanded)
         {
-            GUI.Box(boxRect, GUIContent.none, LoogaEditorFoldouts.LargeFoldoutBoxStyle);
+            GUI.Box(boxRect, GUIContent.none, LoogaEditorFoldouts.FoldoutBoxStyle);
 
             Rect hoverRect = expanded ? headerRect : boxRect;
             Event current = Event.current;
@@ -511,11 +511,11 @@ namespace LoogaSoft.Inspector.Editor
 
         protected override float GetPropertyHeight_Internal(SerializedProperty property, GUIContent label)
         {
-            float height = LoogaEditorFoldouts.GetLargeFoldoutHeaderHeight();
+            float height = LoogaEditorFoldouts.GetFoldoutHeaderHeight();
 
             if (property.isExpanded && property.objectReferenceValue != null)
                 height += GetInlineScriptableObjectHeight(property.objectReferenceValue, ((ExposeScriptableAttribute)attribute).showScriptField)
-                    + LoogaEditorFoldouts.SmallPaddingY;
+                    + LoogaEditorFoldouts.FoldoutContentPaddingY;
 
             return height;
         }

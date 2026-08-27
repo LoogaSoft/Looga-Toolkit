@@ -59,7 +59,7 @@ using LoogaSoft.Inspector.Editor;
 
 _selectedTab = LoogaGUILayout.Tabs(_selectedTab, Tabs, "MyEditor_Tabs");
 
-LoogaGUILayout.FoldoutLarge("Audio", "MyEditor_Audio", true, () =>
+LoogaGUILayout.Foldout("Audio", "MyEditor_Audio", true, () =>
 {
     EditorGUILayout.PropertyField(_volume);
 });
@@ -119,14 +119,14 @@ Useful future toolbar actions could include pasting values into matching existin
 `LoogaFoldoutAttribute` wraps one field or nested serializable class in a styled foldout.
 
 ```csharp
-[LoogaFoldout("Recoil", LoogaFoldoutStyle.Large, defaultExpanded: true)]
+[LoogaFoldout("Recoil", defaultExpanded: true)]
 [SerializeField] private RecoilSettings _recoil;
 ```
 
 `LoogaFoldoutGroupAttribute` starts a foldout around several sibling fields. End it with `LoogaFoldoutGroupEndAttribute`.
 
 ```csharp
-[LoogaFoldoutGroup("Audio", LoogaFoldoutStyle.Small)]
+[LoogaFoldoutGroup("Audio")]
 [SerializeField] private AudioClip _openSound;
 
 [SerializeField] private AudioClip _closeSound;
@@ -167,14 +167,14 @@ For several sibling fields, use `LoogaToggleFoldoutGroupAttribute` on the bool f
 `LoogaBoxAttribute` draws one field or nested serializable class inside a non-collapsible styled box.
 
 ```csharp
-[LoogaBox("Projectile", LoogaFoldoutStyle.Large)]
+[LoogaBox("Projectile", LoogaBoxStyle.Large)]
 [SerializeField] private ProjectileSettings _projectile;
 ```
 
 `LoogaBoxGroupAttribute` and `LoogaBoxGroupEndAttribute` draw multiple sibling fields inside a non-collapsible box.
 
 ```csharp
-[LoogaBoxGroup("Identity", LoogaFoldoutStyle.Small)]
+[LoogaBoxGroup("Identity", LoogaBoxStyle.Small)]
 [SerializeField] private string _id;
 
 [SerializeField] private Sprite _icon;

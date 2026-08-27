@@ -56,47 +56,37 @@ namespace LoogaSoft.Inspector.Editor
                 drawRightControl);
         }
 
-        public static void FoldoutLarge(string title, string stateKey, bool defaultExpanded, Action content)
+        public static void Foldout(string title, string stateKey, bool defaultExpanded, Action content)
         {
-            LoogaEditorFoldouts.LoogaFoldoutLarge(title, stateKey, defaultExpanded, content);
+            LoogaEditorFoldouts.LoogaFoldout(title, stateKey, defaultExpanded, content);
         }
 
-        public static bool FoldoutLarge(
+        public static bool Foldout(
             GUIContent label,
             bool expanded,
             Action content,
             SerializedProperty property = null)
         {
-            return LoogaEditorFoldouts.LoogaFoldoutLarge(label, expanded, content, property);
+            return LoogaEditorFoldouts.LoogaFoldout(label, expanded, content, property);
         }
 
-        public static bool FoldoutLarge(
+        public static bool Foldout(
             string label,
             bool expanded,
             Action content,
             SerializedProperty property = null)
         {
-            return FoldoutLarge(new GUIContent(label), expanded, content, property);
+            return Foldout(new GUIContent(label), expanded, content, property);
         }
 
-        public static bool FoldoutSmall(GUIContent label, bool expanded, Action content, SerializedProperty property = null)
-        {
-            return LoogaEditorFoldouts.LoogaFoldoutSmall(label, expanded, content, property);
-        }
-
-        public static bool FoldoutSmall(string label, bool expanded, Action content, SerializedProperty property = null)
-        {
-            return FoldoutSmall(new GUIContent(label), expanded, content, property);
-        }
-
-        public static bool ToggleFoldoutSmall(
+        public static bool ToggleFoldout(
             GUIContent label,
             bool enabled,
             bool expanded,
             Action content,
             out bool newEnabled)
         {
-            return LoogaEditorFoldouts.LoogaToggleFoldoutSmall(
+            return LoogaEditorFoldouts.LoogaToggleFoldout(
                 label,
                 enabled,
                 expanded,
@@ -104,44 +94,14 @@ namespace LoogaSoft.Inspector.Editor
                 out newEnabled);
         }
 
-        public static bool ToggleFoldoutLarge(
-            GUIContent label,
-            bool enabled,
-            bool expanded,
-            Action content,
-            out bool newEnabled)
-        {
-            return LoogaEditorFoldouts.LoogaToggleFoldoutLarge(
-                label,
-                enabled,
-                expanded,
-                content,
-                out newEnabled);
-        }
-
-        public static bool ToggleFoldoutLarge(
+        public static bool ToggleFoldout(
             string label,
             bool enabled,
             bool expanded,
             Action content,
             out bool newEnabled)
         {
-            return ToggleFoldoutLarge(
-                new GUIContent(label),
-                enabled,
-                expanded,
-                content,
-                out newEnabled);
-        }
-
-        public static bool ToggleFoldoutSmall(
-            string label,
-            bool enabled,
-            bool expanded,
-            Action content,
-            out bool newEnabled)
-        {
-            return ToggleFoldoutSmall(
+            return ToggleFoldout(
                 new GUIContent(label),
                 enabled,
                 expanded,

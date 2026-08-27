@@ -2,7 +2,7 @@
 
 namespace LoogaSoft.Inspector.Runtime
 {
-    public enum LoogaFoldoutStyle
+    public enum LoogaBoxStyle
     {
         Small,
         Large
@@ -12,16 +12,13 @@ namespace LoogaSoft.Inspector.Runtime
     public sealed class LoogaFoldoutAttribute : Attribute, ILoogaAttribute
     {
         public readonly string Title;
-        public readonly LoogaFoldoutStyle Style;
         public readonly bool DefaultExpanded;
 
         public LoogaFoldoutAttribute(
             string title = null,
-            LoogaFoldoutStyle style = LoogaFoldoutStyle.Small,
             bool defaultExpanded = false)
         {
             Title = title;
-            Style = style;
             DefaultExpanded = defaultExpanded;
         }
     }
@@ -30,16 +27,13 @@ namespace LoogaSoft.Inspector.Runtime
     public sealed class LoogaFoldoutGroupAttribute : Attribute, ILoogaAttribute
     {
         public readonly string Title;
-        public readonly LoogaFoldoutStyle Style;
         public readonly bool DefaultExpanded;
 
         public LoogaFoldoutGroupAttribute(
             string title,
-            LoogaFoldoutStyle style = LoogaFoldoutStyle.Small,
             bool defaultExpanded = true)
         {
             Title = title;
-            Style = style;
             DefaultExpanded = defaultExpanded;
         }
     }
@@ -53,17 +47,14 @@ namespace LoogaSoft.Inspector.Runtime
     public sealed class LoogaToggleFoldoutAttribute : Attribute, ILoogaAttribute
     {
         public readonly string Title;
-        public readonly LoogaFoldoutStyle Style;
         public readonly string TogglePropertyName;
 
         public LoogaToggleFoldoutAttribute(
             string title = null,
-            string togglePropertyName = null,
-            LoogaFoldoutStyle style = LoogaFoldoutStyle.Large)
+            string togglePropertyName = null)
         {
             Title = title;
             TogglePropertyName = togglePropertyName;
-            Style = style;
         }
     }
 
@@ -71,14 +62,10 @@ namespace LoogaSoft.Inspector.Runtime
     public sealed class LoogaToggleFoldoutGroupAttribute : Attribute, ILoogaAttribute
     {
         public readonly string Title;
-        public readonly LoogaFoldoutStyle Style;
 
-        public LoogaToggleFoldoutGroupAttribute(
-            string title,
-            LoogaFoldoutStyle style = LoogaFoldoutStyle.Large)
+        public LoogaToggleFoldoutGroupAttribute(string title)
         {
             Title = title;
-            Style = style;
         }
     }
 
@@ -91,11 +78,11 @@ namespace LoogaSoft.Inspector.Runtime
     public sealed class LoogaBoxAttribute : Attribute, ILoogaAttribute
     {
         public readonly string Title;
-        public readonly LoogaFoldoutStyle Style;
+        public readonly LoogaBoxStyle Style;
 
         public LoogaBoxAttribute(
             string title = null,
-            LoogaFoldoutStyle style = LoogaFoldoutStyle.Small)
+            LoogaBoxStyle style = LoogaBoxStyle.Small)
         {
             Title = title;
             Style = style;
@@ -106,11 +93,11 @@ namespace LoogaSoft.Inspector.Runtime
     public sealed class LoogaBoxGroupAttribute : Attribute, ILoogaAttribute
     {
         public readonly string Title;
-        public readonly LoogaFoldoutStyle Style;
+        public readonly LoogaBoxStyle Style;
 
         public LoogaBoxGroupAttribute(
             string title,
-            LoogaFoldoutStyle style = LoogaFoldoutStyle.Small)
+            LoogaBoxStyle style = LoogaBoxStyle.Small)
         {
             Title = title;
             Style = style;

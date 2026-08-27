@@ -7,15 +7,12 @@ namespace LoogaSoft.Inspector.Editor
 {
     public static class LoogaEditorFoldouts
     {
-        public const float SmallPaddingX = 10f;
-        public const float SmallPaddingY = 6f;
+        public const float FoldoutContentPaddingX = 8f;
+        public const float FoldoutContentPaddingY = 6f;
 
         private const string PropertyClipboardPrefix = "LOOGA_SERIALIZED_PROPERTY::";
-        private const float SmallHoverExtraWidth = 4f;
-        private const float SmallBoxGap = 6f;
-        private const float SmallLayoutHoverBottomBleed = 4f;
-        private const float LargeFoldoutGap = 2f;
-        private const float LargeFoldoutExtraHeight = 4f;
+        private const float FoldoutGap = 2f;
+        private const float FoldoutExtraHeight = 4f;
         private const float BoxHorizontalInset = 3f;
         private const float HeaderLeftInset = 6f;
         private const float HeaderTextArrowGap = 6f;
@@ -24,17 +21,13 @@ namespace LoogaSoft.Inspector.Editor
         private static GUIStyle _largeHeader;
         private static GUIStyle _smallHeader;
         private static GUIStyle _largeBox;
-        private static GUIStyle _largeFoldoutBox;
+        private static GUIStyle _foldoutBox;
         private static GUIStyle _alternateLargeBox;
-        private static GUIStyle _alternateLargeFoldoutBox;
+        private static GUIStyle _alternateFoldoutBox;
         private static GUIStyle _smallBox;
-        private static GUIStyle _smallFoldoutBox;
         private static GUIStyle _alternateSmallBox;
-        private static GUIStyle _alternateSmallFoldoutBox;
         private static GUIStyle _smallLayoutBox;
-        private static GUIStyle _smallLayoutFoldoutBox;
         private static GUIStyle _alternateSmallLayoutBox;
-        private static GUIStyle _alternateSmallLayoutFoldoutBox;
         private static int _boxDepth;
         private static int _containedFoldoutDepth;
 
@@ -47,82 +40,30 @@ namespace LoogaSoft.Inspector.Editor
             }
         }
 
-        public static GUIStyle SmallFoldoutBoxStyle
+        public static GUIStyle FoldoutBoxStyle
         {
             get
             {
                 EnsureStyles();
-                return GetSmallFoldoutBoxStyle();
-            }
-        }
-
-        public static GUIStyle LargeFoldoutBoxStyle
-        {
-            get
-            {
-                EnsureStyles();
-                return GetLargeFoldoutBoxStyle();
+                return GetFoldoutBoxStyle();
             }
         }
 
         /// <summary>
-        /// Begins the canonical compact foldout layout while leaving header contents to the caller.
-        /// Use this for foldout headers that contain controls in addition to a label.
+        /// Begins the canonical foldout layout while leaving header contents to the caller.
+        /// Use this for headers that contain fields or buttons.
         /// </summary>
-        public static IDisposable BeginSmallFoldoutLayout(
+        public static IDisposable BeginFoldoutLayout(
             bool expanded,
             out Rect headerRect,
             out Rect clickRect)
         {
             EnsureStyles();
 
-            EditorGUILayout.Space(1f);
-            GUIStyle boxStyle = GetSmallLayoutFoldoutBoxStyle();
+            GUIStyle boxStyle = GetFoldoutBoxStyle();
             EditorGUILayout.BeginVertical(boxStyle);
 
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _smallHeader);
-            Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
-            headerRect = new Rect(
-                boxRect.x,
-                boxRect.y,
-                boxRect.width,
-                baseRect.height + boxStyle.padding.top + 2f);
-            clickRect = expanded
-                ? headerRect
-                : ExpandRectBottom(boxRect, SmallLayoutHoverBottomBleed);
-
-            return new SmallFoldoutLayoutScopeInstance();
-        }
-
-        public static Rect GetSmallFoldoutHeaderContentRect(Rect headerRect, bool includeArrow)
-        {
-            EnsureStyles();
-            return includeArrow
-                ? GetHeaderTextRect(headerRect, 1f, GetSmallLayoutFoldoutBoxStyle())
-                : GetStaticHeaderTextRect(headerRect, 1f);
-        }
-
-        public static Rect GetSmallFoldoutArrowRect(Rect headerRect)
-        {
-            EnsureStyles();
-            return GetHeaderArrowRect(headerRect, GetSmallLayoutFoldoutBoxStyle());
-        }
-
-        /// <summary>
-        /// Begins the canonical large foldout layout while leaving header contents to the caller.
-        /// Use this for large headers that contain fields or buttons.
-        /// </summary>
-        public static IDisposable BeginLargeFoldoutLayout(
-            bool expanded,
-            out Rect headerRect,
-            out Rect clickRect)
-        {
-            EnsureStyles();
-
-            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
-            EditorGUILayout.BeginVertical(boxStyle);
-
-            Rect baseRect = GetLargeFoldoutBaseRect();
+            Rect baseRect = GetFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             headerRect = new Rect(
                 boxRect.x,
@@ -131,15 +72,15 @@ namespace LoogaSoft.Inspector.Editor
                 baseRect.height + boxStyle.padding.top + 2f);
             clickRect = expanded ? headerRect : boxRect;
 
-            return new LargeFoldoutLayoutScopeInstance();
+            return new FoldoutLayoutScopeInstance();
         }
 
-        public static Rect GetLargeFoldoutHeaderContentRect(Rect headerRect, bool includeArrow)
+        public static Rect GetFoldoutHeaderContentRect(Rect headerRect, bool includeArrow)
         {
             EnsureStyles();
             float x = headerRect.x + HeaderLeftInset + AccentRailWidth;
             float right = includeArrow
-                ? GetHeaderArrowRect(headerRect, GetLargeFoldoutBoxStyle()).xMin - HeaderTextArrowGap
+                ? GetHeaderArrowRect(headerRect, GetFoldoutBoxStyle()).xMin - HeaderTextArrowGap
                 : headerRect.xMax - HeaderLeftInset;
 
             return new Rect(
@@ -149,31 +90,31 @@ namespace LoogaSoft.Inspector.Editor
                 EditorGUIUtility.singleLineHeight);
         }
 
-        public static Rect GetLargeFoldoutArrowRect(Rect headerRect)
+        public static Rect GetFoldoutArrowRect(Rect headerRect)
         {
             EnsureStyles();
-            return GetHeaderArrowRect(headerRect, GetLargeFoldoutBoxStyle());
+            return GetHeaderArrowRect(headerRect, GetFoldoutBoxStyle());
         }
 
-        public static float GetLargeFoldoutHeaderHeight()
+        public static float GetFoldoutHeaderHeight()
         {
             EnsureStyles();
             return EditorGUIUtility.singleLineHeight
                 + _largeHeader.padding.vertical
-                + LargeFoldoutExtraHeight
-                + GetLargeFoldoutBoxStyle().padding.top
+                + FoldoutExtraHeight
+                + GetFoldoutBoxStyle().padding.top
                 + 2f;
         }
 
-        public static void LoogaFoldoutLarge(string title, string prefKey, bool defaultShow, Action content)
+        public static void LoogaFoldout(string title, string prefKey, bool defaultShow, Action content)
         {
             EnsureStyles();
 
             bool show = EditorPrefs.GetBool(prefKey, defaultShow);
-            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            GUIStyle boxStyle = GetFoldoutBoxStyle();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GetLargeFoldoutBaseRect();
+            Rect baseRect = GetFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -222,13 +163,13 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(LargeFoldoutGap);
+            EditorGUILayout.Space(FoldoutGap);
         }
 
         /// <summary>
-        /// Draws a large foldout for state owned by the caller.
+        /// Draws a foldout for state owned by the caller.
         /// </summary>
-        public static bool LoogaFoldoutLarge(
+        public static bool LoogaFoldout(
             GUIContent label,
             bool expanded,
             Action content,
@@ -236,9 +177,9 @@ namespace LoogaSoft.Inspector.Editor
         {
             EnsureStyles();
 
-            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            GUIStyle boxStyle = GetFoldoutBoxStyle();
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GetLargeFoldoutBaseRect();
+            Rect baseRect = GetFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -292,7 +233,7 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(LargeFoldoutGap);
+            EditorGUILayout.Space(FoldoutGap);
             return expanded;
         }
 
@@ -324,10 +265,10 @@ namespace LoogaSoft.Inspector.Editor
                 PopBoxDepth();
             }
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(LargeFoldoutGap);
+            EditorGUILayout.Space(FoldoutGap);
         }
 
-        public static bool LoogaFoldoutLarge(Rect position, GUIContent label, bool expanded, out Rect contentRect, SerializedProperty property = null)
+        public static bool LoogaFoldout(Rect position, GUIContent label, bool expanded, out Rect contentRect, SerializedProperty property = null)
         {
             EnsureStyles();
 
@@ -336,7 +277,7 @@ namespace LoogaSoft.Inspector.Editor
             int oldIndent = EditorGUI.indentLevel;
             Rect indentedPosition = ShrinkBoxRect(EditorGUI.IndentedRect(position));
             bool newExpanded;
-            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            GUIStyle boxStyle = GetFoldoutBoxStyle();
 
             try
             {
@@ -348,7 +289,7 @@ namespace LoogaSoft.Inspector.Editor
                     indentedPosition.x,
                     indentedPosition.y + 2f,
                     indentedPosition.width,
-                    lineHeight + boxStyle.padding.top + 2f + LargeFoldoutExtraHeight);
+                    lineHeight + boxStyle.padding.top + 2f + FoldoutExtraHeight);
                 Rect hoverRect = expanded ? headerRect : indentedPosition;
                 Rect textRect = GetHeaderTextRect(headerRect, 1f, boxStyle);
                 Rect arrowRect = GetHeaderArrowRect(headerRect, boxStyle);
@@ -395,101 +336,6 @@ namespace LoogaSoft.Inspector.Editor
             return newExpanded;
         }
 
-        public static bool LoogaFoldoutSmall(Rect position, GUIContent label, bool expanded, out Rect contentRect, SerializedProperty property = null)
-        {
-            EnsureStyles();
-
-            float lineHeight = EditorGUIUtility.singleLineHeight;
-            float spacing = EditorGUIUtility.standardVerticalSpacing;
-            int oldIndent = EditorGUI.indentLevel;
-            Rect indentedPosition = ShrinkBoxRect(EditorGUI.IndentedRect(position));
-            bool newExpanded;
-            GUIStyle boxStyle = GetSmallFoldoutBoxStyle();
-
-            try
-            {
-                EditorGUI.indentLevel = 0;
-
-                Rect boxRect = new(
-                    indentedPosition.x,
-                    indentedPosition.y,
-                    indentedPosition.width,
-                    indentedPosition.height + spacing - SmallBoxGap);
-                GUI.Box(boxRect, GUIContent.none, boxStyle);
-
-                Rect headerRect = new(
-                    boxRect.x,
-                    boxRect.y,
-                    boxRect.width,
-                    lineHeight + 2f);
-                bool allowHoverOverflow = Event.current.type != EventType.Repaint && Event.current.type != EventType.Layout;
-                Rect hoverRect = allowHoverOverflow
-                    ? new Rect(
-                        headerRect.x - SmallHoverExtraWidth * 0.5f,
-                        headerRect.y,
-                        headerRect.width + SmallHoverExtraWidth,
-                        headerRect.height)
-                    : headerRect;
-
-                Rect clickRect = expanded ? hoverRect : boxRect;
-                newExpanded = LoogaFoldoutSmallHeader(headerRect, clickRect, label, expanded, property, boxStyle);
-
-                contentRect = new Rect(
-                    boxRect.x + SmallPaddingX,
-                    headerRect.yMax + spacing,
-                    boxRect.width - SmallPaddingX * 2f,
-                    boxRect.height - headerRect.height - SmallPaddingY);
-            }
-            finally
-            {
-                EditorGUI.indentLevel = oldIndent;
-            }
-
-            return newExpanded;
-        }
-
-        public static bool LoogaFoldoutSmall(GUIContent label, bool expanded, Action content, SerializedProperty property = null)
-        {
-            EnsureStyles();
-            
-            EditorGUILayout.Space(1f);
-
-            GUIStyle boxStyle = GetSmallLayoutFoldoutBoxStyle();
-            EditorGUILayout.BeginVertical(boxStyle);
-
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _smallHeader);
-            bool newExpanded;
-            Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
-            Rect headerRect = new(
-                boxRect.x,
-                boxRect.y,
-                boxRect.width,
-                baseRect.height + boxStyle.padding.top + 2f);
-            Rect clickRect = expanded ? headerRect : ExpandRectBottom(boxRect, SmallLayoutHoverBottomBleed);
-            newExpanded = LoogaFoldoutSmallHeader(headerRect, clickRect, label, expanded, property, boxStyle);
-
-            if (newExpanded)
-            {
-                PushBoxDepth();
-                try
-                {
-                    EditorGUILayout.Space(2f);
-                    content?.Invoke();
-                    EditorGUILayout.Space(2f);
-                }
-                finally
-                {
-                    PopBoxDepth();
-                }
-            }
-
-            EditorGUILayout.EndVertical();
-            
-            EditorGUILayout.Space(1f);
-
-            return newExpanded;
-        }
-
         public static void LoogaBoxSmall(GUIContent label, Action content)
         {
             EnsureStyles();
@@ -524,9 +370,9 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUILayout.Space(1f);
         }
 
-        public static bool LoogaFoldoutSmallHeader(Rect headerRect, GUIContent label, bool expanded, SerializedProperty property = null)
+        public static bool LoogaFoldoutHeader(Rect headerRect, GUIContent label, bool expanded, SerializedProperty property = null)
         {
-            return LoogaFoldoutSmallHeader(headerRect, headerRect, label, expanded, property, GetSmallBoxStyle());
+            return LoogaFoldoutHeader(headerRect, headerRect, label, expanded, property, GetFoldoutBoxStyle());
         }
 
         public static IDisposable ContainedFoldoutScope()
@@ -535,7 +381,7 @@ namespace LoogaSoft.Inspector.Editor
             return new ContainedFoldoutScopeInstance();
         }
 
-        private static bool LoogaFoldoutSmallHeader(
+        private static bool LoogaFoldoutHeader(
             Rect headerRect,
             Rect clickRect,
             GUIContent label,
@@ -545,7 +391,7 @@ namespace LoogaSoft.Inspector.Editor
         {
             EnsureStyles();
 
-            boxStyle ??= GetSmallBoxStyle();
+            boxStyle ??= GetFoldoutBoxStyle();
             Rect textRect = GetHeaderTextRect(headerRect, 1f, boxStyle);
             Rect arrowRect = GetHeaderArrowRect(headerRect, boxStyle);
 
@@ -559,7 +405,7 @@ namespace LoogaSoft.Inspector.Editor
             if (containsMouse)
                 DrawHoverRect(clickRect);
 
-            GUI.Label(textRect, label, _smallHeader);
+            GUI.Label(textRect, label, _largeHeader);
 
             bool newExpanded = expanded;
             DrawFoldoutArrow(arrowRect, expanded);
@@ -581,16 +427,16 @@ namespace LoogaSoft.Inspector.Editor
             return newExpanded;
         }
 
-        public static void LoogaToggleFoldoutLarge(string title, SerializedProperty toggleProperty, string prefKey, Action content)
+        public static void LoogaToggleFoldout(string title, SerializedProperty toggleProperty, string prefKey, Action content)
         {
             EnsureStyles();
 
             bool enabled = toggleProperty != null && toggleProperty.propertyType == SerializedPropertyType.Boolean && toggleProperty.boolValue;
             bool show = enabled && EditorPrefs.GetBool(prefKey, false);
-            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            GUIStyle boxStyle = GetFoldoutBoxStyle();
 
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GetLargeFoldoutBaseRect();
+            Rect baseRect = GetFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -651,13 +497,13 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(LargeFoldoutGap);
+            EditorGUILayout.Space(FoldoutGap);
         }
 
         /// <summary>
-        /// Draws a large toggle foldout for state owned by the caller.
+        /// Draws a toggle foldout for state owned by the caller.
         /// </summary>
-        public static bool LoogaToggleFoldoutLarge(
+        public static bool LoogaToggleFoldout(
             GUIContent label,
             bool enabled,
             bool expanded,
@@ -667,9 +513,9 @@ namespace LoogaSoft.Inspector.Editor
             EnsureStyles();
 
             bool show = enabled && expanded;
-            GUIStyle boxStyle = GetLargeFoldoutBoxStyle();
+            GUIStyle boxStyle = GetFoldoutBoxStyle();
             EditorGUILayout.BeginVertical(boxStyle);
-            Rect baseRect = GetLargeFoldoutBaseRect();
+            Rect baseRect = GetFoldoutBaseRect();
             Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
             Rect headerRect = new(
                 boxRect.x,
@@ -724,136 +570,11 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(LargeFoldoutGap);
+            EditorGUILayout.Space(FoldoutGap);
             newEnabled = enabled;
             return enabled && show;
         }
 
-        public static bool LoogaToggleFoldoutSmall(GUIContent label, SerializedProperty toggleProperty, bool expanded, Action content, SerializedProperty property = null)
-        {
-            bool enabled = toggleProperty != null && toggleProperty.propertyType == SerializedPropertyType.Boolean && toggleProperty.boolValue;
-            return DrawToggleFoldoutSmall(
-                label,
-                enabled,
-                expanded,
-                content,
-                newValue =>
-                {
-                    if (toggleProperty != null)
-                        toggleProperty.boolValue = newValue;
-                },
-                property,
-                out _);
-        }
-
-        /// <summary>
-        /// Draws a toggle foldout for state that is not stored in a serialized Boolean property.
-        /// The caller remains responsible for recording the changed value.
-        /// </summary>
-        public static bool LoogaToggleFoldoutSmall(
-            GUIContent label,
-            bool enabled,
-            bool expanded,
-            Action content,
-            out bool newEnabled)
-        {
-            return DrawToggleFoldoutSmall(
-                label,
-                enabled,
-                expanded,
-                content,
-                null,
-                null,
-                out newEnabled);
-        }
-
-        private static bool DrawToggleFoldoutSmall(
-            GUIContent label,
-            bool enabled,
-            bool expanded,
-            Action content,
-            Action<bool> applyEnabled,
-            SerializedProperty property,
-            out bool newEnabled)
-        {
-            EnsureStyles();
-
-            bool show = enabled && expanded;
-
-            EditorGUILayout.Space(1f);
-            GUIStyle boxStyle = GetSmallLayoutFoldoutBoxStyle();
-            EditorGUILayout.BeginVertical(boxStyle);
-
-            Rect baseRect = GUILayoutUtility.GetRect(GUIContent.none, _smallHeader);
-            Rect boxRect = ContentToBoxRect(baseRect, boxStyle);
-            Rect headerRect = new(
-                boxRect.x,
-                boxRect.y,
-                boxRect.width,
-                baseRect.height + boxStyle.padding.top + 2f);
-            Rect toggleRect = GetHeaderToggleRect(headerRect);
-            Rect arrowRect = GetHeaderArrowRectAfter(headerRect, toggleRect);
-            Rect textRect = GetHeaderTextRectAfter(headerRect, toggleRect, 1f);
-
-            Event current = Event.current;
-            Rect hoverRect = show ? headerRect : ExpandRectBottom(boxRect, SmallLayoutHoverBottomBleed);
-            bool containsMouse = hoverRect.Contains(current.mousePosition);
-            RequestMouseMoveRepaint();
-
-            if (containsMouse)
-                DrawHoverRect(hoverRect);
-
-            if (property != null)
-                EditorGUI.BeginProperty(headerRect, label, property);
-
-            EditorGUI.BeginChangeCheck();
-            newEnabled = EditorGUI.Toggle(toggleRect, enabled);
-            if (EditorGUI.EndChangeCheck())
-            {
-                applyEnabled?.Invoke(newEnabled);
-                enabled = newEnabled;
-                show = false;
-            }
-
-            GUI.Label(textRect, label, _smallHeader);
-
-            if (enabled)
-            {
-                DrawFoldoutArrow(arrowRect, show);
-                if (current.type == EventType.MouseDown
-                    && hoverRect.Contains(current.mousePosition)
-                    && !toggleRect.Contains(current.mousePosition)
-                    && current.button == 0)
-                {
-                    show = !show;
-                    current.Use();
-                }
-            }
-
-            if (property != null)
-                EditorGUI.EndProperty();
-
-            if (enabled && show)
-            {
-                PushBoxDepth();
-                try
-                {
-                    EditorGUILayout.Space(2f);
-                    content?.Invoke();
-                    EditorGUILayout.Space(2f);
-                }
-                finally
-                {
-                    PopBoxDepth();
-                }
-            }
-
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.Space(1f);
-
-            newEnabled = enabled;
-            return enabled && show;
-        }
         private static void RequestMouseMoveRepaint()
         {
             EditorWindow window = EditorWindow.mouseOverWindow;
@@ -867,11 +588,11 @@ namespace LoogaSoft.Inspector.Editor
             }
         }
 
-        private static Rect GetLargeFoldoutBaseRect()
+        private static Rect GetFoldoutBaseRect()
         {
             float height = EditorGUIUtility.singleLineHeight
                 + _largeHeader.padding.vertical
-                + LargeFoldoutExtraHeight;
+                + FoldoutExtraHeight;
 
             return GUILayoutUtility.GetRect(
                 GUIContent.none,
@@ -887,12 +608,6 @@ namespace LoogaSoft.Inspector.Editor
                 contentRect.y - padding.top,
                 contentRect.width + padding.horizontal,
                 contentRect.height + padding.vertical);
-        }
-
-        private static Rect ExpandRectBottom(Rect rect, float amount)
-        {
-            rect.height += amount;
-            return rect;
         }
 
         private static Rect GetHeaderTextRect(Rect headerRect, float yOffset, GUIStyle boxStyle)
@@ -990,7 +705,7 @@ namespace LoogaSoft.Inspector.Editor
             }
         }
 
-        private sealed class SmallFoldoutLayoutScopeInstance : IDisposable
+        private sealed class FoldoutLayoutScopeInstance : IDisposable
         {
             private bool _disposed;
 
@@ -1001,22 +716,7 @@ namespace LoogaSoft.Inspector.Editor
 
                 _disposed = true;
                 EditorGUILayout.EndVertical();
-                EditorGUILayout.Space(1f);
-            }
-        }
-
-        private sealed class LargeFoldoutLayoutScopeInstance : IDisposable
-        {
-            private bool _disposed;
-
-            public void Dispose()
-            {
-                if (_disposed)
-                    return;
-
-                _disposed = true;
-                EditorGUILayout.EndVertical();
-                EditorGUILayout.Space(LargeFoldoutGap);
+                EditorGUILayout.Space(FoldoutGap);
             }
         }
 
@@ -1369,17 +1069,13 @@ namespace LoogaSoft.Inspector.Editor
             };
 
             _largeBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, false);
-            _largeFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, false);
+            _foldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, false);
             _alternateLargeBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, true);
-            _alternateLargeFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, true);
+            _alternateFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 4, 2), true, true);
             _smallBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, 0), true, false);
-            _smallFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, 0), true, false);
             _alternateSmallBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, 0), true, true);
-            _alternateSmallFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, 0), true, true);
             _smallLayoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, -2), true, false);
-            _smallLayoutFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, -2), true, false);
             _alternateSmallLayoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, -2), true, true);
-            _alternateSmallLayoutFoldoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, -2), true, true);
         }
 
         public static void DrawHoverRect(Rect rect)
@@ -1399,9 +1095,9 @@ namespace LoogaSoft.Inspector.Editor
             return UseAlternateBoxStyle() ? _alternateLargeBox : _largeBox;
         }
 
-        private static GUIStyle GetLargeFoldoutBoxStyle()
+        private static GUIStyle GetFoldoutBoxStyle()
         {
-            return UseAlternateBoxStyle() ? _alternateLargeFoldoutBox : _largeFoldoutBox;
+            return UseAlternateBoxStyle() ? _alternateFoldoutBox : _foldoutBox;
         }
 
         private static GUIStyle GetSmallBoxStyle()
@@ -1409,19 +1105,9 @@ namespace LoogaSoft.Inspector.Editor
             return UseAlternateBoxStyle() ? _alternateSmallBox : _smallBox;
         }
 
-        private static GUIStyle GetSmallFoldoutBoxStyle()
-        {
-            return UseAlternateBoxStyle() ? _alternateSmallFoldoutBox : _smallFoldoutBox;
-        }
-
         private static GUIStyle GetSmallLayoutBoxStyle()
         {
             return UseAlternateBoxStyle() ? _alternateSmallLayoutBox : _smallLayoutBox;
-        }
-
-        private static GUIStyle GetSmallLayoutFoldoutBoxStyle()
-        {
-            return UseAlternateBoxStyle() ? _alternateSmallLayoutFoldoutBox : _smallLayoutFoldoutBox;
         }
 
         private static bool UseAlternateBoxStyle()

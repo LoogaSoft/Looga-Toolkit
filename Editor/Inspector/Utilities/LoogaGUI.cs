@@ -25,19 +25,14 @@ namespace LoogaSoft.Inspector.Editor
             return LoogaEditorTabs.GetToolbarHeight(tabNames, availableWidth);
         }
 
-        public static bool FoldoutLarge(Rect position, GUIContent label, bool expanded, out Rect contentRect, SerializedProperty property = null)
+        public static bool Foldout(Rect position, GUIContent label, bool expanded, out Rect contentRect, SerializedProperty property = null)
         {
-            return LoogaEditorFoldouts.LoogaFoldoutLarge(position, label, expanded, out contentRect, property);
+            return LoogaEditorFoldouts.LoogaFoldout(position, label, expanded, out contentRect, property);
         }
 
-        public static bool FoldoutSmall(Rect position, GUIContent label, bool expanded, out Rect contentRect, SerializedProperty property = null)
+        public static bool FoldoutHeader(Rect headerRect, GUIContent label, bool expanded, SerializedProperty property = null)
         {
-            return LoogaEditorFoldouts.LoogaFoldoutSmall(position, label, expanded, out contentRect, property);
-        }
-
-        public static bool FoldoutSmallHeader(Rect headerRect, GUIContent label, bool expanded, SerializedProperty property = null)
-        {
-            return LoogaEditorFoldouts.LoogaFoldoutSmallHeader(headerRect, label, expanded, property);
+            return LoogaEditorFoldouts.LoogaFoldoutHeader(headerRect, label, expanded, property);
         }
 
         public static int Popup(Rect position, string label, int selectedIndex, string[] displayedOptions)

@@ -7,7 +7,7 @@ Looga editor workspaces use retained UI Toolkit controls when they remain open, 
 `LoogaUiToolkitStyle` owns the shared retained-mode geometry and interaction rules:
 
 - Interactive rows and cards.
-- Large foldout headers and vector-drawn foldout triangles.
+- Standard foldout headers and vector-drawn foldout triangles.
 - Tabs, sections, button rows, and bound property fields.
 - Collection views with row-hover suppression.
 
