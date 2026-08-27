@@ -16,6 +16,10 @@ namespace LoogaSoft.Inspector.Editor
         private const float BoxHorizontalInset = 3f;
         private const float HeaderLeftInset = 6f;
         private const float HeaderTextArrowGap = 6f;
+        private const float HoverInset = 1f;
+        private const float HoverCornerRadius = 4f;
+        private const int HoverMaskSize = 12;
+        private const int HoverMaskBorder = 5;
         private const int AccentRailWidth = 0;
 
         private static GUIStyle _largeHeader;
@@ -28,6 +32,7 @@ namespace LoogaSoft.Inspector.Editor
         private static GUIStyle _alternateSmallBox;
         private static GUIStyle _smallLayoutBox;
         private static GUIStyle _alternateSmallLayoutBox;
+        private static GUIStyle _hoverStyle;
         private static int _boxDepth;
         private static int _containedFoldoutDepth;
 
@@ -1076,18 +1081,88 @@ namespace LoogaSoft.Inspector.Editor
             _alternateSmallBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, 0), true, true);
             _smallLayoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, -2), true, false);
             _alternateSmallLayoutBox = CreateFlatBoxStyle(new RectOffset(8, 8, 3, -2), true, true);
+            _hoverStyle = CreateHoverStyle();
         }
 
         public static void DrawHoverRect(Rect rect)
         {
+            EnsureStyles();
+
+            if (Event.current.type != EventType.Repaint)
+                return;
+
+            Rect hoverRect = new(
+                rect.x + HoverInset,
+                rect.y + HoverInset,
+                Mathf.Max(0f, rect.width - HoverInset * 2f),
+                Mathf.Max(0f, rect.height - HoverInset * 2f));
+
+            if (hoverRect.width <= 0f || hoverRect.height <= 0f)
+                return;
+
             Color hoverColor = GetFlatHoverColor();
             hoverColor.a = 0.45f;
-            EditorGUI.DrawRect(rect, hoverColor);
+
+            Color previousColor = GUI.color;
+            GUI.color = hoverColor;
+            GUI.Box(LoogaEditorStyle.PixelSnap(hoverRect), GUIContent.none, _hoverStyle);
+            GUI.color = previousColor;
         }
 
         private static Color GetFlatHoverColor()
         {
             return LoogaEditorStyle.HoverColor;
+        }
+
+        private static GUIStyle CreateHoverStyle()
+        {
+            GUIStyle style = new()
+            {
+                border = new RectOffset(
+                    HoverMaskBorder,
+                    HoverMaskBorder,
+                    HoverMaskBorder,
+                    HoverMaskBorder),
+                margin = new RectOffset(),
+                padding = new RectOffset()
+            };
+            style.normal.background = CreateRoundedHoverMask();
+            return style;
+        }
+
+        private static Texture2D CreateRoundedHoverMask()
+        {
+            Texture2D texture = new(HoverMaskSize, HoverMaskSize, TextureFormat.RGBA32, false)
+            {
+                name = "Looga Foldout Hover Mask",
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            Color32[] pixels = new Color32[HoverMaskSize * HoverMaskSize];
+            float halfSize = HoverMaskSize * 0.5f;
+            float innerExtent = halfSize - HoverCornerRadius;
+
+            for (int y = 0; y < HoverMaskSize; y++)
+            {
+                for (int x = 0; x < HoverMaskSize; x++)
+                {
+                    float pointX = Mathf.Abs(x + 0.5f - halfSize) - innerExtent;
+                    float pointY = Mathf.Abs(y + 0.5f - halfSize) - innerExtent;
+                    float outsideDistance = new Vector2(
+                        Mathf.Max(pointX, 0f),
+                        Mathf.Max(pointY, 0f)).magnitude;
+                    float insideDistance = Mathf.Min(Mathf.Max(pointX, pointY), 0f);
+                    float signedDistance = outsideDistance + insideDistance - HoverCornerRadius;
+                    byte alpha = (byte)Mathf.RoundToInt(Mathf.Clamp01(0.5f - signedDistance) * 255f);
+                    pixels[y * HoverMaskSize + x] = new Color32(255, 255, 255, alpha);
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            return texture;
         }
 
         private static GUIStyle GetLargeBoxStyle()
