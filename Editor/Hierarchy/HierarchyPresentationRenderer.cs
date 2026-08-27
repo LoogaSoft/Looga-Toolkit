@@ -8,6 +8,13 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float IndentWidth = 14f;
         private const float HeaderOpacity = 0.46f;
         private const float DescendantOpacity = 0.18f;
+        private const float IconSize = 16f;
+        private const float LabelSpacing = 2f;
+
+        private static readonly GUIContent RowIconContent = new();
+        private static GUIStyle _rowLabelStyle;
+        private static GUIStyle _selectedRowLabelStyle;
+        private static GUIStyle _prefabRowLabelStyle;
 
         internal static bool Draw(GameObject gameObject, Rect rowRect)
         {
@@ -28,7 +35,13 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (hasColor)
             {
-                DrawColor(rowRect, color, levelsFromOwner);
+                bool isRenaming = EditorGUIUtility.editingTextField &&
+                    Selection.activeGameObject == gameObject;
+                if (!isRenaming)
+                {
+                    DrawColor(rowRect, color, levelsFromOwner);
+                    DrawRowContent(gameObject, rowRect);
+                }
             }
 
             return false;
@@ -84,23 +97,87 @@ namespace LoogaSoft.Hierarchy.Editor
                 ? HeaderOpacity
                 : DescendantOpacity;
 
-            int previousDepth = GUI.depth;
-            GUI.depth = previousDepth + 1;
+            EditorGUI.DrawRect(
+                new Rect(
+                    groupStartX,
+                    rowRect.y,
+                    rowRect.xMax - groupStartX,
+                    rowRect.height),
+                color);
+        }
 
-            try
+        private static void DrawRowContent(GameObject gameObject, Rect rowRect)
+        {
+            if (gameObject.transform.childCount > 0)
             {
-                EditorGUI.DrawRect(
-                    new Rect(
-                        groupStartX,
-                        rowRect.y,
-                        rowRect.xMax - groupStartX,
-                        rowRect.height),
-                    color);
+                Rect foldoutRect = new(
+                    rowRect.x - IndentWidth,
+                    rowRect.y,
+                    IndentWidth,
+                    rowRect.height);
+                EditorGUI.Foldout(
+                    foldoutRect,
+                    HierarchyGuideRenderer.IsExpanded(gameObject),
+                    GUIContent.none,
+                    false);
             }
-            finally
+
+            Texture icon = EditorGUIUtility.GetIconForObject(gameObject);
+            icon ??= EditorGUIUtility.ObjectContent(gameObject, typeof(GameObject)).image;
+            if (icon != null)
             {
-                GUI.depth = previousDepth;
+                Rect iconRect = new(
+                    rowRect.x,
+                    rowRect.y + Mathf.Floor((rowRect.height - IconSize) * 0.5f),
+                    IconSize,
+                    IconSize);
+                RowIconContent.image = icon;
+                GUI.Label(iconRect, RowIconContent, GUIStyle.none);
             }
+
+            Rect labelRect = new(
+                rowRect.x + IconSize + LabelSpacing,
+                rowRect.y,
+                rowRect.width - IconSize - LabelSpacing,
+                rowRect.height);
+
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = gameObject.activeInHierarchy;
+            GUI.Label(labelRect, gameObject.name, GetRowLabelStyle(gameObject));
+            GUI.enabled = previousEnabled;
+        }
+
+        private static GUIStyle GetRowLabelStyle(GameObject gameObject)
+        {
+            if (Selection.Contains(gameObject))
+            {
+                _selectedRowLabelStyle ??= CreateRowLabelStyle(Color.white);
+                return _selectedRowLabelStyle;
+            }
+
+            if (PrefabUtility.IsAnyPrefabInstanceRoot(gameObject))
+            {
+                Color prefabColor = EditorGUIUtility.isProSkin
+                    ? new Color(0.40f, 0.68f, 1f, 1f)
+                    : new Color(0.08f, 0.34f, 0.72f, 1f);
+                _prefabRowLabelStyle ??= CreateRowLabelStyle(prefabColor);
+                return _prefabRowLabelStyle;
+            }
+
+            _rowLabelStyle ??= CreateRowLabelStyle(EditorStyles.label.normal.textColor);
+            return _rowLabelStyle;
+        }
+
+        private static GUIStyle CreateRowLabelStyle(Color textColor)
+        {
+            GUIStyle style = new(EditorStyles.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip,
+                padding = new RectOffset(0, 0, 0, 0)
+            };
+            style.normal.textColor = textColor;
+            return style;
         }
 
         private static void SynchronizeNativeIcon(GameObject gameObject, string iconName)

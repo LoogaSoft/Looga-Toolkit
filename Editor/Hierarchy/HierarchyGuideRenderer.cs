@@ -302,6 +302,11 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorApplication.RepaintHierarchyWindow();
         }
 
+        internal static bool IsExpanded(GameObject gameObject)
+        {
+            return gameObject != null && IsExpandedParent(gameObject.GetInstanceID());
+        }
+
         private static bool IsExpandedParent(int instanceId)
         {
             return !_expandedStateInitialized || ExpandedParentIds.Contains(instanceId);

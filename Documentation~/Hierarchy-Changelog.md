@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Moved solid hierarchy colors behind Unity's native foldouts, icons, labels, and selection content.
+- Redrew native row content above solid colors and deferred the custom color window until the click completed.
 - Replaced the row gradient and accent rail with solid group headers and inherited descendant fills.
 - Invalidated Unity's Hierarchy item cache after native object icon changes and previews.
 - Replaced the transient Alt-right-click menu with a delayed dropdown outside Unity's context event.

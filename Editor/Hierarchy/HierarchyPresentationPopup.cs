@@ -272,8 +272,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private void OpenCustomColorWindow()
         {
-            HierarchyColorWindow.Open(ResolveTargets());
+            GameObject[] targets = ResolveTargets();
             editorWindow.Close();
+            EditorApplication.delayCall += () => HierarchyColorWindow.Open(targets);
         }
 
         private void ReadCurrentPresentation(GameObject target)
