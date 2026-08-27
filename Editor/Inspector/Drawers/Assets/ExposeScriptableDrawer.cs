@@ -132,8 +132,7 @@ namespace LoogaSoft.Inspector.Editor
             using (LoogaEditorFoldouts.BeginFoldoutLayout(
                        property.isExpanded,
                        out Rect headerRect,
-                       out Rect clickRect,
-                       out Rect backgroundRect))
+                       out Rect clickRect))
             {
                 Rect contentLineRect = LoogaEditorFoldouts.GetFoldoutHeaderContentRect(
                     headerRect,
@@ -161,7 +160,7 @@ namespace LoogaSoft.Inspector.Editor
 
                 Event current = Event.current;
                 if (clickRect.Contains(current.mousePosition))
-                    LoogaEditorFoldouts.DrawHoverRect(backgroundRect);
+                    LoogaEditorFoldouts.DrawHoverRect(clickRect);
 
                 EditorGUI.BeginProperty(headerRect, label, property);
                 EditorGUI.LabelField(labelRect, label);
@@ -228,7 +227,7 @@ namespace LoogaSoft.Inspector.Editor
             Rect hoverRect = expanded ? headerRect : boxRect;
             Event current = Event.current;
             if (hoverRect.Contains(current.mousePosition))
-                LoogaEditorFoldouts.DrawHoverRect(boxRect);
+                LoogaEditorFoldouts.DrawHoverRect(hoverRect);
         }
 
         private static bool DrawHeaderFoldout(Rect headerRect, Rect fieldRect, Rect arrowRect, bool expanded)
