@@ -6,25 +6,42 @@ namespace LoogaSoft.Hierarchy.Editor
 {
     internal static class HierarchyInteractionHandler
     {
+        private static int _pendingAltRightClickId;
+
         internal static void Handle(GameObject gameObject, Rect rowRect)
         {
             Event current = Event.current;
-            if (current.type != EventType.MouseDown ||
-                !current.alt ||
-                !rowRect.Contains(current.mousePosition))
+            if (!rowRect.Contains(current.mousePosition))
             {
                 return;
             }
 
-            GameObject[] targets = ResolveTargets(gameObject);
-            if (current.button == 0)
+            if (current.type == EventType.MouseDown)
             {
-                Rect anchor = new(current.mousePosition, Vector2.zero);
-                HierarchyPresentationPopup.Open(anchor, targets);
-                current.Use();
+                if (current.button == 0 && current.alt)
+                {
+                    GameObject[] targets = ResolveTargets(gameObject);
+                    Rect anchor = new(current.mousePosition, Vector2.zero);
+                    HierarchyPresentationPopup.Open(anchor, targets);
+                    current.Use();
+                    return;
+                }
+
+                _pendingAltRightClickId = current.button == 1 && current.alt
+                    ? gameObject.GetInstanceID()
+                    : 0;
             }
-            else if (current.button == 1)
+            else if (current.type == EventType.ContextClick)
             {
+                bool showLoogaMenu = current.alt ||
+                    _pendingAltRightClickId == gameObject.GetInstanceID();
+                _pendingAltRightClickId = 0;
+                if (!showLoogaMenu)
+                {
+                    return;
+                }
+
+                GameObject[] targets = ResolveTargets(gameObject);
                 HierarchyContextMenus.Show(targets);
                 current.Use();
             }

@@ -21,21 +21,35 @@ namespace LoogaSoft.Hierarchy.Editor
 
         internal static bool Draw(GameObject gameObject, Rect rowRect)
         {
-            if (!HierarchyPresentationStore.instance.TryGet(gameObject, out HierarchyPresentation presentation))
+            HierarchyPresentationStore.instance.TryGet(gameObject, out HierarchyPresentation presentation);
+
+            bool hasColor = presentation != null && presentation.HasLabelColor;
+            Color color = hasColor ? presentation.LabelColor : default;
+            bool hasIcon = presentation != null && presentation.HasIcon;
+            string iconName = hasIcon ? presentation.IconName : string.Empty;
+
+            if (HierarchyPresentationPreview.TryGetColor(gameObject, out bool previewHasColor, out Color previewColor))
             {
-                return false;
+                hasColor = previewHasColor;
+                color = previewColor;
+            }
+
+            if (HierarchyPresentationPreview.TryGetIcon(gameObject, out bool previewHasIcon, out string previewIconName))
+            {
+                hasIcon = previewHasIcon;
+                iconName = previewIconName;
             }
 
             if (Event.current.type == EventType.Repaint)
             {
-                if (presentation.HasLabelColor)
+                if (hasColor)
                 {
-                    DrawColor(rowRect, presentation.LabelColor);
+                    DrawColor(rowRect, color);
                 }
 
-                if (presentation.HasIcon)
+                if (hasIcon)
                 {
-                    DrawIcon(rowRect, presentation.IconName);
+                    DrawIcon(rowRect, iconName);
                 }
             }
 

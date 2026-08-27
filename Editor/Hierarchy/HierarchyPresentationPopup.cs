@@ -65,12 +65,91 @@ namespace LoogaSoft.Hierarchy.Editor
             return new Vector2(width, height);
         }
 
+        public override void OnOpen()
+        {
+            editorWindow.wantsMouseMove = true;
+            editorWindow.wantsMouseEnterLeaveWindow = true;
+            HierarchyPresentationPreview.Begin(_targetIds);
+        }
+
+        public override void OnClose()
+        {
+            HierarchyPresentationPreview.End();
+        }
+
         public override void OnGUI(Rect rect)
         {
+            Event current = Event.current;
+            if (current.type == EventType.MouseMove ||
+                current.type == EventType.MouseEnterWindow ||
+                current.type == EventType.MouseLeaveWindow)
+            {
+                editorWindow.Repaint();
+            }
+
+            UpdatePreview(current.mousePosition, current.type == EventType.MouseLeaveWindow);
+
             float y = Padding;
             DrawColorOptions(ref y);
             y += SectionSpacing;
             DrawIconOptions(y);
+        }
+
+        private void UpdatePreview(Vector2 mousePosition, bool mouseLeftWindow)
+        {
+            if (mouseLeftWindow)
+            {
+                HierarchyPresentationPreview.ClearOption();
+                return;
+            }
+
+            float colorY = Padding;
+            if (GetCellRect(0, 0, colorY).Contains(mousePosition))
+            {
+                HierarchyPresentationPreview.SetColor(false, default);
+                return;
+            }
+
+            for (int index = 0; index < Colors.Length; index++)
+            {
+                if (GetCellRect(index + 1, 0, colorY).Contains(mousePosition))
+                {
+                    HierarchyPresentationPreview.SetColor(true, Colors[index]);
+                    return;
+                }
+            }
+
+            float iconY = Padding + CellSize + SectionSpacing;
+            if (GetCellRect(0, 0, iconY).Contains(mousePosition))
+            {
+                HierarchyPresentationPreview.SetIcon(false, string.Empty);
+                return;
+            }
+
+            IReadOnlyList<HierarchyIconOption> options = HierarchyIconCatalog.All;
+            for (int index = 0; index < options.Count; index++)
+            {
+                int itemIndex = index + 1;
+                int column = itemIndex % ColumnCount;
+                int row = itemIndex / ColumnCount;
+                Rect iconRect = GetCellRect(column, row, iconY);
+                if (iconRect.Contains(mousePosition))
+                {
+                    HierarchyIconOption option = options[index];
+                    if (HierarchyIconCatalog.GetTexture(option.IconName) != null)
+                    {
+                        HierarchyPresentationPreview.SetIcon(true, option.IconName);
+                    }
+                    else
+                    {
+                        HierarchyPresentationPreview.ClearOption();
+                    }
+
+                    return;
+                }
+            }
+
+            HierarchyPresentationPreview.ClearOption();
         }
 
         private void DrawColorOptions(ref float y)

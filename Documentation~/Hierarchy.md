@@ -30,7 +30,7 @@ not modify shared scene data.
 Use **Alt + Left Click** on a Hierarchy row to open the object presentation palette. The palette
 provides preset and custom row colors plus semantic object icons. The clear control at the start of
 each row removes that presentation value. A palette change applies to the complete selection when
-the clicked object is already selected.
+the clicked object is already selected. Hovering a palette option previews it on every target.
 
 Colored rows retain Unity's standard hierarchy behavior while gaining a crisp left accent rail and
 a low-opacity color wash. Custom icons replace the ordinary object icon without adding a component.

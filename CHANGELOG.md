@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Kept Alt-right-click Hierarchy actions open and added live palette hover previews.
 - Added an Alt-left-click Hierarchy palette for row colors and semantic object icons.
 - Moved Looga Hierarchy operations to an Alt-right-click menu outside Unity's standard context menu.
 - Kept foldout hover fills aligned inside their rounded outlines with DPI-aware bounds and a tighter corner radius.
