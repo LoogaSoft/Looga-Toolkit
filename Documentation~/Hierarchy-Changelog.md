@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the transient Alt-right-click menu with a delayed dropdown outside Unity's context event.
+- Kept the last palette preview active across option gaps and used native object icons for replacement.
 - Kept Alt-right-click actions open by handling Unity's context-click event.
 - Added immediate palette hover feedback and live color or icon previews on target rows.
 - Added an Alt-left-click presentation palette for object colors and semantic icons.

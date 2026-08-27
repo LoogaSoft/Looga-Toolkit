@@ -10,7 +10,6 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float GradientOpacity = 0.20f;
         private const float AccentWidth = 3f;
         private const float ContentSpacing = 4f;
-        private const float IconSize = 16f;
 
         private static readonly Dictionary<Color32, Texture2D> Gradients = new();
 
@@ -25,8 +24,6 @@ namespace LoogaSoft.Hierarchy.Editor
 
             bool hasColor = presentation != null && presentation.HasLabelColor;
             Color color = hasColor ? presentation.LabelColor : default;
-            bool hasIcon = presentation != null && presentation.HasIcon;
-            string iconName = hasIcon ? presentation.IconName : string.Empty;
 
             if (HierarchyPresentationPreview.TryGetColor(gameObject, out bool previewHasColor, out Color previewColor))
             {
@@ -34,22 +31,18 @@ namespace LoogaSoft.Hierarchy.Editor
                 color = previewColor;
             }
 
-            if (HierarchyPresentationPreview.TryGetIcon(gameObject, out bool previewHasIcon, out string previewIconName))
-            {
-                hasIcon = previewHasIcon;
-                iconName = previewIconName;
-            }
-
             if (Event.current.type == EventType.Repaint)
             {
+                if (presentation != null &&
+                    presentation.HasIcon &&
+                    !HierarchyPresentationPreview.IsPreviewingIcon(gameObject))
+                {
+                    SynchronizeNativeIcon(gameObject, presentation.IconName);
+                }
+
                 if (hasColor)
                 {
                     DrawColor(rowRect, color);
-                }
-
-                if (hasIcon)
-                {
-                    DrawIcon(rowRect, iconName);
                 }
             }
 
@@ -83,21 +76,15 @@ namespace LoogaSoft.Hierarchy.Editor
                 accent);
         }
 
-        private static void DrawIcon(Rect rowRect, string iconName)
+        private static void SynchronizeNativeIcon(GameObject gameObject, string iconName)
         {
-            Texture icon = HierarchyIconCatalog.GetTexture(iconName);
-            if (icon == null)
+            Texture2D icon = HierarchyIconCatalog.GetTexture(iconName) as Texture2D;
+            if (icon == null || EditorGUIUtility.GetIconForObject(gameObject) == icon)
             {
                 return;
             }
 
-            Rect iconRect = new(
-                rowRect.x,
-                rowRect.y + Mathf.Floor((rowRect.height - IconSize) * 0.5f),
-                IconSize,
-                IconSize);
-
-            GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit, true);
+            EditorGUIUtility.SetIconForObject(gameObject, icon);
         }
 
         private static Texture2D GetGradient(Color color)

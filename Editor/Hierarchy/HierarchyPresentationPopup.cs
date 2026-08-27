@@ -140,16 +140,10 @@ namespace LoogaSoft.Hierarchy.Editor
                     {
                         HierarchyPresentationPreview.SetIcon(true, option.IconName);
                     }
-                    else
-                    {
-                        HierarchyPresentationPreview.ClearOption();
-                    }
 
                     return;
                 }
             }
-
-            HierarchyPresentationPreview.ClearOption();
         }
 
         private void DrawColorOptions(ref float y)
@@ -226,6 +220,7 @@ namespace LoogaSoft.Hierarchy.Editor
             {
                 Apply(target => HierarchyPresentationStore.instance.SetIcon(target, option.IconName));
                 _selectedIconName = option.IconName;
+                HierarchyPresentationPreview.CommitIcon(true, option.IconName);
             }
         }
 
@@ -272,6 +267,7 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             Apply(HierarchyPresentationStore.instance.ClearIcon);
             _selectedIconName = string.Empty;
+            HierarchyPresentationPreview.CommitIcon(false, string.Empty);
         }
 
         private void OpenCustomColorWindow()

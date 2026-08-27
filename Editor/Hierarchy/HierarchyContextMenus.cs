@@ -6,7 +6,7 @@ namespace LoogaSoft.Hierarchy.Editor
 {
     internal static class HierarchyContextMenus
     {
-        internal static void Show(GameObject[] targets)
+        internal static void Show(GameObject[] targets, Vector2 screenPosition)
         {
             GameObject[] editableTargets = GetEditableTargets(targets);
             if (editableTargets.Length == 0)
@@ -14,54 +14,14 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            GenericMenu menu = new();
-            AddFavoriteItem(menu, editableTargets);
-            menu.AddSeparator(string.Empty);
-
-            bool hasDescendants = HasDescendants(editableTargets);
-            AddAction(menu, "Move Children To Parent", hasDescendants, () => MoveChildrenToParent(editableTargets));
-            AddAction(menu, "Select Descendants", hasDescendants, () => SelectDescendants(editableTargets));
-            AddAction(menu, "Enable Descendants", hasDescendants, () => SetDescendantsActive(editableTargets, true));
-            AddAction(menu, "Disable Descendants", hasDescendants, () => SetDescendantsActive(editableTargets, false));
-            menu.AddSeparator(string.Empty);
-            menu.AddItem(
-                new GUIContent("Bulk Rename..."),
-                false,
-                () => HierarchyBulkRenameWindow.Open(GetEditableTargets(editableTargets)));
-            menu.ShowAsContext();
-        }
-
-        private static void AddFavoriteItem(GenericMenu menu, GameObject[] targets)
-        {
-            bool allFavorites = true;
-            for (int index = 0; index < targets.Length; index++)
+            int[] targetIds = new int[editableTargets.Length];
+            for (int index = 0; index < editableTargets.Length; index++)
             {
-                if (!HierarchyFavoriteStore.instance.Contains(targets[index]))
-                {
-                    allFavorites = false;
-                    break;
-                }
+                targetIds[index] = editableTargets[index].GetInstanceID();
             }
 
-            string label = allFavorites ? "Remove From Favorites" : "Add To Favorites";
-            menu.AddItem(new GUIContent(label), false, () => SetFavoriteState(targets, !allFavorites));
-        }
-
-        private static void AddAction(
-            GenericMenu menu,
-            string label,
-            bool enabled,
-            GenericMenu.MenuFunction action)
-        {
-            GUIContent content = new(label);
-            if (enabled)
-            {
-                menu.AddItem(content, false, action);
-            }
-            else
-            {
-                menu.AddDisabledItem(content);
-            }
+            EditorApplication.delayCall += () =>
+                HierarchyContextMenuWindow.Open(targetIds, screenPosition);
         }
 
         private static void SetFavoriteState(GameObject[] targets, bool favorite)
@@ -200,6 +160,163 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             return false;
+        }
+
+        private static bool AreAllFavorites(GameObject[] targets)
+        {
+            for (int index = 0; index < targets.Length; index++)
+            {
+                if (!HierarchyFavoriteStore.instance.Contains(targets[index]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private sealed class HierarchyContextMenuWindow : EditorWindow
+        {
+            private const float Width = 210f;
+            private const float ItemHeight = 21f;
+            private const float SeparatorHeight = 7f;
+            private const float Padding = 4f;
+            private const int ItemCount = 6;
+
+            private static HierarchyContextMenuWindow _activeWindow;
+
+            private int[] _targetIds = System.Array.Empty<int>();
+            private GUIStyle _itemStyle;
+
+            internal static void Open(int[] targetIds, Vector2 screenPosition)
+            {
+                if (targetIds == null || targetIds.Length == 0)
+                {
+                    return;
+                }
+
+                if (_activeWindow != null)
+                {
+                    _activeWindow.Close();
+                }
+
+                HierarchyContextMenuWindow window = CreateInstance<HierarchyContextMenuWindow>();
+                window._targetIds = targetIds;
+                window.hideFlags = HideFlags.HideAndDontSave;
+                _activeWindow = window;
+
+                float height = Padding * 2f + ItemCount * ItemHeight + SeparatorHeight * 2f;
+                window.ShowAsDropDown(
+                    new Rect(screenPosition.x, screenPosition.y, 1f, 1f),
+                    new Vector2(Width, height));
+                window.Focus();
+            }
+
+            private void OnGUI()
+            {
+                if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
+                {
+                    Close();
+                    Event.current.Use();
+                    return;
+                }
+
+                GameObject[] targets = ResolveTargets();
+                if (targets.Length == 0)
+                {
+                    Close();
+                    return;
+                }
+
+                bool allFavorites = AreAllFavorites(targets);
+                bool hasDescendants = HasDescendants(targets);
+
+                GUILayout.Space(Padding);
+                DrawItem(
+                    allFavorites ? "Remove From Favorites" : "Add To Favorites",
+                    true,
+                    () => SetFavoriteState(targets, !allFavorites));
+                DrawSeparator();
+                DrawItem("Move Children To Parent", hasDescendants, () => MoveChildrenToParent(targets));
+                DrawItem("Select Descendants", hasDescendants, () => SelectDescendants(targets));
+                DrawItem("Enable Descendants", hasDescendants, () => SetDescendantsActive(targets, true));
+                DrawItem("Disable Descendants", hasDescendants, () => SetDescendantsActive(targets, false));
+                DrawSeparator();
+                DrawItem("Bulk Rename...", true, () => HierarchyBulkRenameWindow.Open(targets));
+            }
+
+            private void OnDisable()
+            {
+                if (_activeWindow == this)
+                {
+                    _activeWindow = null;
+                }
+            }
+
+            private void DrawItem(string label, bool enabled, System.Action action)
+            {
+                Rect itemRect = GUILayoutUtility.GetRect(Width - Padding * 2f, ItemHeight);
+                bool hovered = enabled && itemRect.Contains(Event.current.mousePosition);
+                if (hovered && Event.current.type == EventType.Repaint)
+                {
+                    EditorGUI.DrawRect(itemRect, new Color(0.24f, 0.49f, 0.82f, 0.72f));
+                }
+
+                using (new EditorGUI.DisabledScope(!enabled))
+                {
+                    if (!GUI.Button(itemRect, label, ItemStyle))
+                    {
+                        return;
+                    }
+                }
+
+                Close();
+                action();
+                GUIUtility.ExitGUI();
+            }
+
+            private static void DrawSeparator()
+            {
+                Rect separatorRect = GUILayoutUtility.GetRect(1f, SeparatorHeight);
+                if (Event.current.type == EventType.Repaint)
+                {
+                    float y = Mathf.Floor(separatorRect.center.y);
+                    EditorGUI.DrawRect(
+                        new Rect(separatorRect.x + 2f, y, separatorRect.width - 4f, 1f),
+                        new Color(0f, 0f, 0f, 0.34f));
+                }
+            }
+
+            private GameObject[] ResolveTargets()
+            {
+                List<GameObject> targets = new(_targetIds.Length);
+                for (int index = 0; index < _targetIds.Length; index++)
+                {
+#pragma warning disable CS0618
+                    GameObject target = EditorUtility.InstanceIDToObject(_targetIds[index]) as GameObject;
+#pragma warning restore CS0618
+                    if (target != null)
+                    {
+                        targets.Add(target);
+                    }
+                }
+
+                return targets.ToArray();
+            }
+
+            private GUIStyle ItemStyle
+            {
+                get
+                {
+                    _itemStyle ??= new GUIStyle(EditorStyles.label)
+                    {
+                        alignment = TextAnchor.MiddleLeft,
+                        padding = new RectOffset(8, 4, 0, 0),
+                        fixedHeight = ItemHeight
+                    };
+                    return _itemStyle;
+                }
+            }
         }
 
         private static GameObject[] GetEditableTargets(GameObject[] targets)

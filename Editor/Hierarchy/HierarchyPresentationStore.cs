@@ -201,19 +201,23 @@ namespace LoogaSoft.Hierarchy.Editor
         internal void SetIcon(GameObject gameObject, string iconName)
         {
             GetOrCreate(gameObject).SetIcon(iconName);
+            EditorGUIUtility.SetIconForObject(
+                gameObject,
+                HierarchyIconCatalog.GetTexture(iconName) as Texture2D);
             SaveStore();
         }
 
         internal void ClearIcon(GameObject gameObject)
         {
-            if (!TryGet(gameObject, out HierarchyPresentation presentation))
+            if (TryGet(gameObject, out HierarchyPresentation presentation))
             {
-                return;
+                presentation.ClearIcon();
+                RemoveIfEmpty(presentation);
+                SaveStore();
             }
 
-            presentation.ClearIcon();
-            RemoveIfEmpty(presentation);
-            SaveStore();
+            EditorGUIUtility.SetIconForObject(gameObject, null);
+            EditorApplication.RepaintHierarchyWindow();
         }
 
         [InitializeOnLoadMethod]

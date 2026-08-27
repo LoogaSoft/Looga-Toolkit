@@ -42,8 +42,9 @@ namespace LoogaSoft.Hierarchy.Editor
                 }
 
                 GameObject[] targets = ResolveTargets(gameObject);
-                HierarchyContextMenus.Show(targets);
+                Vector2 screenPosition = GUIUtility.GUIToScreenPoint(current.mousePosition);
                 current.Use();
+                HierarchyContextMenus.Show(targets, screenPosition);
             }
         }
 
