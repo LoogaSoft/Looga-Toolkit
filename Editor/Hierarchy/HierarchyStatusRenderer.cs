@@ -10,9 +10,7 @@ namespace LoogaSoft.Hierarchy.Editor
     {
         private const float BadgeSize = 14f;
         private const float BadgeSpacing = 1f;
-        private const float PrefabOverrideIconSize = 8f;
-
-        private static readonly Rect PrefabOverrideIconUv = new(0.5f, 0f, 0.5f, 0.5f);
+        private const float PrefabOverrideIconSize = 9f;
 
         private static readonly GUIContent MissingScriptContent =
             CreateIconContent("console.erroricon.sml", "!", "Missing script - click for actions");
@@ -147,13 +145,16 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            // Unity stores this glyph in the lower-right quadrant because the Editor normally draws it as an overlay.
             float pixelScale = EditorGUIUtility.pixelsPerPoint;
-            float iconX = Mathf.Round((badgeRect.center.x - PrefabOverrideIconSize * 0.5f) * pixelScale) / pixelScale;
-            float iconY = Mathf.Round((badgeRect.center.y - PrefabOverrideIconSize * 0.5f) * pixelScale) / pixelScale;
+            float uvPaddingX = pixelScale / content.image.width;
+            float uvPaddingY = pixelScale / content.image.height;
+            Rect iconUv = new(0.5f - uvPaddingX, 0f, 0.5f + uvPaddingX, 0.5f + uvPaddingY);
+
+            float iconX = Mathf.Ceil((badgeRect.center.x - PrefabOverrideIconSize * 0.5f) * pixelScale) / pixelScale;
+            float iconY = Mathf.Ceil((badgeRect.center.y - PrefabOverrideIconSize * 0.5f) * pixelScale) / pixelScale;
             Rect iconRect = new(iconX, iconY, PrefabOverrideIconSize, PrefabOverrideIconSize);
 
-            GUI.DrawTextureWithTexCoords(iconRect, content.image, PrefabOverrideIconUv, true);
+            GUI.DrawTextureWithTexCoords(iconRect, content.image, iconUv, true);
             GUI.Label(badgeRect, PrefabOverrideTooltipContent, GUIStyle.none);
         }
 
