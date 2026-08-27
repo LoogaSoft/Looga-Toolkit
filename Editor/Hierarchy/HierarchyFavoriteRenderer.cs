@@ -20,7 +20,10 @@ namespace LoogaSoft.Hierarchy.Editor
             Rect buttonRect = new(
                 rowRect.xMax -
                 (settings.ShowComponentIcons
-                    ? HierarchyComponentRenderer.GetReservedWidth(gameObject, settings.MaximumComponentIcons)
+                    ? HierarchyComponentRenderer.GetReservedWidth(
+                        gameObject,
+                        rowRect,
+                        settings.MaximumComponentIcons)
                     : 0f) -
                 ButtonSize,
                 rowRect.y + Mathf.Floor((rowRect.height - ButtonSize) * 0.5f),

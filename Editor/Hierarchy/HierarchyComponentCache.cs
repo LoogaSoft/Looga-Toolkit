@@ -94,6 +94,8 @@ namespace LoogaSoft.Hierarchy.Editor
             Undo.undoRedoPerformed += Invalidate;
         }
 
+        internal static event Action Invalidated;
+
         internal static HierarchyComponentSummary Get(GameObject gameObject)
         {
             int instanceId = gameObject.GetInstanceID();
@@ -111,6 +113,7 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             Cache.Clear();
             StaticTooltips.Clear();
+            Invalidated?.Invoke();
             EditorApplication.RepaintHierarchyWindow();
         }
 

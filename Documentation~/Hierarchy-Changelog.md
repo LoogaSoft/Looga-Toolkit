@@ -6,6 +6,7 @@
 - Aggregated generic MonoBehaviours under one counted script icon while preserving distinct component icons.
 - Retained static-state tooltips and added a configurable component-icon limit.
 - Moved component counts beside their icons, collapsed MeshFilter and MeshRenderer pairs, and replaced the static `S` with a pushpin.
+- Culled hierarchy indicators dynamically when the complete object name needs their row space.
 
 ## 0.8.0 - 2026-08-02
 

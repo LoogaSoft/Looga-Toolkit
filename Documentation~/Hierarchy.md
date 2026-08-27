@@ -48,7 +48,9 @@ when the same object has a MeshRenderer because the renderer already represents 
 
 The **Maximum Component Icons** project setting limits each row to between one and eight component
 indicators. The default is five. An overflow indicator replaces component types that do not fit.
-The limit does not include the static indicator.
+The limit does not include the static indicator. Icons are also culled automatically when a
+Hierarchy window is too narrow to show them without covering the complete object name. If no icon
+fits in the remaining width, the row shows no component or static indicators.
 
 Static objects use a neutral pushpin icon. Hover over it to see `Fully Static` or each enabled static
 flag on a separate line. Component summaries are cached and refresh after hierarchy, project, or
