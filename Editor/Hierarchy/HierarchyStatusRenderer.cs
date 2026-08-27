@@ -10,11 +10,16 @@ namespace LoogaSoft.Hierarchy.Editor
     {
         private const float BadgeSize = 14f;
         private const float BadgeSpacing = 1f;
+        private const float PrefabOverrideIconSize = 8f;
+
+        private static readonly Rect PrefabOverrideIconUv = new(0.5f, 0f, 0.5f, 0.5f);
 
         private static readonly GUIContent MissingScriptContent =
             CreateIconContent("console.erroricon.sml", "!", "Missing script - click for actions");
         private static readonly GUIContent PrefabOverrideContent =
             CreateIconContent("PrefabOverlayAdded Icon", "O", "Prefab overrides - click for actions");
+        private static readonly GUIContent PrefabOverrideTooltipContent =
+            new(string.Empty, "Prefab overrides - click for actions");
         private static readonly GUIContent StaticContent = new("S");
         private static readonly GUIContent EditorOnlyContent = new("E", "EditorOnly GameObject - click for actions");
 
@@ -120,11 +125,36 @@ namespace LoogaSoft.Hierarchy.Editor
                         EditorGUI.DrawRect(badgeRect, new Color(1f, 1f, 1f, 0.12f));
                     }
 
-                    GUI.Label(badgeRect, content);
+                    if (expected == HierarchyStatus.PrefabOverride)
+                    {
+                        DrawPrefabOverrideIcon(badgeRect, content);
+                    }
+                    else
+                    {
+                        GUI.Label(badgeRect, content);
+                    }
                 }
             }
 
             right -= BadgeSize + BadgeSpacing;
+        }
+
+        private static void DrawPrefabOverrideIcon(Rect badgeRect, GUIContent content)
+        {
+            if (content.image == null)
+            {
+                GUI.Label(badgeRect, content, LetterStyle);
+                return;
+            }
+
+            // Unity stores this glyph in the lower-right quadrant because the Editor normally draws it as an overlay.
+            float pixelScale = EditorGUIUtility.pixelsPerPoint;
+            float iconX = Mathf.Round((badgeRect.center.x - PrefabOverrideIconSize * 0.5f) * pixelScale) / pixelScale;
+            float iconY = Mathf.Round((badgeRect.center.y - PrefabOverrideIconSize * 0.5f) * pixelScale) / pixelScale;
+            Rect iconRect = new(iconX, iconY, PrefabOverrideIconSize, PrefabOverrideIconSize);
+
+            GUI.DrawTextureWithTexCoords(iconRect, content.image, PrefabOverrideIconUv, true);
+            GUI.Label(badgeRect, PrefabOverrideTooltipContent, GUIStyle.none);
         }
 
         private static void DrawStaticIfPresent(
