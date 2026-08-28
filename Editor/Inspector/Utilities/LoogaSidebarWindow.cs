@@ -14,6 +14,7 @@ namespace LoogaSoft.Inspector.Editor
         private readonly List<ILoogaSidebarPage> _pages = new();
         private readonly List<EditorWindow> _pageObjects = new();
         private Vector2 _navigationScroll;
+        private float _navigationWidth = LoogaSidebarGUI.DefaultWidth;
         private int _selectedPage;
 
         protected abstract string WorkspaceId { get; }
@@ -25,6 +26,7 @@ namespace LoogaSoft.Inspector.Editor
             wantsMouseMove = true;
             ApplyMinimumSize();
             EnsureSidebarPages();
+            _navigationWidth = SessionState.GetFloat(GetWidthStateKey(), LoogaSidebarGUI.DefaultWidth);
         }
 
         protected virtual void OnDisable()
@@ -46,21 +48,29 @@ namespace LoogaSoft.Inspector.Editor
                 toolbarRect.yMax,
                 position.width,
                 Mathf.Max(1f, position.height - toolbarRect.yMax));
-            float navigationWidth = Mathf.Min(LoogaSidebarGUI.DefaultWidth, bodyRect.width);
+            float navigationWidth = LoogaSidebarGUI.ClampNavigationWidth(_navigationWidth, bodyRect.width);
             Rect navigationRect = new(bodyRect.x, bodyRect.y, navigationWidth, bodyRect.height);
-            Rect dividerRect = new(
+            Rect resizeRect = new(
                 navigationRect.xMax,
                 bodyRect.y,
-                LoogaSidebarGUI.DividerWidth,
+                LoogaSidebarGUI.ResizeHandleWidth,
                 bodyRect.height);
             Rect contentRect = new(
-                dividerRect.xMax,
+                resizeRect.xMax,
                 bodyRect.y,
-                Mathf.Max(1f, bodyRect.xMax - dividerRect.xMax),
+                Mathf.Max(1f, bodyRect.xMax - resizeRect.xMax),
                 bodyRect.height);
 
             DrawNavigation(navigationRect);
-            LoogaSidebarGUI.Divider(dividerRect);
+            float nextNavigationWidth = LoogaSidebarGUI.ResizeHandle(
+                resizeRect,
+                navigationWidth,
+                bodyRect.width);
+            if (!Mathf.Approximately(nextNavigationWidth, navigationWidth))
+            {
+                _navigationWidth = nextNavigationWidth;
+                SessionState.SetFloat(GetWidthStateKey(), _navigationWidth);
+            }
             DrawSelectedPage(contentRect);
         }
 
@@ -217,6 +227,11 @@ namespace LoogaSoft.Inspector.Editor
             return order != 0
                 ? order
                 : string.Compare(left.DisplayName, right.DisplayName, StringComparison.Ordinal);
+        }
+
+        private string GetWidthStateKey()
+        {
+            return $"LoogaSoft.Inspector.SidebarWidth.{WorkspaceId}";
         }
     }
 }

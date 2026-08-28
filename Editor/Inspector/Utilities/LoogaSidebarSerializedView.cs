@@ -20,6 +20,7 @@ namespace LoogaSoft.Inspector.Editor
         private readonly Dictionary<Object, SerializedObject> _serializedObjectCache = new();
         private Vector2 _navigationScroll;
         private Vector2 _contentScroll;
+        private float _navigationWidth = LoogaSidebarGUI.DefaultWidth;
         private string _selectedPageId = string.Empty;
         private int _rootInstanceId;
         private UnityEditor.Editor _pageEditor;
@@ -41,14 +42,16 @@ namespace LoogaSoft.Inspector.Editor
             EnsureInitialState(pages);
 
             height = Mathf.Max(1f, height);
+            float availableWidth = Mathf.Max(1f, EditorGUIUtility.currentViewWidth - 24f);
+            float navigationWidth = LoogaSidebarGUI.ClampNavigationWidth(_navigationWidth, availableWidth);
             using (new EditorGUILayout.HorizontalScope(GUILayout.Height(height)))
             {
                 Rect navigationRect = GUILayoutUtility.GetRect(
-                    LoogaSidebarGUI.DefaultWidth,
-                    LoogaSidebarGUI.DefaultWidth,
+                    navigationWidth,
+                    navigationWidth,
                     height,
                     height,
-                    GUILayout.Width(LoogaSidebarGUI.DefaultWidth),
+                    GUILayout.Width(navigationWidth),
                     GUILayout.Height(height));
 
                 LoogaSidebarGUI.AccordionNavigation(
@@ -73,14 +76,22 @@ namespace LoogaSoft.Inspector.Editor
                     ReleasePageEditor();
                 }
 
-                Rect dividerRect = GUILayoutUtility.GetRect(
-                    LoogaSidebarGUI.DividerWidth,
-                    LoogaSidebarGUI.DividerWidth,
+                Rect resizeRect = GUILayoutUtility.GetRect(
+                    LoogaSidebarGUI.ResizeHandleWidth,
+                    LoogaSidebarGUI.ResizeHandleWidth,
                     height,
                     height,
-                    GUILayout.Width(LoogaSidebarGUI.DividerWidth),
+                    GUILayout.Width(LoogaSidebarGUI.ResizeHandleWidth),
                     GUILayout.Height(height));
-                LoogaSidebarGUI.Divider(dividerRect);
+                float nextNavigationWidth = LoogaSidebarGUI.ResizeHandle(
+                    resizeRect,
+                    navigationWidth,
+                    availableWidth);
+                if (!Mathf.Approximately(nextNavigationWidth, navigationWidth))
+                {
+                    _navigationWidth = nextNavigationWidth;
+                    SessionState.SetFloat(GetWidthStateKey(serializedObject.targetObject.GetType()), _navigationWidth);
+                }
 
                 using (new EditorGUILayout.VerticalScope(GUILayout.ExpandWidth(true), GUILayout.Height(height)))
                     DrawSelectedPage(pages);
@@ -207,6 +218,9 @@ namespace LoogaSoft.Inspector.Editor
             _navigationScroll = Vector2.zero;
             _contentScroll = Vector2.zero;
             _rootInstanceId = instanceId;
+            _navigationWidth = SessionState.GetFloat(
+                GetWidthStateKey(root.GetType()),
+                LoogaSidebarGUI.DefaultWidth);
 
             // Open the first group once so a new workspace has an immediate starting point.
             _expandedSections.Add(sections[0].Name);
@@ -393,6 +407,11 @@ namespace LoogaSoft.Inspector.Editor
         {
             int order = left.Order.CompareTo(right.Order);
             return order != 0 ? order : string.Compare(left.Name, right.Name, StringComparison.Ordinal);
+        }
+
+        private static string GetWidthStateKey(Type rootType)
+        {
+            return $"LoogaSoft.Inspector.SidebarWidth.{rootType.AssemblyQualifiedName}";
         }
 
         private sealed class Page

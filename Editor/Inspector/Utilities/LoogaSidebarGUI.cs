@@ -9,6 +9,10 @@ namespace LoogaSoft.Inspector.Editor
     public static class LoogaSidebarGUI
     {
         public const float DefaultWidth = 184f;
+        public const float MinimumWidth = 128f;
+        public const float MaximumWidth = 420f;
+        public const float MinimumContentWidth = 260f;
+        public const float ResizeHandleWidth = 5f;
         public const float DefaultRowHeight = 32f;
         public const float GroupRowHeight = 30f;
         public const float ChildRowHeight = 24f;
@@ -19,6 +23,7 @@ namespace LoogaSoft.Inspector.Editor
         private static GUIStyle _selectedButtonStyle;
         private static GUIStyle _groupStyle;
         private static GUIStyle _headerStyle;
+        private static readonly int ResizeHandleHint = "LoogaSidebarResizeHandle".GetHashCode();
 
         public static GUIStyle HeaderStyle => _headerStyle ??= CreateHeaderStyle();
 
@@ -186,6 +191,55 @@ namespace LoogaSoft.Inspector.Editor
         public static void Divider(Rect rect)
         {
             EditorGUI.DrawRect(rect, LoogaEditorStyle.SeparatorColor);
+        }
+
+        /// <summary>Clamps the navigation width while reserving usable space for the content pane.</summary>
+        public static float ClampNavigationWidth(float width, float availableWidth)
+        {
+            float maximum = Mathf.Min(
+                MaximumWidth,
+                Mathf.Max(MinimumWidth, availableWidth - MinimumContentWidth - ResizeHandleWidth));
+            return Mathf.Clamp(width, MinimumWidth, maximum);
+        }
+
+        /// <summary>Draws a horizontal resize handle and returns the next navigation width.</summary>
+        public static float ResizeHandle(Rect rect, float width, float availableWidth)
+        {
+            int controlId = GUIUtility.GetControlID(ResizeHandleHint, FocusType.Passive, rect);
+            Event current = Event.current;
+            bool hovered = rect.Contains(current.mousePosition);
+            bool active = GUIUtility.hotControl == controlId;
+
+            EditorGUIUtility.AddCursorRect(rect, MouseCursor.ResizeHorizontal, controlId);
+
+            if (current.type == EventType.MouseDown && current.button == 0 && hovered)
+            {
+                GUIUtility.hotControl = controlId;
+                current.Use();
+            }
+            else if (current.type == EventType.MouseDrag && active)
+            {
+                width = ClampNavigationWidth(width + current.delta.x, availableWidth);
+                GUI.changed = true;
+                current.Use();
+            }
+            else if (current.type == EventType.MouseUp && active)
+            {
+                GUIUtility.hotControl = 0;
+                current.Use();
+            }
+
+            if (current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(rect, active || hovered ? LoogaEditorStyle.HoverColor : LoogaEditorStyle.BoxColor);
+                float lineWidth = LoogaEditorStyle.Pixels(1f);
+                float lineX = LoogaEditorStyle.PixelSnapValue(rect.center.x - lineWidth * 0.5f);
+                EditorGUI.DrawRect(
+                    new Rect(lineX, rect.y, lineWidth, rect.height),
+                    active ? LoogaEditorStyle.SelectionColor : LoogaEditorStyle.SeparatorColor);
+            }
+
+            return ClampNavigationWidth(width, availableWidth);
         }
 
         private static void EnsureStyles()

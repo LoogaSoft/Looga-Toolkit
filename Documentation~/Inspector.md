@@ -613,6 +613,9 @@ as indented child pages, and selecting a child draws its complete Looga inspecto
 Catalog pages therefore keep their normal `[LoogaCatalog]` authoring controls instead of falling back
 to Unity's default nested-list rendering.
 
+Drag the divider between navigation and content to resize the sidebar. The view keeps the width for
+each root configuration type during the current Unity session. The view reserves space for both panes.
+
 The section field remains the domain root and does not need additional navigation attributes:
 
 ```csharp
@@ -626,6 +629,8 @@ catalogs. Do not use it to turn arbitrary object graphs into navigation trees.
 Custom editor windows can use `LoogaSidebarWindow` for feature-owned pages. Each page registers
 with a workspace ID, which lets separate editor assemblies contribute tools without the host
 window knowing their concrete types.
+
+`LoogaSidebarWindow` uses the same resizable divider and keeps one width for each workspace ID.
 
 ```csharp
 public sealed class OperationsWindow : LoogaSidebarWindow

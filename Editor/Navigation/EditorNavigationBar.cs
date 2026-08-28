@@ -506,7 +506,10 @@ namespace LoogaSoft.Navigation.Editor
         private void Draw(MeshGenerationContext context)
         {
             Painter2D painter = context.painter2D;
-            painter.strokeColor = EditorStyles.label.normal.textColor;
+            if (painter == null)
+                return;
+
+            painter.strokeColor = resolvedStyle.color;
             painter.lineWidth = 2.25f;
             painter.BeginPath();
             if (_pointsLeft)
