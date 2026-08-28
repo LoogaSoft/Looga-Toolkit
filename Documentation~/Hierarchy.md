@@ -21,9 +21,8 @@ Settings are stored in `ProjectSettings/LoogaHierarchySettings.asset` and do not
 
 ### Favorites
 
-Hover a Hierarchy row and click its favorite icon. You can also use **Alt + Right Click** and select
-the favorite action. Favorites remain personal shortcuts stored under `UserSettings`, so they do
-not modify shared scene data.
+Use **Alt + Right Click** on a Hierarchy row and select the favorite action. Favorites remain
+personal shortcuts stored under `UserSettings`, so they do not modify shared scene data.
 
 ### Object Presentation
 

@@ -41,7 +41,7 @@ namespace LoogaSoft.Hierarchy.Editor
             if (favorites.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "Favorite a GameObject from its hierarchy context menu or star button.",
+                    "Use Alt + Right Click on a GameObject, then select Add To Favorites.",
                     MessageType.Info);
                 return;
             }

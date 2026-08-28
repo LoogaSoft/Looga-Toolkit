@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Removed inline Hierarchy favorite buttons and kept favorite actions in the Alt-right-click menu.
 - Replaced the procedural Hierarchy component summary glyph with the Remix apps-2-line icon.
 - Improved Hierarchy component reveals with immediate mouse tracking and earlier name clipping.
 - Consolidated Hierarchy component indicators into one hover-revealed summary and removed static indicators.

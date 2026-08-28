@@ -60,24 +60,6 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorApplication.delayCall += EnableHierarchyMouseMoveEvents;
         }
 
-        internal static float GetReservedWidth(
-            GameObject gameObject,
-            Rect rowRect,
-            int maximumComponentIcons)
-        {
-            HierarchyComponentSummary summary = HierarchyComponentCache.Get(gameObject);
-            if (!summary.HasComponents)
-            {
-                return 0f;
-            }
-
-            DetailLayout layout = CalculateDetailLayout(summary, maximumComponentIcons);
-            return NameSafetyGap +
-                IndicatorSize +
-                IndicatorSpacing +
-                layout.Width * GetRevealProgress(gameObject.GetInstanceID());
-        }
-
         internal static void Draw(GameObject gameObject, Rect rowRect, int maximumComponentIcons)
         {
             HierarchyComponentSummary summary = HierarchyComponentCache.Get(gameObject);

@@ -14,7 +14,6 @@ namespace LoogaSoft.Hierarchy.Editor
 
         internal const bool DefaultEnabled = true;
         internal const bool DefaultHighlightInteractiveBranches = true;
-        internal const bool DefaultShowFavorites = true;
         internal const bool DefaultShowPresentation = true;
         internal const bool DefaultShowComponentIcons = true;
         internal const bool DefaultUseCustomColor = false;
@@ -30,9 +29,6 @@ namespace LoogaSoft.Hierarchy.Editor
         [FormerlySerializedAs("_highlightHoveredBranch")]
         [SerializeField]
         private bool _highlightInteractiveBranches = DefaultHighlightInteractiveBranches;
-
-        [SerializeField]
-        private bool _showFavorites = DefaultShowFavorites;
 
         [SerializeField]
         private bool _showPresentation = DefaultShowPresentation;
@@ -59,8 +55,6 @@ namespace LoogaSoft.Hierarchy.Editor
         internal bool Enabled => _enabled;
 
         internal bool HighlightInteractiveBranches => _highlightInteractiveBranches;
-
-        internal bool ShowFavorites => _showFavorites;
 
         internal bool ShowPresentation => _showPresentation;
 
@@ -112,7 +106,6 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             _enabled = DefaultEnabled;
             _highlightInteractiveBranches = DefaultHighlightInteractiveBranches;
-            _showFavorites = DefaultShowFavorites;
             _showPresentation = DefaultShowPresentation;
             _showComponentIcons = DefaultShowComponentIcons;
             _maximumComponentIcons = DefaultMaximumComponentIcons;

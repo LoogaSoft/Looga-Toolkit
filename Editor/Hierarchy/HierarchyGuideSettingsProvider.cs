@@ -9,7 +9,6 @@ namespace LoogaSoft.Hierarchy.Editor
         private SerializedObject _serializedSettings;
         private SerializedProperty _enabled;
         private SerializedProperty _highlightInteractiveBranches;
-        private SerializedProperty _showFavorites;
         private SerializedProperty _showPresentation;
         private SerializedProperty _showComponentIcons;
         private SerializedProperty _maximumComponentIcons;
@@ -73,7 +72,6 @@ namespace LoogaSoft.Hierarchy.Editor
 
             EditorGUILayout.Space(6f);
             EditorGUILayout.LabelField("Organization", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(_showFavorites, new GUIContent("Favorites"));
             EditorGUILayout.PropertyField(_showPresentation, new GUIContent("Object Colors"));
             EditorGUILayout.PropertyField(_showComponentIcons, new GUIContent("Component Summary"));
 
@@ -108,7 +106,6 @@ namespace LoogaSoft.Hierarchy.Editor
             _serializedSettings = new SerializedObject(HierarchyGuideSettings.instance);
             _enabled = _serializedSettings.FindProperty("_enabled");
             _highlightInteractiveBranches = _serializedSettings.FindProperty("_highlightInteractiveBranches");
-            _showFavorites = _serializedSettings.FindProperty("_showFavorites");
             _showPresentation = _serializedSettings.FindProperty("_showPresentation");
             _showComponentIcons = _serializedSettings.FindProperty("_showComponentIcons");
             _maximumComponentIcons = _serializedSettings.FindProperty("_maximumComponentIcons");

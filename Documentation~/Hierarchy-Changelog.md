@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Removed inline favorite buttons from Hierarchy rows. Favorite actions remain in the Alt-right-click menu.
 - Improved component-summary response and added spacing between revealed icons and object names.
 - Consolidated component indicators into one summary control that reveals detailed icons on hover.
 - Removed static-state indicators from Hierarchy rows.

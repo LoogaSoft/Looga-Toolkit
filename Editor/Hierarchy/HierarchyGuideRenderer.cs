@@ -98,10 +98,6 @@ namespace LoogaSoft.Hierarchy.Editor
                 HierarchyComponentRenderer.Draw(gameObject, rowRect, settings.MaximumComponentIcons);
             }
 
-            if (settings.ShowFavorites)
-            {
-                HierarchyFavoriteRenderer.Draw(gameObject, rowRect, settings);
-            }
         }
 
         private static void DrawGuides(
