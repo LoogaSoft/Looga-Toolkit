@@ -382,23 +382,70 @@ namespace LoogaSoft.Navigation.Editor
 
     internal static class EditorWindowCatalog
     {
-        private const string GeneralCategory = "General";
-        private const string ContentCategory = "Content";
-        private const string RenderingCategory = "Rendering";
-        private const string DevelopmentCategory = "Development";
-        private const string SettingsCategory = "Settings & Packages";
-        private const string ProjectToolsCategory = "Project Tools";
+        private const string UnityCategory = "Unity";
+        private const string UnityAdvancedCategory = "Unity Advanced";
+        private const string TextMeshProCategory = "TextMesh Pro";
+        private const string LoogaSoftCategory = "LoogaSoft";
+        private const string KuberaCategory = "Kubera";
+        private const string ProjectCategory = "Project";
+        private const string OtherPackagesCategory = "Other Packages";
 
-        private static readonly Dictionary<string, string> AdditionalBuiltInWindowCategories = new()
+        private static readonly HashSet<string> AdditionalBuiltInWindowTypes = new()
         {
-            { "UnityEditor.AudioMixerWindow", ContentCategory },
-            { "UnityEditor.Build.Profile.BuildProfileWindow", DevelopmentCategory },
-            { "UnityEditor.BuildPlayerWindow", DevelopmentCategory },
-            { "UnityEditor.ConsoleWindow", GeneralCategory },
-            { "UnityEditor.PackageManager.UI.PackageManagerWindow", SettingsCategory },
-            { "UnityEditor.PreferenceSettingsWindow", SettingsCategory },
-            { "UnityEditor.ProjectSettingsWindow", SettingsCategory },
-            { "UnityEditor.ShortcutManagement.ShortcutManagerWindow", SettingsCategory }
+            "UnityEditor.AudioMixerWindow",
+            "UnityEditor.Build.Profile.BuildProfileWindow",
+            "UnityEditor.BuildPlayerWindow",
+            "UnityEditor.ConsoleWindow",
+            "UnityEditor.PackageManager.UI.PackageManagerWindow",
+            "UnityEditor.PreferenceSettingsWindow",
+            "UnityEditor.ProjectSettingsWindow",
+            "UnityEditor.ShortcutManagement.ShortcutManagerWindow"
+        };
+
+        private static readonly HashSet<string> MainUnityWindowNames = new()
+        {
+            "AnimationWindow",
+            "AnimatorControllerTool",
+            "AudioMixerWindow",
+            "ConsoleWindow",
+            "GameView",
+            "HierarchyWindow",
+            "InspectorWindow",
+            "LightingExplorerWindow",
+            "LightingWindow",
+            "PackageManagerWindow",
+            "PreferenceSettingsWindow",
+            "ProfilerWindow",
+            "ProjectBrowser",
+            "ProjectSettingsWindow",
+            "SceneHierarchyWindow",
+            "SceneView"
+        };
+
+        private static readonly HashSet<string> FunctionalMenuGroups = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "2D",
+            "Accessibility",
+            "AI",
+            "Analysis",
+            "Animation",
+            "Assets",
+            "Audio",
+            "Build",
+            "CONTEXT",
+            "GameObject",
+            "General",
+            "Help",
+            "Navigation",
+            "Package Management",
+            "Rendering",
+            "Search",
+            "Sequencing",
+            "Settings",
+            "Text",
+            "Tools",
+            "UI Toolkit",
+            "Window"
         };
 
         private static readonly HashSet<string> NativeOnlyWindowTypes = new()
@@ -480,9 +527,7 @@ namespace LoogaSoft.Navigation.Editor
                 bool hasWindowMenu = menuWindowCategories.TryGetValue(
                     windowType,
                     out string menuCategory);
-                bool isAdditionalBuiltIn = AdditionalBuiltInWindowCategories.TryGetValue(
-                    windowType.FullName,
-                    out string builtInCategory);
+                bool isAdditionalBuiltIn = AdditionalBuiltInWindowTypes.Contains(windowType.FullName);
                 bool hasWindowTitle = HasWindowTitle(windowType) &&
                                       !NativeOnlyWindowTypes.Contains(windowType.FullName) &&
                                       !LooksTransient(windowType);
@@ -490,9 +535,7 @@ namespace LoogaSoft.Navigation.Editor
                 {
                     string category = hasWindowMenu
                         ? menuCategory
-                        : isAdditionalBuiltIn
-                            ? builtInCategory
-                            : GetDefaultCategory(windowType);
+                        : GetDefaultCategory(windowType);
                     windows.Add(new EditorWindowRegistration(windowType, category));
                 }
             }
@@ -517,7 +560,9 @@ namespace LoogaSoft.Navigation.Editor
                     if (!menuItem.validate &&
                         !string.IsNullOrEmpty(menuItem.menuItem))
                     {
-                        MenuCategoryCandidate candidate = GetMenuCategory(menuItem.menuItem);
+                        MenuCategoryCandidate candidate = GetCreatorCategory(
+                            windowType,
+                            menuItem.menuItem);
                         if (!candidates.TryGetValue(windowType, out MenuCategoryCandidate current) ||
                             candidate.Priority > current.Priority ||
                             candidate.Priority == current.Priority &&
@@ -542,105 +587,105 @@ namespace LoogaSoft.Navigation.Editor
         }
 
         #region Categories
-        private static MenuCategoryCandidate GetMenuCategory(string menuPath)
+        private static MenuCategoryCandidate GetCreatorCategory(Type windowType, string menuPath)
         {
-            string[] parts = menuPath.Split('/');
-            string root = parts[0].Trim();
-            if (string.Equals(root, "Window", StringComparison.OrdinalIgnoreCase))
-            {
-                string category = parts.Length >= 3 ? parts[1].Trim() : GeneralCategory;
-                return new MenuCategoryCandidate(ConsolidateCategory(category), 3);
-            }
+            string menuCreator = GetMenuCreator(menuPath);
+            if (string.Equals(menuCreator, KuberaCategory, StringComparison.OrdinalIgnoreCase))
+                return new MenuCategoryCandidate(KuberaCategory, 5);
 
-            if (string.Equals(root, "Assets", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(root, "CONTEXT", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(root, "GameObject", StringComparison.OrdinalIgnoreCase))
-            {
-                return new MenuCategoryCandidate(ProjectToolsCategory, 1);
-            }
+            string knownCategory = GetKnownCreatorCategory(windowType);
+            if (!string.IsNullOrEmpty(knownCategory))
+                return new MenuCategoryCandidate(knownCategory, 4);
 
-            return new MenuCategoryCandidate(ConsolidateCategory(root), 2);
+            if (!string.IsNullOrEmpty(menuCreator))
+                return new MenuCategoryCandidate(menuCreator, 3);
+
+            return new MenuCategoryCandidate(GetAssemblyCreator(windowType), 2);
         }
 
         private static string GetDefaultCategory(Type windowType)
         {
+            string knownCategory = GetKnownCreatorCategory(windowType);
+            return !string.IsNullOrEmpty(knownCategory)
+                ? knownCategory
+                : GetAssemblyCreator(windowType);
+        }
+
+        private static string GetKnownCreatorCategory(Type windowType)
+        {
             string fullName = windowType.FullName ?? windowType.Name;
-            string typeName = windowType.Name;
-            if (AdditionalBuiltInWindowCategories.TryGetValue(fullName, out string category))
-                return category;
-
-            if (ContainsAny(typeName, "Hierarchy", "Inspector", "ProjectBrowser", "SceneView", "GameView"))
-                return GeneralCategory;
-
-            if (ContainsAny(typeName, "Animation", "Animator"))
-                return ContentCategory;
-
-            if (ContainsAny(typeName, "Audio", "Mixer"))
-                return ContentCategory;
-
-            if (ContainsAny(typeName, "Build", "PlayerSettings"))
-                return DevelopmentCategory;
-
-            if (ContainsAny(typeName, "Debug", "Diagnostics", "Memory", "Profiler"))
-                return DevelopmentCategory;
-
-            if (ContainsAny(typeName, "Graphics", "Light", "Occlusion", "Render", "Shader"))
-                return RenderingCategory;
-
-            if (ContainsAny(fullName, "UIElements", "UI.Builder"))
-                return DevelopmentCategory;
-
-            if (ContainsAny(typeName, "Package"))
-                return SettingsCategory;
-
-            if (ContainsAny(typeName, "Preference", "Settings", "Shortcut"))
-                return SettingsCategory;
-
-            if (ContainsAny(typeName, "Search"))
-                return DevelopmentCategory;
-
             string assemblyName = windowType.Assembly.GetName().Name;
+            if (ContainsAny(fullName, "TextCore", "TextMeshPro", "TMPro") ||
+                ContainsAny(assemblyName, "TextCore", "TextMeshPro", "TMPro"))
+            {
+                return TextMeshProCategory;
+            }
+
+            if (ContainsAny(fullName, "Kubera") || ContainsAny(assemblyName, "Kubera"))
+                return KuberaCategory;
+
             if (fullName.StartsWith("LoogaSoft.", StringComparison.Ordinal) ||
                 assemblyName.StartsWith("LoogaSoft.", StringComparison.Ordinal))
             {
-                return ProjectToolsCategory;
+                return LoogaSoftCategory;
             }
 
-            if (assemblyName.StartsWith("Unity", StringComparison.Ordinal))
-                return DevelopmentCategory;
+            if (fullName.StartsWith("Unity.", StringComparison.Ordinal) ||
+                fullName.StartsWith("UnityEditor.", StringComparison.Ordinal) ||
+                assemblyName.StartsWith("Unity", StringComparison.Ordinal))
+            {
+                return MainUnityWindowNames.Contains(windowType.Name)
+                    ? UnityCategory
+                    : UnityAdvancedCategory;
+            }
 
-            return ProjectToolsCategory;
+            return null;
         }
 
-        private static string ConsolidateCategory(string category)
+        private static string GetMenuCreator(string menuPath)
         {
-            if (string.Equals(category, GeneralCategory, StringComparison.OrdinalIgnoreCase))
-                return GeneralCategory;
-
-            if (ContainsAny(category, "2D", "Animation", "Audio", "Sequencing", "Text"))
-                return ContentCategory;
-
-            if (ContainsAny(category, "Lighting", "Rendering"))
-                return RenderingCategory;
-
-            if (ContainsAny(category, "Package", "Preference", "Settings", "Version Control"))
-                return SettingsCategory;
-
-            if (ContainsAny(
-                    category,
-                    "Accessibility",
-                    "AI",
-                    "Analysis",
-                    "Build",
-                    "Debug",
-                    "Navigation",
-                    "Search",
-                    "UI Toolkit"))
+            string[] parts = menuPath.Split('/');
+            string root = parts[0].Trim();
+            string creator = root;
+            if (string.Equals(root, "Window", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(root, "Tools", StringComparison.OrdinalIgnoreCase))
             {
-                return DevelopmentCategory;
+                creator = parts.Length >= 3 ? parts[1].Trim() : string.Empty;
             }
 
-            return ProjectToolsCategory;
+            if (string.IsNullOrWhiteSpace(creator) || FunctionalMenuGroups.Contains(creator))
+                return null;
+
+            if (ContainsAny(creator, "LoogaSoft"))
+                return LoogaSoftCategory;
+
+            if (ContainsAny(creator, "TextMesh", "TextMesh Pro"))
+                return TextMeshProCategory;
+
+            if (ContainsAny(creator, "Kubera"))
+                return KuberaCategory;
+
+            if (string.Equals(creator, "FPS ANIMATOR", StringComparison.OrdinalIgnoreCase))
+                return "KINEMATION";
+
+            return creator;
+        }
+
+        private static string GetAssemblyCreator(Type windowType)
+        {
+            string assemblyName = windowType.Assembly.GetName().Name;
+            if (assemblyName.StartsWith("Assembly-CSharp", StringComparison.OrdinalIgnoreCase))
+                return ProjectCategory;
+
+            string[] nameParts = assemblyName.Split('.');
+            string creator = nameParts.Length > 0 ? nameParts[0] : string.Empty;
+            if (string.IsNullOrWhiteSpace(creator) ||
+                string.Equals(creator, "Editor", StringComparison.OrdinalIgnoreCase))
+            {
+                return OtherPackagesCategory;
+            }
+
+            return ObjectNames.NicifyVariableName(creator);
         }
 
         private static bool ContainsAny(string value, params string[] terms)
@@ -729,22 +774,28 @@ namespace LoogaSoft.Navigation.Editor
 
         private static int GetCategoryOrder(string category)
         {
-            if (string.Equals(category, GeneralCategory, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(category, UnityCategory, StringComparison.OrdinalIgnoreCase))
                 return 0;
 
-            if (string.Equals(category, ContentCategory, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(category, UnityAdvancedCategory, StringComparison.OrdinalIgnoreCase))
                 return 1;
 
-            if (string.Equals(category, RenderingCategory, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(category, TextMeshProCategory, StringComparison.OrdinalIgnoreCase))
                 return 2;
 
-            if (string.Equals(category, DevelopmentCategory, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(category, LoogaSoftCategory, StringComparison.OrdinalIgnoreCase))
                 return 3;
 
-            if (string.Equals(category, SettingsCategory, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(category, KuberaCategory, StringComparison.OrdinalIgnoreCase))
                 return 4;
 
-            return 5;
+            if (string.Equals(category, ProjectCategory, StringComparison.OrdinalIgnoreCase))
+                return 5;
+
+            if (string.Equals(category, OtherPackagesCategory, StringComparison.OrdinalIgnoreCase))
+                return 7;
+
+            return 6;
         }
 
         private readonly struct MenuCategoryCandidate
