@@ -387,6 +387,7 @@ namespace LoogaSoft.Navigation.Editor
         private const string TextMeshProCategory = "TextMesh Pro";
         private const string LoogaSoftCategory = "LoogaSoft";
         private const string KuberaCategory = "Kubera";
+        private const string NuGetCategory = "NuGet";
         private const string ProjectCategory = "Project";
         private const string OtherPackagesCategory = "Other Packages";
 
@@ -665,6 +666,9 @@ namespace LoogaSoft.Navigation.Editor
             if (ContainsAny(creator, "Kubera"))
                 return KuberaCategory;
 
+            if (ContainsAny(creator, "NuGet", "Nu Get"))
+                return NuGetCategory;
+
             if (string.Equals(creator, "FPS ANIMATOR", StringComparison.OrdinalIgnoreCase))
                 return "KINEMATION";
 
@@ -685,7 +689,10 @@ namespace LoogaSoft.Navigation.Editor
                 return OtherPackagesCategory;
             }
 
-            return ObjectNames.NicifyVariableName(creator);
+            string displayName = ObjectNames.NicifyVariableName(creator);
+            return ContainsAny(displayName, "NuGet", "Nu Get")
+                ? NuGetCategory
+                : displayName;
         }
 
         private static bool ContainsAny(string value, params string[] terms)
