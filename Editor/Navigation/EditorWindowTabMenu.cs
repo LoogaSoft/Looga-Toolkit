@@ -383,17 +383,22 @@ namespace LoogaSoft.Navigation.Editor
     internal static class EditorWindowCatalog
     {
         private const string GeneralCategory = "General";
+        private const string ContentCategory = "Content";
+        private const string RenderingCategory = "Rendering";
+        private const string DevelopmentCategory = "Development";
+        private const string SettingsCategory = "Settings & Packages";
+        private const string ProjectToolsCategory = "Project Tools";
 
         private static readonly Dictionary<string, string> AdditionalBuiltInWindowCategories = new()
         {
-            { "UnityEditor.AudioMixerWindow", "Audio" },
-            { "UnityEditor.Build.Profile.BuildProfileWindow", "Build" },
-            { "UnityEditor.BuildPlayerWindow", "Build" },
+            { "UnityEditor.AudioMixerWindow", ContentCategory },
+            { "UnityEditor.Build.Profile.BuildProfileWindow", DevelopmentCategory },
+            { "UnityEditor.BuildPlayerWindow", DevelopmentCategory },
             { "UnityEditor.ConsoleWindow", GeneralCategory },
-            { "UnityEditor.PackageManager.UI.PackageManagerWindow", "Package Management" },
-            { "UnityEditor.PreferenceSettingsWindow", "Settings" },
-            { "UnityEditor.ProjectSettingsWindow", "Settings" },
-            { "UnityEditor.ShortcutManagement.ShortcutManagerWindow", "Settings" }
+            { "UnityEditor.PackageManager.UI.PackageManagerWindow", SettingsCategory },
+            { "UnityEditor.PreferenceSettingsWindow", SettingsCategory },
+            { "UnityEditor.ProjectSettingsWindow", SettingsCategory },
+            { "UnityEditor.ShortcutManagement.ShortcutManagerWindow", SettingsCategory }
         };
 
         private static readonly HashSet<string> NativeOnlyWindowTypes = new()
@@ -544,17 +549,17 @@ namespace LoogaSoft.Navigation.Editor
             if (string.Equals(root, "Window", StringComparison.OrdinalIgnoreCase))
             {
                 string category = parts.Length >= 3 ? parts[1].Trim() : GeneralCategory;
-                return new MenuCategoryCandidate(NormalizeCategory(category), 3);
+                return new MenuCategoryCandidate(ConsolidateCategory(category), 3);
             }
 
             if (string.Equals(root, "Assets", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(root, "CONTEXT", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(root, "GameObject", StringComparison.OrdinalIgnoreCase))
             {
-                return new MenuCategoryCandidate("Tools", 1);
+                return new MenuCategoryCandidate(ProjectToolsCategory, 1);
             }
 
-            return new MenuCategoryCandidate(NormalizeCategory(root), 2);
+            return new MenuCategoryCandidate(ConsolidateCategory(root), 2);
         }
 
         private static string GetDefaultCategory(Type windowType)
@@ -568,48 +573,74 @@ namespace LoogaSoft.Navigation.Editor
                 return GeneralCategory;
 
             if (ContainsAny(typeName, "Animation", "Animator"))
-                return "Animation";
+                return ContentCategory;
 
             if (ContainsAny(typeName, "Audio", "Mixer"))
-                return "Audio";
+                return ContentCategory;
 
             if (ContainsAny(typeName, "Build", "PlayerSettings"))
-                return "Build";
+                return DevelopmentCategory;
 
             if (ContainsAny(typeName, "Debug", "Diagnostics", "Memory", "Profiler"))
-                return "Analysis";
+                return DevelopmentCategory;
 
             if (ContainsAny(typeName, "Graphics", "Light", "Occlusion", "Render", "Shader"))
-                return "Rendering";
+                return RenderingCategory;
 
             if (ContainsAny(fullName, "UIElements", "UI.Builder"))
-                return "UI Toolkit";
+                return DevelopmentCategory;
 
             if (ContainsAny(typeName, "Package"))
-                return "Package Management";
+                return SettingsCategory;
 
             if (ContainsAny(typeName, "Preference", "Settings", "Shortcut"))
-                return "Settings";
+                return SettingsCategory;
 
             if (ContainsAny(typeName, "Search"))
-                return "Search";
+                return DevelopmentCategory;
 
             string assemblyName = windowType.Assembly.GetName().Name;
             if (fullName.StartsWith("LoogaSoft.", StringComparison.Ordinal) ||
                 assemblyName.StartsWith("LoogaSoft.", StringComparison.Ordinal))
             {
-                return "LoogaSoft";
+                return ProjectToolsCategory;
             }
 
             if (assemblyName.StartsWith("Unity", StringComparison.Ordinal))
-                return "Unity";
+                return DevelopmentCategory;
 
-            return "Project";
+            return ProjectToolsCategory;
         }
 
-        private static string NormalizeCategory(string category)
+        private static string ConsolidateCategory(string category)
         {
-            return string.IsNullOrWhiteSpace(category) ? "Other" : category;
+            if (string.Equals(category, GeneralCategory, StringComparison.OrdinalIgnoreCase))
+                return GeneralCategory;
+
+            if (ContainsAny(category, "2D", "Animation", "Audio", "Sequencing", "Text"))
+                return ContentCategory;
+
+            if (ContainsAny(category, "Lighting", "Rendering"))
+                return RenderingCategory;
+
+            if (ContainsAny(category, "Package", "Preference", "Settings", "Version Control"))
+                return SettingsCategory;
+
+            if (ContainsAny(
+                    category,
+                    "Accessibility",
+                    "AI",
+                    "Analysis",
+                    "Build",
+                    "Debug",
+                    "Navigation",
+                    "Search",
+                    "UI Toolkit"))
+            {
+                return DevelopmentCategory;
+            }
+
+            return ProjectToolsCategory;
         }
 
         private static bool ContainsAny(string value, params string[] terms)
@@ -689,12 +720,31 @@ namespace LoogaSoft.Navigation.Editor
 
         private static int CompareCategories(string left, string right)
         {
-            bool leftIsGeneral = string.Equals(left, GeneralCategory, StringComparison.OrdinalIgnoreCase);
-            bool rightIsGeneral = string.Equals(right, GeneralCategory, StringComparison.OrdinalIgnoreCase);
-            if (leftIsGeneral != rightIsGeneral)
-                return leftIsGeneral ? -1 : 1;
+            int orderComparison = GetCategoryOrder(left).CompareTo(GetCategoryOrder(right));
+            if (orderComparison != 0)
+                return orderComparison;
 
             return string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int GetCategoryOrder(string category)
+        {
+            if (string.Equals(category, GeneralCategory, StringComparison.OrdinalIgnoreCase))
+                return 0;
+
+            if (string.Equals(category, ContentCategory, StringComparison.OrdinalIgnoreCase))
+                return 1;
+
+            if (string.Equals(category, RenderingCategory, StringComparison.OrdinalIgnoreCase))
+                return 2;
+
+            if (string.Equals(category, DevelopmentCategory, StringComparison.OrdinalIgnoreCase))
+                return 3;
+
+            if (string.Equals(category, SettingsCategory, StringComparison.OrdinalIgnoreCase))
+                return 4;
+
+            return 5;
         }
 
         private readonly struct MenuCategoryCandidate

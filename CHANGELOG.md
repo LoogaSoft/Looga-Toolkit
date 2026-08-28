@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added a searchable, categorized dock-tab menu for Unity, package, and project editor windows.
+- Added a searchable six-category dock-tab menu for Unity, package, and project editor windows.
 - Added a fill-layout mode that sizes Looga sidebars from the remaining host layout space.
 - Kept the final embedded inspector controls reachable in Looga sidebar scroll views.
 - Added nested-property drawer support with smooth drag reordering for `LoogaList` collections.
