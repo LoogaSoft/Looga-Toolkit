@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added the presentation palette to Project-window folders in list and grid views.
+- Stored folder colors and semantic icons by asset GUID so customizations survive folder moves.
 - Replaced both palette clear icons with DPI-aware outlined X glyphs.
 - Prevented palette selection and glyph styles from drawing during non-repaint events.
 - Removed idle palette cell boxes and added flat hover, selection, clear, and custom-color controls.

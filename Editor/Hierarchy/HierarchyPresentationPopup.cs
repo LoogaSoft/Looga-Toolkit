@@ -27,7 +27,8 @@ namespace LoogaSoft.Hierarchy.Editor
             new(0.82f, 0.34f, 0.67f, 1f)
         };
 
-        private readonly int[] _targetIds;
+        private readonly int[] _targetIds = Array.Empty<int>();
+        private readonly string[] _folderGuids = Array.Empty<string>();
         private static GUIStyle _selectionStyle;
 
         private bool _hasColor;
@@ -45,6 +46,12 @@ namespace LoogaSoft.Hierarchy.Editor
             ReadCurrentPresentation(targets[0]);
         }
 
+        private HierarchyPresentationPopup(string[] folderGuids)
+        {
+            _folderGuids = folderGuids;
+            ReadCurrentFolderPresentation(folderGuids[0]);
+        }
+
         internal static void Open(Rect anchor, GameObject[] targets)
         {
             if (targets == null || targets.Length == 0)
@@ -53,6 +60,16 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             PopupWindow.Show(anchor, new HierarchyPresentationPopup(targets));
+        }
+
+        internal static void OpenProjectFolders(Rect anchor, string[] folderGuids)
+        {
+            if (folderGuids == null || folderGuids.Length == 0)
+            {
+                return;
+            }
+
+            PopupWindow.Show(anchor, new HierarchyPresentationPopup(folderGuids));
         }
 
         public override Vector2 GetWindowSize()
@@ -69,12 +86,12 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             editorWindow.wantsMouseMove = true;
             editorWindow.wantsMouseEnterLeaveWindow = true;
-            HierarchyPresentationPreview.Begin(_targetIds);
+            BeginPreview();
         }
 
         public override void OnClose()
         {
-            HierarchyPresentationPreview.End();
+            EndPreview();
         }
 
         public override void OnGUI(Rect rect)
@@ -99,14 +116,14 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             if (mouseLeftWindow)
             {
-                HierarchyPresentationPreview.ClearOption();
+                ClearPreview();
                 return;
             }
 
             float colorY = Padding;
             if (GetCellRect(0, 0, colorY).Contains(mousePosition))
             {
-                HierarchyPresentationPreview.SetColor(false, default);
+                PreviewColor(false, default);
                 return;
             }
 
@@ -114,7 +131,7 @@ namespace LoogaSoft.Hierarchy.Editor
             {
                 if (GetCellRect(index + 1, 0, colorY).Contains(mousePosition))
                 {
-                    HierarchyPresentationPreview.SetColor(true, Colors[index]);
+                    PreviewColor(true, Colors[index]);
                     return;
                 }
             }
@@ -122,7 +139,7 @@ namespace LoogaSoft.Hierarchy.Editor
             float iconY = Padding + CellSize + SectionSpacing;
             if (GetCellRect(0, 0, iconY).Contains(mousePosition))
             {
-                HierarchyPresentationPreview.SetIcon(false, string.Empty);
+                PreviewIcon(false, string.Empty);
                 return;
             }
 
@@ -138,7 +155,7 @@ namespace LoogaSoft.Hierarchy.Editor
                     HierarchyIconOption option = options[index];
                     if (HierarchyIconCatalog.GetTexture(option.IconName) != null)
                     {
-                        HierarchyPresentationPreview.SetIcon(true, option.IconName);
+                        PreviewIcon(true, option.IconName);
                     }
 
                     return;
@@ -150,7 +167,7 @@ namespace LoogaSoft.Hierarchy.Editor
         {
             int column = 0;
             Rect clearRect = GetCellRect(column++, 0, y);
-            DrawClearButton(clearRect, "Clear object color", !_hasColor, ClearColor);
+            DrawClearButton(clearRect, "Clear color", !_hasColor, ClearColor);
 
             for (int index = 0; index < Colors.Length; index++)
             {
@@ -170,7 +187,7 @@ namespace LoogaSoft.Hierarchy.Editor
             Rect clearRect = GetCellRect(0, 0, y);
             DrawClearButton(
                 clearRect,
-                "Clear object icon",
+                "Clear icon",
                 string.IsNullOrEmpty(_selectedIconName),
                 ClearIcon);
             itemIndex++;
@@ -193,9 +210,9 @@ namespace LoogaSoft.Hierarchy.Editor
             Rect swatchRect = new(rect.x + 3f, rect.y + 3f, rect.width - 6f, rect.height - 6f);
             EditorGUI.DrawRect(swatchRect, color);
 
-            if (GUI.Button(rect, new GUIContent(string.Empty, "Set object color"), GUIStyle.none))
+            if (GUI.Button(rect, new GUIContent(string.Empty, "Set color"), GUIStyle.none))
             {
-                Apply(target => HierarchyPresentationStore.instance.SetLabelColor(target, color));
+                SetColor(color);
                 _hasColor = true;
                 _selectedColor = color;
             }
@@ -218,9 +235,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (GUI.Button(rect, new GUIContent(string.Empty, option.Name), GUIStyle.none))
             {
-                Apply(target => HierarchyPresentationStore.instance.SetIcon(target, option.IconName));
+                SetIcon(option.IconName);
                 _selectedIconName = option.IconName;
-                HierarchyPresentationPreview.CommitIcon(true, option.IconName);
+                CommitIcon(option.IconName);
             }
         }
 
@@ -390,22 +407,54 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private void ClearColor()
         {
-            Apply(HierarchyPresentationStore.instance.ClearLabelColor);
+            if (IsProjectFolderMode)
+            {
+                ApplyToFolders(ProjectFolderPresentationStore.instance.ClearColor);
+            }
+            else
+            {
+                Apply(HierarchyPresentationStore.instance.ClearLabelColor);
+            }
+
             _hasColor = false;
         }
 
         private void ClearIcon()
         {
-            Apply(HierarchyPresentationStore.instance.ClearIcon);
+            if (IsProjectFolderMode)
+            {
+                ApplyToFolders(ProjectFolderPresentationStore.instance.ClearIcon);
+            }
+            else
+            {
+                Apply(HierarchyPresentationStore.instance.ClearIcon);
+            }
+
             _selectedIconName = string.Empty;
-            HierarchyPresentationPreview.CommitIcon(false, string.Empty);
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.SetIcon(false, string.Empty);
+            }
+            else
+            {
+                HierarchyPresentationPreview.CommitIcon(false, string.Empty);
+            }
         }
 
         private void OpenCustomColorWindow()
         {
-            GameObject[] targets = ResolveTargets();
             editorWindow.Close();
-            EditorApplication.delayCall += () => HierarchyColorWindow.Open(targets);
+            if (IsProjectFolderMode)
+            {
+                string[] folderGuids = _folderGuids;
+                EditorApplication.delayCall += () =>
+                    ProjectFolderColorWindow.Open(folderGuids);
+            }
+            else
+            {
+                GameObject[] targets = ResolveTargets();
+                EditorApplication.delayCall += () => HierarchyColorWindow.Open(targets);
+            }
         }
 
         private void ReadCurrentPresentation(GameObject target)
@@ -418,6 +467,130 @@ namespace LoogaSoft.Hierarchy.Editor
             _hasColor = presentation.HasLabelColor;
             _selectedColor = presentation.LabelColor;
             _selectedIconName = presentation.IconName;
+        }
+
+        private void ReadCurrentFolderPresentation(string folderGuid)
+        {
+            if (!ProjectFolderPresentationStore.instance.TryGet(
+                    folderGuid,
+                    out ProjectFolderPresentation presentation))
+            {
+                return;
+            }
+
+            _hasColor = presentation.HasColor;
+            _selectedColor = presentation.Color;
+            _selectedIconName = presentation.IconName;
+        }
+
+        private bool IsProjectFolderMode => _folderGuids.Length > 0;
+
+        private void BeginPreview()
+        {
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.Begin(_folderGuids);
+            }
+            else
+            {
+                HierarchyPresentationPreview.Begin(_targetIds);
+            }
+        }
+
+        private void EndPreview()
+        {
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.End();
+            }
+            else
+            {
+                HierarchyPresentationPreview.End();
+            }
+        }
+
+        private void ClearPreview()
+        {
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.ClearOption();
+            }
+            else
+            {
+                HierarchyPresentationPreview.ClearOption();
+            }
+        }
+
+        private void PreviewColor(bool hasColor, Color color)
+        {
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.SetColor(hasColor, color);
+            }
+            else
+            {
+                HierarchyPresentationPreview.SetColor(hasColor, color);
+            }
+        }
+
+        private void PreviewIcon(bool hasIcon, string iconName)
+        {
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.SetIcon(hasIcon, iconName);
+            }
+            else
+            {
+                HierarchyPresentationPreview.SetIcon(hasIcon, iconName);
+            }
+        }
+
+        private void SetColor(Color color)
+        {
+            if (IsProjectFolderMode)
+            {
+                ApplyToFolders(guid =>
+                    ProjectFolderPresentationStore.instance.SetColor(guid, color));
+            }
+            else
+            {
+                Apply(target =>
+                    HierarchyPresentationStore.instance.SetLabelColor(target, color));
+            }
+        }
+
+        private void SetIcon(string iconName)
+        {
+            if (IsProjectFolderMode)
+            {
+                ApplyToFolders(guid =>
+                    ProjectFolderPresentationStore.instance.SetIcon(guid, iconName));
+            }
+            else
+            {
+                Apply(target =>
+                    HierarchyPresentationStore.instance.SetIcon(target, iconName));
+            }
+        }
+
+        private void CommitIcon(string iconName)
+        {
+            if (IsProjectFolderMode)
+            {
+                ProjectFolderPresentationPreview.SetIcon(true, iconName);
+            }
+            else
+            {
+                HierarchyPresentationPreview.CommitIcon(true, iconName);
+            }
+        }
+
+        private void ApplyToFolders(Action<string> action)
+        {
+            for (int index = 0; index < _folderGuids.Length; index++)
+            {
+                action(_folderGuids[index]);
+            }
         }
 
         private void Apply(Action<GameObject> action)
@@ -532,6 +705,66 @@ namespace LoogaSoft.Hierarchy.Editor
                 {
                     HierarchyPresentationStore.instance.SetLabelColor(target, _color);
                 }
+            }
+
+            Close();
+        }
+    }
+
+    internal sealed class ProjectFolderColorWindow : EditorWindow
+    {
+        private const float Width = 280f;
+        private const float Height = 88f;
+
+        [SerializeField]
+        private string[] _folderGuids = Array.Empty<string>();
+
+        [SerializeField]
+        private Color _color = HierarchyPresentationStore.DefaultLabelColor;
+
+        internal static void Open(string[] folderGuids)
+        {
+            if (folderGuids == null || folderGuids.Length == 0)
+            {
+                return;
+            }
+
+            ProjectFolderColorWindow window = CreateInstance<ProjectFolderColorWindow>();
+            window.titleContent = new GUIContent("Folder Color");
+            window._folderGuids = folderGuids;
+
+            if (ProjectFolderPresentationStore.instance.TryGet(
+                    folderGuids[0],
+                    out ProjectFolderPresentation presentation) &&
+                presentation.HasColor)
+            {
+                window._color = presentation.Color;
+            }
+
+            window.minSize = new Vector2(Width, Height);
+            window.maxSize = window.minSize;
+            window.ShowAuxWindow();
+        }
+
+        private void OnGUI()
+        {
+            EditorGUILayout.Space(8f);
+            _color = EditorGUILayout.ColorField("Color", _color);
+            EditorGUILayout.Space(6f);
+
+            using (new EditorGUI.DisabledScope(_folderGuids.Length == 0))
+            {
+                if (!GUILayout.Button("Apply", GUILayout.Height(22f)))
+                {
+                    return;
+                }
+            }
+
+            for (int index = 0; index < _folderGuids.Length; index++)
+            {
+                ProjectFolderPresentationStore.instance.SetColor(
+                    _folderGuids[index],
+                    _color);
             }
 
             Close();

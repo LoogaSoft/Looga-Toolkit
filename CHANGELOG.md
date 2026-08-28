@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Added bounded back, forward, and direct history navigation bars to Inspector and Project windows.
+- Added the Alt-left-click color and semantic-icon palette to Project-window folders with GUID-backed metadata and live previews.
 - Replaced the palette clear slash with a pixel-aligned outlined X glyph.
 - Restricted Hierarchy palette style and glyph rendering to repaint events.
 - Simplified the Hierarchy presentation palette with borderless options, native selection fills, and clear or add glyphs.
