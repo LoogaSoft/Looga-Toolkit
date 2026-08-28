@@ -26,7 +26,22 @@ namespace LoogaSoft.Inspector.Editor
         private UnityEditor.Editor _pageEditor;
         private Object _pageEditorTarget;
 
+        /// <summary>Draws the sidebar at a fixed height.</summary>
         public bool Draw(SerializedObject serializedObject, float height = 240f)
+        {
+            return DrawInternal(serializedObject, Mathf.Max(1f, height), false);
+        }
+
+        /// <summary>Draws the sidebar in the vertical space that remains in the current layout group.</summary>
+        public bool DrawToFill(SerializedObject serializedObject)
+        {
+            return DrawInternal(serializedObject, 1f, true);
+        }
+
+        private bool DrawInternal(
+            SerializedObject serializedObject,
+            float height,
+            bool fillAvailableHeight)
         {
             if (serializedObject?.targetObject == null)
                 return false;
@@ -41,18 +56,14 @@ namespace LoogaSoft.Inspector.Editor
             List<LoogaSidebarGUI.AccordionGroup> groups = BuildNavigation(serializedObject, sections, pages);
             EnsureInitialState(pages);
 
-            height = Mathf.Max(1f, height);
             float availableWidth = Mathf.Max(1f, EditorGUIUtility.currentViewWidth - 24f);
             float navigationWidth = LoogaSidebarGUI.ClampNavigationWidth(_navigationWidth, availableWidth);
-            using (new EditorGUILayout.HorizontalScope(GUILayout.Height(height)))
+            GUILayoutOption horizontalHeight = fillAvailableHeight
+                ? GUILayout.ExpandHeight(true)
+                : GUILayout.Height(height);
+            using (new EditorGUILayout.HorizontalScope(horizontalHeight))
             {
-                Rect navigationRect = GUILayoutUtility.GetRect(
-                    navigationWidth,
-                    navigationWidth,
-                    height,
-                    height,
-                    GUILayout.Width(navigationWidth),
-                    GUILayout.Height(height));
+                Rect navigationRect = GetColumnRect(navigationWidth, height, fillAvailableHeight);
 
                 LoogaSidebarGUI.AccordionNavigation(
                     navigationRect,
@@ -76,13 +87,10 @@ namespace LoogaSoft.Inspector.Editor
                     ReleasePageEditor();
                 }
 
-                Rect resizeRect = GUILayoutUtility.GetRect(
-                    LoogaSidebarGUI.ResizeHandleWidth,
+                Rect resizeRect = GetColumnRect(
                     LoogaSidebarGUI.ResizeHandleWidth,
                     height,
-                    height,
-                    GUILayout.Width(LoogaSidebarGUI.ResizeHandleWidth),
-                    GUILayout.Height(height));
+                    fillAvailableHeight);
                 float nextNavigationWidth = LoogaSidebarGUI.ResizeHandle(
                     resizeRect,
                     navigationWidth,
@@ -93,11 +101,36 @@ namespace LoogaSoft.Inspector.Editor
                     SessionState.SetFloat(GetWidthStateKey(serializedObject.targetObject.GetType()), _navigationWidth);
                 }
 
-                using (new EditorGUILayout.VerticalScope(GUILayout.ExpandWidth(true), GUILayout.Height(height)))
+                GUILayoutOption contentHeight = fillAvailableHeight
+                    ? GUILayout.ExpandHeight(true)
+                    : GUILayout.Height(height);
+                using (new EditorGUILayout.VerticalScope(GUILayout.ExpandWidth(true), contentHeight))
                     DrawSelectedPage(pages);
             }
 
             return true;
+        }
+
+        private static Rect GetColumnRect(float width, float height, bool fillAvailableHeight)
+        {
+            if (fillAvailableHeight)
+            {
+                return GUILayoutUtility.GetRect(
+                    width,
+                    width,
+                    1f,
+                    float.MaxValue,
+                    GUILayout.Width(width),
+                    GUILayout.ExpandHeight(true));
+            }
+
+            return GUILayoutUtility.GetRect(
+                width,
+                width,
+                height,
+                height,
+                GUILayout.Width(width),
+                GUILayout.Height(height));
         }
 
         public void Dispose()
