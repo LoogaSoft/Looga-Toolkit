@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the palette clear slash with a pixel-aligned outlined X glyph.
+- Restricted Hierarchy palette style and glyph rendering to repaint events.
 - Simplified the Hierarchy presentation palette with borderless options, native selection fills, and clear or add glyphs.
 - Drew stored and previewed object icons directly in Hierarchy rows instead of relying on Unity's stale row cache.
 - Matched colored Hierarchy content to Unity's native row styles and stabilized the custom color picker.

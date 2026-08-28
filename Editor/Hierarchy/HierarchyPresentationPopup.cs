@@ -246,6 +246,11 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private static void DrawOptionBackground(Rect rect, bool selected)
         {
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             if (selected)
             {
                 SelectionStyle.Draw(rect, false, false, true, true);
@@ -263,33 +268,71 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private static void DrawClearGlyph(Rect rect)
         {
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
-            float lineWidth = Mathf.Max(1f, 1f / pixelsPerPoint);
-            Rect outlineRect = new(
-                rect.x + 4f,
-                rect.y + 4f,
-                rect.width - 8f,
-                rect.height - 8f);
+            float pixelSize = 1f / pixelsPerPoint;
+            float outlineWidth = pixelSize;
+            Rect outlineRect = SnapToPixelGrid(
+                new Rect(
+                    rect.x + 4f,
+                    rect.y + 4f,
+                    rect.width - 8f,
+                    rect.height - 8f),
+                pixelsPerPoint);
 
             Color outlineColor = EditorGUIUtility.isProSkin
                 ? new Color(0.58f, 0.58f, 0.58f, 1f)
                 : new Color(0.38f, 0.38f, 0.38f, 1f);
-            DrawOutline(outlineRect, lineWidth, outlineColor);
+            DrawOutline(outlineRect, outlineWidth, outlineColor);
 
-            Color slashColor = EditorGUIUtility.isProSkin
+            Color crossColor = EditorGUIUtility.isProSkin
                 ? new Color(0.82f, 0.82f, 0.82f, 1f)
                 : new Color(0.55f, 0.55f, 0.55f, 1f);
+            float crossInset = 2f;
+            float crossWidth = 1.5f / pixelsPerPoint;
+            Vector3 topLeft = SnapToPixelGrid(
+                new Vector3(
+                    outlineRect.x + crossInset,
+                    outlineRect.y + crossInset,
+                    0f),
+                pixelsPerPoint);
+            Vector3 topRight = SnapToPixelGrid(
+                new Vector3(
+                    outlineRect.xMax - crossInset,
+                    outlineRect.y + crossInset,
+                    0f),
+                pixelsPerPoint);
+            Vector3 bottomLeft = SnapToPixelGrid(
+                new Vector3(
+                    outlineRect.x + crossInset,
+                    outlineRect.yMax - crossInset,
+                    0f),
+                pixelsPerPoint);
+            Vector3 bottomRight = SnapToPixelGrid(
+                new Vector3(
+                    outlineRect.xMax - crossInset,
+                    outlineRect.yMax - crossInset,
+                    0f),
+                pixelsPerPoint);
+
             Color previousColor = Handles.color;
-            Handles.color = slashColor;
-            Handles.DrawAAPolyLine(
-                1.5f,
-                new Vector3(outlineRect.x + 1f, outlineRect.yMax - 1f),
-                new Vector3(outlineRect.xMax - 1f, outlineRect.y + 1f));
+            Handles.color = crossColor;
+            Handles.DrawAAPolyLine(crossWidth, topLeft, bottomRight);
+            Handles.DrawAAPolyLine(crossWidth, topRight, bottomLeft);
             Handles.color = previousColor;
         }
 
         private static void DrawAddGlyph(Rect rect)
         {
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             Color glyphColor = EditorGUIUtility.isProSkin
                 ? new Color(0.78f, 0.78f, 0.78f, 1f)
                 : new Color(0.42f, 0.42f, 0.42f, 1f);
@@ -322,6 +365,27 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorGUI.DrawRect(
                 new Rect(rect.xMax - thickness, rect.y, thickness, rect.height),
                 color);
+        }
+
+        private static Rect SnapToPixelGrid(Rect rect, float pixelsPerPoint)
+        {
+            float xMin = SnapToPixelGrid(rect.xMin, pixelsPerPoint);
+            float yMin = SnapToPixelGrid(rect.yMin, pixelsPerPoint);
+            float xMax = SnapToPixelGrid(rect.xMax, pixelsPerPoint);
+            float yMax = SnapToPixelGrid(rect.yMax, pixelsPerPoint);
+            return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+        }
+
+        private static Vector3 SnapToPixelGrid(Vector3 point, float pixelsPerPoint)
+        {
+            point.x = SnapToPixelGrid(point.x, pixelsPerPoint);
+            point.y = SnapToPixelGrid(point.y, pixelsPerPoint);
+            return point;
+        }
+
+        private static float SnapToPixelGrid(float value, float pixelsPerPoint)
+        {
+            return Mathf.Round(value * pixelsPerPoint) / pixelsPerPoint;
         }
 
         private void ClearColor()

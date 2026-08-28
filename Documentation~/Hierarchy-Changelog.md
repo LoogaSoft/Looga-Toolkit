@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced both palette clear icons with DPI-aware outlined X glyphs.
+- Prevented palette selection and glyph styles from drawing during non-repaint events.
 - Removed idle palette cell boxes and added flat hover, selection, clear, and custom-color controls.
 - Drew stored and previewed object icons directly in Hierarchy rows, including objects without custom row colors.
 - Matched colored rows to Unity's native icon, label, and foldout geometry and deferred the custom color window until the click completed.
