@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,6 +13,7 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float LabelSpacing = 2f;
 
         private static readonly GUIContent RowNameContent = new();
+        private static readonly Dictionary<int, TruncatedNameEntry> TruncatedNames = new();
 
         private static GUIStyle _foldoutStyle;
         private static GUIStyle _lineStyle;
@@ -85,6 +87,44 @@ namespace LoogaSoft.Hierarchy.Editor
                 Mathf.Lerp(background.g, color.g, alpha),
                 Mathf.Lerp(background.b, color.b, alpha),
                 1f);
+        }
+
+        internal static void DrawTruncatedNameIfNeeded(
+            GameObject gameObject,
+            Rect rowRect,
+            float right)
+        {
+            GUIStyle labelStyle = GetNativeLabelStyle(gameObject);
+            float labelX = rowRect.x + IconSize + LabelSpacing;
+            float availableWidth = Mathf.Max(0f, right - labelX);
+            RowNameContent.text = gameObject.name;
+            if (labelStyle.CalcSize(RowNameContent).x <= availableWidth)
+            {
+                return;
+            }
+
+            RowState rowState = ResolveRowState(gameObject, rowRect);
+            Rect clearRect = new(
+                labelX,
+                rowRect.y,
+                Mathf.Max(0f, rowRect.xMax - labelX),
+                rowRect.height);
+            EditorGUI.DrawRect(clearRect, ResolveRowBackground(gameObject, rowRect));
+
+            if (availableWidth <= 0f)
+            {
+                return;
+            }
+
+            string displayName = GetTruncatedName(gameObject, labelStyle, availableWidth);
+            Rect labelRect = new(labelX, rowRect.y, availableWidth, rowRect.height);
+            labelStyle.Draw(
+                labelRect,
+                displayName,
+                false,
+                false,
+                rowState.Selected,
+                rowState.Focused);
         }
 
         private static bool TryResolveCustomIcon(
@@ -325,6 +365,60 @@ namespace LoogaSoft.Hierarchy.Editor
             return GetLineStyle();
         }
 
+        private static string GetTruncatedName(
+            GameObject gameObject,
+            GUIStyle labelStyle,
+            float availableWidth)
+        {
+            int instanceId = gameObject.GetInstanceID();
+            string fullName = gameObject.name;
+            int widthInPixels = Mathf.RoundToInt(
+                availableWidth * EditorGUIUtility.pixelsPerPoint);
+            if (TruncatedNames.TryGetValue(instanceId, out TruncatedNameEntry entry) &&
+                entry.FullName == fullName &&
+                entry.WidthInPixels == widthInPixels &&
+                entry.Style == labelStyle)
+            {
+                return entry.DisplayName;
+            }
+
+            const string ellipsis = "...";
+            RowNameContent.text = ellipsis;
+            if (labelStyle.CalcSize(RowNameContent).x > availableWidth)
+            {
+                TruncatedNames[instanceId] = new TruncatedNameEntry(
+                    fullName,
+                    string.Empty,
+                    widthInPixels,
+                    labelStyle);
+                return string.Empty;
+            }
+
+            int minimumLength = 0;
+            int maximumLength = fullName.Length;
+            while (minimumLength < maximumLength)
+            {
+                int candidateLength = (minimumLength + maximumLength + 1) / 2;
+                RowNameContent.text = fullName.Substring(0, candidateLength) + ellipsis;
+                if (labelStyle.CalcSize(RowNameContent).x <= availableWidth)
+                {
+                    minimumLength = candidateLength;
+                }
+                else
+                {
+                    maximumLength = candidateLength - 1;
+                }
+            }
+
+            string displayName = fullName.Substring(0, minimumLength) + ellipsis;
+            TruncatedNames[instanceId] = new TruncatedNameEntry(
+                fullName,
+                displayName,
+                widthInPixels,
+                labelStyle);
+            return displayName;
+        }
+
         private static GUIStyle GetFoldoutStyle()
         {
             _foldoutStyle ??= GUI.skin.GetStyle("IN Foldout");
@@ -396,6 +490,29 @@ namespace LoogaSoft.Hierarchy.Editor
             internal bool Focused { get; }
 
             internal bool Hovered { get; }
+        }
+
+        private readonly struct TruncatedNameEntry
+        {
+            internal TruncatedNameEntry(
+                string fullName,
+                string displayName,
+                int widthInPixels,
+                GUIStyle style)
+            {
+                FullName = fullName;
+                DisplayName = displayName;
+                WidthInPixels = widthInPixels;
+                Style = style;
+            }
+
+            internal string FullName { get; }
+
+            internal string DisplayName { get; }
+
+            internal int WidthInPixels { get; }
+
+            internal GUIStyle Style { get; }
         }
     }
 

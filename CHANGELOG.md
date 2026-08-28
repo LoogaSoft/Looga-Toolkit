@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Added measured name ellipses when Hierarchy component summaries need the remaining row space.
 - Removed inline Hierarchy favorite buttons and kept favorite actions in the Alt-right-click menu.
 - Replaced the procedural Hierarchy component summary glyph with the Remix apps-2-line icon.
 - Improved Hierarchy component reveals with immediate mouse tracking and earlier name clipping.

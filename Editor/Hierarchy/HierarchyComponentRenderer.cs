@@ -97,6 +97,17 @@ namespace LoogaSoft.Hierarchy.Editor
                 clearRect,
                 HierarchyPresentationRenderer.ResolveRowBackground(gameObject, rowRect));
 
+            float nameRight = summaryRect.x - NameSafetyGap;
+            if (progress > 0.01f)
+            {
+                nameRight -= layout.Width;
+            }
+
+            HierarchyPresentationRenderer.DrawTruncatedNameIfNeeded(
+                gameObject,
+                rowRect,
+                nameRight);
+
             if (revealedWidth > 0.01f)
             {
                 DrawDetails(summary, rowRect, summaryRect.x, layout, progress);
