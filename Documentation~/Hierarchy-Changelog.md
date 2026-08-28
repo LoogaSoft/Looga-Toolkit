@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Removed idle palette cell boxes and added flat hover, selection, clear, and custom-color controls.
 - Drew stored and previewed object icons directly in Hierarchy rows, including objects without custom row colors.
 - Matched colored rows to Unity's native icon, label, and foldout geometry and deferred the custom color window until the click completed.
 - Replaced the row gradient and accent rail with solid group headers and inherited descendant fills.

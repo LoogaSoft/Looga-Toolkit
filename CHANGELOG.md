@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Simplified the Hierarchy presentation palette with borderless options, native selection fills, and clear or add glyphs.
 - Drew stored and previewed object icons directly in Hierarchy rows instead of relying on Unity's stale row cache.
 - Matched colored Hierarchy content to Unity's native row styles and stabilized the custom color picker.
 - Replaced Hierarchy row gradients with solid group headers and lighter descendant fills.

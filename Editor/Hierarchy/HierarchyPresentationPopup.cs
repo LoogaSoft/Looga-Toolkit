@@ -28,7 +28,7 @@ namespace LoogaSoft.Hierarchy.Editor
         };
 
         private readonly int[] _targetIds;
-        private static GUIStyle _centeredLabelStyle;
+        private static GUIStyle _selectionStyle;
 
         private bool _hasColor;
         private Color _selectedColor;
@@ -160,7 +160,7 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             Rect customRect = GetCellRect(column, 0, y);
-            DrawTextButton(customRect, "+", "Choose a custom color", OpenCustomColorWindow);
+            DrawAddButton(customRect, "Choose a custom color", OpenCustomColorWindow);
             y += CellSize;
         }
 
@@ -189,7 +189,7 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private void DrawColorButton(Rect rect, Color color, bool selected)
         {
-            DrawCellBackground(rect, selected);
+            DrawOptionBackground(rect, selected);
             Rect swatchRect = new(rect.x + 3f, rect.y + 3f, rect.width - 6f, rect.height - 6f);
             EditorGUI.DrawRect(swatchRect, color);
 
@@ -209,7 +209,7 @@ namespace LoogaSoft.Hierarchy.Editor
                 return;
             }
 
-            DrawCellBackground(rect, selected);
+            DrawOptionBackground(rect, selected);
             GUI.DrawTexture(
                 new Rect(rect.x + 2f, rect.y + 2f, rect.width - 4f, rect.height - 4f),
                 icon,
@@ -226,35 +226,102 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private void DrawClearButton(Rect rect, string tooltip, bool selected, Action action)
         {
-            DrawCellBackground(rect, selected);
-            GUI.Label(rect, new GUIContent("×", tooltip), CenteredLabelStyle);
+            DrawOptionBackground(rect, selected);
+            DrawClearGlyph(rect);
             if (GUI.Button(rect, new GUIContent(string.Empty, tooltip), GUIStyle.none))
             {
                 action();
             }
         }
 
-        private void DrawTextButton(Rect rect, string text, string tooltip, Action action)
+        private void DrawAddButton(Rect rect, string tooltip, Action action)
         {
-            DrawCellBackground(rect, false);
-            GUI.Label(rect, new GUIContent(text, tooltip), CenteredLabelStyle);
+            DrawOptionBackground(rect, false);
+            DrawAddGlyph(rect);
             if (GUI.Button(rect, new GUIContent(string.Empty, tooltip), GUIStyle.none))
             {
                 action();
             }
         }
 
-        private static void DrawCellBackground(Rect rect, bool selected)
+        private static void DrawOptionBackground(Rect rect, bool selected)
         {
-            Color border = selected
-                ? new Color(0.24f, 0.58f, 0.94f, 1f)
-                : new Color(0f, 0f, 0f, 0.30f);
-            Color fill = rect.Contains(Event.current.mousePosition)
-                ? new Color(1f, 1f, 1f, 0.12f)
-                : new Color(1f, 1f, 1f, 0.04f);
+            if (selected)
+            {
+                SelectionStyle.Draw(rect, false, false, true, true);
+                return;
+            }
 
-            EditorGUI.DrawRect(rect, border);
-            EditorGUI.DrawRect(new Rect(rect.x + 1f, rect.y + 1f, rect.width - 2f, rect.height - 2f), fill);
+            if (rect.Contains(Event.current.mousePosition))
+            {
+                Color hoverColor = EditorGUIUtility.isProSkin
+                    ? new Color(1f, 1f, 1f, 0.12f)
+                    : new Color(0f, 0f, 0f, 0.10f);
+                EditorGUI.DrawRect(rect, hoverColor);
+            }
+        }
+
+        private static void DrawClearGlyph(Rect rect)
+        {
+            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
+            float lineWidth = Mathf.Max(1f, 1f / pixelsPerPoint);
+            Rect outlineRect = new(
+                rect.x + 4f,
+                rect.y + 4f,
+                rect.width - 8f,
+                rect.height - 8f);
+
+            Color outlineColor = EditorGUIUtility.isProSkin
+                ? new Color(0.58f, 0.58f, 0.58f, 1f)
+                : new Color(0.38f, 0.38f, 0.38f, 1f);
+            DrawOutline(outlineRect, lineWidth, outlineColor);
+
+            Color slashColor = EditorGUIUtility.isProSkin
+                ? new Color(0.82f, 0.82f, 0.82f, 1f)
+                : new Color(0.55f, 0.55f, 0.55f, 1f);
+            Color previousColor = Handles.color;
+            Handles.color = slashColor;
+            Handles.DrawAAPolyLine(
+                1.5f,
+                new Vector3(outlineRect.x + 1f, outlineRect.yMax - 1f),
+                new Vector3(outlineRect.xMax - 1f, outlineRect.y + 1f));
+            Handles.color = previousColor;
+        }
+
+        private static void DrawAddGlyph(Rect rect)
+        {
+            Color glyphColor = EditorGUIUtility.isProSkin
+                ? new Color(0.78f, 0.78f, 0.78f, 1f)
+                : new Color(0.42f, 0.42f, 0.42f, 1f);
+            float thickness = 2f;
+            float length = 12f;
+
+            EditorGUI.DrawRect(
+                new Rect(
+                    rect.center.x - length * 0.5f,
+                    rect.center.y - thickness * 0.5f,
+                    length,
+                    thickness),
+                glyphColor);
+            EditorGUI.DrawRect(
+                new Rect(
+                    rect.center.x - thickness * 0.5f,
+                    rect.center.y - length * 0.5f,
+                    thickness,
+                    length),
+                glyphColor);
+        }
+
+        private static void DrawOutline(Rect rect, float thickness, Color color)
+        {
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            EditorGUI.DrawRect(
+                new Rect(rect.x, rect.yMax - thickness, rect.width, thickness),
+                color);
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            EditorGUI.DrawRect(
+                new Rect(rect.xMax - thickness, rect.y, thickness, rect.height),
+                color);
         }
 
         private void ClearColor()
@@ -333,16 +400,12 @@ namespace LoogaSoft.Hierarchy.Editor
                    Mathf.Abs(left.a - right.a) < tolerance;
         }
 
-        private static GUIStyle CenteredLabelStyle
+        private static GUIStyle SelectionStyle
         {
             get
             {
-                _centeredLabelStyle ??= new GUIStyle(EditorStyles.miniLabel)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontSize = 14
-                };
-                return _centeredLabelStyle;
+                _selectionStyle ??= GUI.skin.GetStyle("TV Selection");
+                return _selectionStyle;
             }
         }
     }
