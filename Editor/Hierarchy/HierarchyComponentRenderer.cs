@@ -14,17 +14,23 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float IndicatorSpacing = 1f;
         private const float CountLabelGap = 1f;
         private const float CountCharacterWidth = 5f;
+        private const float NameSafetyGap = 8f;
         private const float RevealDuration = 0.12f;
+        private const float InitialRevealProgress = 0.18f;
+        private const string SummaryIconPath =
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/apps-2-line.png";
 
         private static readonly Dictionary<Type, GUIContent> ComponentContents = new();
         private static readonly Dictionary<int, string> CountLabels = new();
         private static readonly Dictionary<int, RevealState> RevealStates = new();
+        private static readonly List<int> RevealStateIds = new();
 
         private static readonly GUIContent ScriptContent =
             CreateIconContent("cs Script Icon", "C#", "MonoBehaviours");
         private static readonly GUIContent OverflowContent =
             new("…", "More component types are hidden by the configured icon limit.");
         private static readonly GUIContent SummaryContent = new();
+        private static Texture2D _summaryIcon;
 
         private static readonly GUIStyle IconStyle = new(EditorStyles.label)
         {
@@ -50,6 +56,8 @@ namespace LoogaSoft.Hierarchy.Editor
         static HierarchyComponentRenderer()
         {
             HierarchyComponentCache.Invalidated += RevealStates.Clear;
+            EditorApplication.update += TickRevealAnimations;
+            EditorApplication.delayCall += EnableHierarchyMouseMoveEvents;
         }
 
         internal static float GetReservedWidth(
@@ -64,7 +72,8 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             DetailLayout layout = CalculateDetailLayout(summary, maximumComponentIcons);
-            return IndicatorSize +
+            return NameSafetyGap +
+                IndicatorSize +
                 IndicatorSpacing +
                 layout.Width * GetRevealProgress(gameObject.GetInstanceID());
         }
@@ -98,9 +107,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
             float revealedWidth = layout.Width * progress;
             Rect clearRect = new(
-                summaryRect.x - revealedWidth,
+                summaryRect.x - revealedWidth - NameSafetyGap,
                 rowRect.y,
-                summaryRect.width + revealedWidth,
+                summaryRect.width + revealedWidth + NameSafetyGap,
                 rowRect.height);
             EditorGUI.DrawRect(
                 clearRect,
@@ -112,8 +121,7 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             SummaryContent.tooltip = summary.ComponentTooltip;
-            DrawSummaryGlyph(summaryRect);
-            GUI.Label(summaryRect, SummaryContent, GUIStyle.none);
+            DrawSummary(summaryRect);
         }
 
         private static void DrawDetails(
@@ -212,28 +220,25 @@ namespace LoogaSoft.Hierarchy.Editor
             GUI.Label(labelRect, label, CountLabelStyle);
         }
 
-        private static void DrawSummaryGlyph(Rect rect)
+        private static void DrawSummary(Rect rect)
         {
-            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
-            float lineThickness = Mathf.Max(1f / pixelsPerPoint, 1f);
-            float dotSize = Mathf.Max(2f / pixelsPerPoint, 2f);
-            float dotX = SnapToPixel(rect.x + 1.5f, pixelsPerPoint);
-            float barX = SnapToPixel(rect.x + 5f, pixelsPerPoint);
-            float barWidth = Mathf.Max(1f, rect.xMax - barX - 1.5f);
-            Color color = EditorGUIUtility.isProSkin
-                ? new Color(0.76f, 0.80f, 0.86f, 1f)
-                : new Color(0.28f, 0.32f, 0.38f, 1f);
-
-            for (int index = 0; index < 3; index++)
+            _summaryIcon ??= AssetDatabase.LoadAssetAtPath<Texture2D>(SummaryIconPath);
+            if (_summaryIcon == null)
             {
-                float centerY = SnapToPixel(rect.y + 3f + index * 4f, pixelsPerPoint);
-                EditorGUI.DrawRect(
-                    new Rect(dotX, centerY - dotSize * 0.5f, dotSize, dotSize),
-                    color);
-                EditorGUI.DrawRect(
-                    new Rect(barX, centerY - lineThickness * 0.5f, barWidth, lineThickness),
-                    color);
+                SummaryContent.image = null;
+                SummaryContent.text = "◦";
+                GUI.Label(rect, SummaryContent, FallbackIconStyle);
+                return;
             }
+
+            SummaryContent.text = string.Empty;
+            SummaryContent.image = _summaryIcon;
+            Color previousColor = GUI.color;
+            GUI.color = EditorGUIUtility.isProSkin
+                ? Color.white
+                : new Color(0.36f, 0.36f, 0.36f, 1f);
+            GUI.Label(rect, SummaryContent, IconStyle);
+            GUI.color = previousColor;
         }
 
         private static DetailLayout CalculateDetailLayout(
@@ -288,24 +293,91 @@ namespace LoogaSoft.Hierarchy.Editor
             double now = EditorApplication.timeSinceStartup;
             if (!RevealStates.TryGetValue(instanceId, out RevealState state))
             {
-                state = new RevealState(0f, now);
+                state = new RevealState(0f, 0f, now);
             }
 
-            float deltaTime = Mathf.Clamp((float)(now - state.LastUpdate), 0f, 0.1f);
+            state = AdvanceReveal(state, now);
             float target = pointerOverControl ? 1f : 0f;
-            float progress = Mathf.MoveTowards(
-                state.Progress,
-                target,
-                RevealDuration > 0f ? deltaTime / RevealDuration : 1f);
-            bool changed = !Mathf.Approximately(progress, state.Progress);
-            RevealStates[instanceId] = new RevealState(progress, now);
+            if (!Mathf.Approximately(target, state.Target))
+            {
+                float progress = state.Progress;
+                if (target > 0f && progress < InitialRevealProgress)
+                {
+                    progress = InitialRevealProgress;
+                }
 
-            if (changed || !Mathf.Approximately(progress, target))
+                state = new RevealState(progress, target, now);
+                RevealStates[instanceId] = state;
+                EditorApplication.RepaintHierarchyWindow();
+            }
+            else
+            {
+                RevealStates[instanceId] = state;
+            }
+
+            return state.Progress;
+        }
+
+        private static void TickRevealAnimations()
+        {
+            if (RevealStates.Count == 0)
+            {
+                return;
+            }
+
+            double now = EditorApplication.timeSinceStartup;
+            bool changed = false;
+            RevealStateIds.Clear();
+            foreach (int instanceId in RevealStates.Keys)
+            {
+                RevealStateIds.Add(instanceId);
+            }
+
+            for (int index = 0; index < RevealStateIds.Count; index++)
+            {
+                int instanceId = RevealStateIds[index];
+                RevealState previousState = RevealStates[instanceId];
+                RevealState state = AdvanceReveal(previousState, now);
+                changed |= !Mathf.Approximately(state.Progress, previousState.Progress);
+
+                if (Mathf.Approximately(state.Progress, 0f) &&
+                    Mathf.Approximately(state.Target, 0f))
+                {
+                    RevealStates.Remove(instanceId);
+                }
+                else
+                {
+                    RevealStates[instanceId] = state;
+                }
+            }
+
+            if (changed)
             {
                 EditorApplication.RepaintHierarchyWindow();
             }
+        }
 
-            return progress;
+        private static RevealState AdvanceReveal(RevealState state, double now)
+        {
+            float deltaTime = Mathf.Clamp((float)(now - state.LastUpdate), 0f, 0.1f);
+            float progress = Mathf.MoveTowards(
+                state.Progress,
+                state.Target,
+                RevealDuration > 0f ? deltaTime / RevealDuration : 1f);
+            return new RevealState(progress, state.Target, now);
+        }
+
+        private static void EnableHierarchyMouseMoveEvents()
+        {
+            EditorWindow[] windows = Resources.FindObjectsOfTypeAll<EditorWindow>();
+            for (int index = 0; index < windows.Length; index++)
+            {
+                EditorWindow window = windows[index];
+                if (window != null && window.GetType().Name == "SceneHierarchyWindow")
+                {
+                    window.wantsMouseMove = true;
+                }
+            }
         }
 
         private static float GetRevealProgress(int instanceId)
@@ -389,11 +461,6 @@ namespace LoogaSoft.Hierarchy.Editor
             return content;
         }
 
-        private static float SnapToPixel(float value, float pixelsPerPoint)
-        {
-            return Mathf.Round(value * pixelsPerPoint) / pixelsPerPoint;
-        }
-
         private readonly struct DetailLayout
         {
             internal DetailLayout(
@@ -419,13 +486,16 @@ namespace LoogaSoft.Hierarchy.Editor
 
         private readonly struct RevealState
         {
-            internal RevealState(float progress, double lastUpdate)
+            internal RevealState(float progress, float target, double lastUpdate)
             {
                 Progress = progress;
+                Target = target;
                 LastUpdate = lastUpdate;
             }
 
             internal float Progress { get; }
+
+            internal float Target { get; }
 
             internal double LastUpdate { get; }
         }

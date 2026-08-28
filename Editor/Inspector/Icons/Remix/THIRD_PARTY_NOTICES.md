@@ -1,6 +1,6 @@
 ﻿# Third-Party Notices
 
-The component clipboard, catalog action, Looga Tags, and transform action icons use Remix Icon assets.
+The Hierarchy, component clipboard, catalog action, Looga Tags, and transform action icons use Remix Icon assets.
 
 - Source: https://remixicon.com
 - Repository: https://github.com/Remix-Design/RemixIcon

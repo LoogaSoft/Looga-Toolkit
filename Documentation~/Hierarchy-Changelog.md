@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Improved component-summary response and added spacing between revealed icons and object names.
 - Consolidated component indicators into one summary control that reveals detailed icons on hover.
 - Removed static-state indicators from Hierarchy rows.
 - Added the presentation palette to Project-window folders in list and grid views.

@@ -44,7 +44,7 @@ components to scene objects.
 
 One compact row control represents the components on an object without duplicating Transform or
 RectTransform. Hover over the summary to reveal the detailed component icons to its left. The
-reveal temporarily takes the required row space and clips a long object name cleanly. Moving away
+reveal takes the required row space and clips a long object name before the first icon. Moving away
 collapses the details back to the single summary control.
 
 Components with distinct Unity icons keep those icons. Repeated component types use one icon with

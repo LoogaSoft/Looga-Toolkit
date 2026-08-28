@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replaced the procedural Hierarchy component summary glyph with the Remix apps-2-line icon.
+- Improved Hierarchy component reveals with immediate mouse tracking and earlier name clipping.
 - Consolidated Hierarchy component indicators into one hover-revealed summary and removed static indicators.
 - Preserved the stock Project Create and search controls around a toolbar-height navigation overlay.
 - Removed navigation control dividers and increased the history and arrow icon weight.
