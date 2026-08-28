@@ -1330,7 +1330,7 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             HandleListDragAndDrop(property, boxRect, field);
-            DrawListHeaderBackground(boxRect, toggleRect);
+            DrawListContainerBackground(fullRect, boxRect, toggleRect);
 
             bool isExpanded = alwaysExpanded || property.isExpanded;
             if (!alwaysExpanded && e.type == EventType.MouseDown && toggleRect.Contains(e.mousePosition) && e.button == 0)
@@ -1433,7 +1433,6 @@ namespace LoogaSoft.Inspector.Editor
             Event e = Event.current;
             float listBoxHeight = GetListRowsHeight(property) + ListBodyPaddingY * 2f;
             Rect listBoxRect = PixelSnap(new Rect(bodyRect.x, bodyRect.y, bodyRect.width, listBoxHeight));
-            GUI.Box(listBoxRect, GUIContent.none, LoogaEditorFoldouts.SmallBoxStyle);
             EditorGUIUtility.AddCursorRect(listBoxRect, MouseCursor.Arrow);
 
             if (e.type == EventType.MouseMove && listBoxRect.Contains(e.mousePosition))
@@ -1617,12 +1616,18 @@ namespace LoogaSoft.Inspector.Editor
             EditorGUI.indentLevel = cachedIndent;
         }
 
-        private static void DrawListHeaderBackground(Rect boxRect, Rect toggleRect)
+        private static void DrawListContainerBackground(
+            Rect fullRect,
+            Rect headerRect,
+            Rect toggleRect)
         {
-            GUI.Box(boxRect, GUIContent.none, LoogaEditorFoldouts.FoldoutBoxStyle);
+            GUI.Box(
+                PixelSnap(fullRect),
+                GUIContent.none,
+                LoogaEditorFoldouts.FoldoutBoxStyle);
 
             if (toggleRect.Contains(Event.current.mousePosition))
-                LoogaEditorFoldouts.DrawHoverRect(boxRect);
+                LoogaEditorFoldouts.DrawHoverRect(headerRect);
         }
 
         private static void DrawListRowBackground(Rect rect, bool selected, bool hovered, bool dragging)

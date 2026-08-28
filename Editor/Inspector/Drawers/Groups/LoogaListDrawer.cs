@@ -53,6 +53,10 @@ namespace LoogaSoft.Inspector.Editor
 
             Rect headerRect = LoogaEditorStyle.PixelSnap(
                 new Rect(position.x, position.y, position.width, HeaderHeight));
+            GUI.Box(
+                LoogaEditorStyle.PixelSnap(position),
+                GUIContent.none,
+                LoogaEditorFoldouts.FoldoutBoxStyle);
             DrawHeader(headerRect, property, label, alwaysExpanded);
 
             if (alwaysExpanded || property.isExpanded)
@@ -98,7 +102,6 @@ namespace LoogaSoft.Inspector.Editor
             bool alwaysExpanded)
         {
             Event currentEvent = Event.current;
-            GUI.Box(headerRect, GUIContent.none, LoogaEditorFoldouts.FoldoutBoxStyle);
 
             float controlY = LoogaEditorStyle.PixelSnapValue(
                 headerRect.y + (headerRect.height - EditorGUIUtility.singleLineHeight) * 0.5f);
@@ -178,7 +181,6 @@ namespace LoogaSoft.Inspector.Editor
 
         private static void DrawBody(Rect bodyRect, SerializedProperty property)
         {
-            GUI.Box(bodyRect, GUIContent.none, LoogaEditorFoldouts.SmallBoxStyle);
             if (property.arraySize == 0)
             {
                 EditorGUI.LabelField(bodyRect, "Empty", EditorStyles.centeredGreyMiniLabel);
