@@ -18,7 +18,7 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float RevealDuration = 0.12f;
         private const float InitialRevealProgress = 0.18f;
         private const string SummaryIconPath =
-            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/more-2-line.png";
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/menu-unfold-2-line.png";
 
         private static readonly Dictionary<Type, GUIContent> ComponentContents = new();
         private static readonly Dictionary<int, string> CountLabels = new();
@@ -31,6 +31,7 @@ namespace LoogaSoft.Hierarchy.Editor
             new("…", "More component types are hidden by the configured icon limit.");
         private static readonly GUIContent SummaryContent = new();
         private static Texture2D _summaryIcon;
+        private static int _hoveredRowInstanceId;
 
         private static readonly GUIStyle IconStyle = new(EditorStyles.label)
         {
@@ -72,6 +73,8 @@ namespace LoogaSoft.Hierarchy.Editor
 
             DetailLayout layout = CalculateDetailLayout(summary, maximumComponentIcons);
             Rect summaryRect = GetSummaryRect(rowRect);
+            bool pointerOverRow = rowRect.Contains(Event.current.mousePosition);
+            UpdateHoveredRow(instanceId, pointerOverRow);
             float currentProgress = GetRevealProgress(instanceId);
             Rect expandedRect = new(
                 summaryRect.xMax - layout.Width,
@@ -88,6 +91,12 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             float revealedWidth = layout.Width * progress;
+            bool showSummary = progress <= 0.01f && pointerOverRow;
+            if (!showSummary && revealedWidth <= 0.01f)
+            {
+                return;
+            }
+
             float occupiedWidth = Mathf.Max(summaryRect.width, revealedWidth);
             Rect clearRect = new(
                 summaryRect.xMax - occupiedWidth - NameSafetyGap,
@@ -114,10 +123,41 @@ namespace LoogaSoft.Hierarchy.Editor
                 DrawDetails(summary, rowRect, summaryRect.xMax, layout, progress);
             }
 
-            if (progress <= 0.01f)
+            if (showSummary)
             {
                 SummaryContent.tooltip = summary.ComponentTooltip;
                 DrawSummary(summaryRect);
+            }
+        }
+
+        private static void UpdateHoveredRow(int instanceId, bool pointerOverRow)
+        {
+            EventType eventType = Event.current.type;
+            if (eventType == EventType.MouseLeaveWindow)
+            {
+                if (_hoveredRowInstanceId != 0)
+                {
+                    _hoveredRowInstanceId = 0;
+                    EditorApplication.RepaintHierarchyWindow();
+                }
+
+                return;
+            }
+
+            if (eventType != EventType.MouseMove)
+            {
+                return;
+            }
+
+            if (pointerOverRow && _hoveredRowInstanceId != instanceId)
+            {
+                _hoveredRowInstanceId = instanceId;
+                EditorApplication.RepaintHierarchyWindow();
+            }
+            else if (!pointerOverRow && _hoveredRowInstanceId == instanceId)
+            {
+                _hoveredRowInstanceId = 0;
+                EditorApplication.RepaintHierarchyWindow();
             }
         }
 

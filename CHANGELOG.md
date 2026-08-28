@@ -2,7 +2,8 @@
 
 ## Unreleased
 
-- Changed the Hierarchy component summary to the light-gray Remix more-2-line icon.
+- Changed the Hierarchy component summary to the light-gray Remix menu-unfold-2-line icon.
+- Showed the Hierarchy component summary only while its object row is hovered.
 - Replaced the Hierarchy summary glyph with component icons during its hover reveal.
 - Added measured name ellipses when Hierarchy component summaries need the remaining row space.
 - Removed inline Hierarchy favorite buttons and kept favorite actions in the Alt-right-click menu.
