@@ -18,7 +18,7 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float RevealDuration = 0.12f;
         private const float InitialRevealProgress = 0.18f;
         private const string SummaryIconPath =
-            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/apps-2-line.png";
+            "Packages/com.loogasoft.loogatoolkit/Editor/Inspector/Icons/Remix/more-2-line.png";
 
         private static readonly Dictionary<Type, GUIContent> ComponentContents = new();
         private static readonly Dictionary<int, string> CountLabels = new();
@@ -74,9 +74,9 @@ namespace LoogaSoft.Hierarchy.Editor
             Rect summaryRect = GetSummaryRect(rowRect);
             float currentProgress = GetRevealProgress(instanceId);
             Rect expandedRect = new(
-                summaryRect.x - layout.Width,
+                summaryRect.xMax - layout.Width,
                 rowRect.y,
-                layout.Width + summaryRect.width,
+                layout.Width,
                 rowRect.height);
             bool pointerOverControl = summaryRect.Contains(Event.current.mousePosition) ||
                 (currentProgress > 0f && expandedRect.Contains(Event.current.mousePosition));
@@ -88,10 +88,11 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             float revealedWidth = layout.Width * progress;
+            float occupiedWidth = Mathf.Max(summaryRect.width, revealedWidth);
             Rect clearRect = new(
-                summaryRect.x - revealedWidth - NameSafetyGap,
+                summaryRect.xMax - occupiedWidth - NameSafetyGap,
                 rowRect.y,
-                summaryRect.width + revealedWidth + NameSafetyGap,
+                occupiedWidth + NameSafetyGap,
                 rowRect.height);
             EditorGUI.DrawRect(
                 clearRect,
@@ -100,7 +101,7 @@ namespace LoogaSoft.Hierarchy.Editor
             float nameRight = summaryRect.x - NameSafetyGap;
             if (progress > 0.01f)
             {
-                nameRight -= layout.Width;
+                nameRight = summaryRect.xMax - layout.Width - NameSafetyGap;
             }
 
             HierarchyPresentationRenderer.DrawTruncatedNameIfNeeded(
@@ -110,11 +111,14 @@ namespace LoogaSoft.Hierarchy.Editor
 
             if (revealedWidth > 0.01f)
             {
-                DrawDetails(summary, rowRect, summaryRect.x, layout, progress);
+                DrawDetails(summary, rowRect, summaryRect.xMax, layout, progress);
             }
 
-            SummaryContent.tooltip = summary.ComponentTooltip;
-            DrawSummary(summaryRect);
+            if (progress <= 0.01f)
+            {
+                SummaryContent.tooltip = summary.ComponentTooltip;
+                DrawSummary(summaryRect);
+            }
         }
 
         private static void DrawDetails(
@@ -228,7 +232,7 @@ namespace LoogaSoft.Hierarchy.Editor
             SummaryContent.image = _summaryIcon;
             Color previousColor = GUI.color;
             GUI.color = EditorGUIUtility.isProSkin
-                ? Color.white
+                ? new Color(0.78f, 0.78f, 0.78f, 1f)
                 : new Color(0.36f, 0.36f, 0.36f, 1f);
             GUI.Label(rect, SummaryContent, IconStyle);
             GUI.color = previousColor;

@@ -2,9 +2,10 @@
 
 ## Unreleased
 
+- Changed the Hierarchy component summary to the light-gray Remix more-2-line icon.
+- Replaced the Hierarchy summary glyph with component icons during its hover reveal.
 - Added measured name ellipses when Hierarchy component summaries need the remaining row space.
 - Removed inline Hierarchy favorite buttons and kept favorite actions in the Alt-right-click menu.
-- Replaced the procedural Hierarchy component summary glyph with the Remix apps-2-line icon.
 - Improved Hierarchy component reveals with immediate mouse tracking and earlier name clipping.
 - Consolidated Hierarchy component indicators into one hover-revealed summary and removed static indicators.
 - Preserved the stock Project Create and search controls around a toolbar-height navigation overlay.
