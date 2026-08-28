@@ -40,9 +40,13 @@ without adding a component.
 Visual metadata is stored in `ProjectSettings/LoogaHierarchyPresentation.asset` without adding
 components to scene objects.
 
-### Component Icons
+### Component Summary
 
-Compact row icons summarize important components without duplicating Transform or RectTransform.
+One compact row control represents the components on an object without duplicating Transform or
+RectTransform. Hover over the summary to reveal the detailed component icons to its left. The
+reveal temporarily takes the required row space and clips a long object name cleanly. Moving away
+collapses the details back to the single summary control.
+
 Components with distinct Unity icons keep those icons. Repeated component types use one icon with
 a compact count beside it, so the icon remains unobstructed. Generic MonoBehaviours share a C#
 script icon with a total count. Missing scripts are included in that count and tint the script icon
@@ -50,14 +54,10 @@ orange. Tooltips identify each component type and report missing scripts. A Mesh
 when the same object has a MeshRenderer because the renderer already represents the mesh pair.
 
 The **Maximum Component Icons** project setting limits each row to between one and eight component
-indicators. The default is five. An overflow indicator replaces component types that do not fit.
-The limit does not include the static indicator. Icons are also culled automatically when a
-Hierarchy window is too narrow to show them without covering the complete object name. If no icon
-fits in the remaining width, the row shows no component or static indicators.
-
-Static objects use a neutral pushpin icon. Hover over it to see `Fully Static` or each enabled static
-flag on a separate line. Component summaries are cached and refresh after hierarchy, project, or
-Undo state changes rather than scanning components on every repaint.
+indicators in the expanded group. The default is five. An overflow indicator replaces component
+types that do not fit. Static state is intentionally not represented in Hierarchy rows. Component
+summaries are cached and refresh after hierarchy, project, or Undo state changes rather than
+scanning components on every repaint.
 
 ### Hierarchy Actions
 

@@ -25,19 +25,16 @@ namespace LoogaSoft.Hierarchy.Editor
     internal sealed class HierarchyComponentSummary
     {
         internal HierarchyComponentSummary(
-            bool isStatic,
             HierarchyComponentEntry[] components,
             int monoBehaviourCount,
             int missingScriptCount)
         {
-            IsStatic = isStatic;
             Components = components;
             MonoBehaviourCount = monoBehaviourCount;
             MissingScriptCount = missingScriptCount;
             MonoBehaviourTooltip = BuildMonoBehaviourTooltip(monoBehaviourCount, missingScriptCount);
+            ComponentTooltip = BuildComponentTooltip(components, monoBehaviourCount, missingScriptCount);
         }
-
-        internal bool IsStatic { get; }
 
         internal HierarchyComponentEntry[] Components { get; }
 
@@ -47,11 +44,9 @@ namespace LoogaSoft.Hierarchy.Editor
 
         internal string MonoBehaviourTooltip { get; }
 
-        internal int GetVisibleIndicatorCount(int maximumComponentIcons)
-        {
-            int componentIndicatorCount = Components.Length + (MonoBehaviourCount > 0 ? 1 : 0);
-            return Mathf.Min(componentIndicatorCount, maximumComponentIcons) + (IsStatic ? 1 : 0);
-        }
+        internal string ComponentTooltip { get; }
+
+        internal bool HasComponents => Components.Length > 0 || MonoBehaviourCount > 0;
 
         private static string BuildMonoBehaviourTooltip(int monoBehaviourCount, int missingScriptCount)
         {
@@ -64,28 +59,51 @@ namespace LoogaSoft.Hierarchy.Editor
 
             return tooltip;
         }
+
+        private static string BuildComponentTooltip(
+            HierarchyComponentEntry[] components,
+            int monoBehaviourCount,
+            int missingScriptCount)
+        {
+            StringBuilder tooltip = new("Components");
+            for (int i = 0; i < components.Length; i++)
+            {
+                HierarchyComponentEntry entry = components[i];
+                tooltip.Append('\n');
+                tooltip.Append(ObjectNames.NicifyVariableName(entry.ComponentType.Name));
+                if (entry.Count > 1)
+                {
+                    tooltip.Append(" (");
+                    tooltip.Append(entry.Count);
+                    tooltip.Append(')');
+                }
+            }
+
+            if (monoBehaviourCount > 0)
+            {
+                tooltip.Append('\n');
+                tooltip.Append(monoBehaviourCount);
+                tooltip.Append(monoBehaviourCount == 1 ? " MonoBehaviour" : " MonoBehaviours");
+            }
+
+            if (missingScriptCount > 0)
+            {
+                tooltip.Append('\n');
+                tooltip.Append(missingScriptCount);
+                tooltip.Append(missingScriptCount == 1 ? " missing script" : " missing scripts");
+            }
+
+            return tooltip.ToString();
+        }
     }
 
     [InitializeOnLoad]
     internal static class HierarchyComponentCache
     {
         private static readonly Dictionary<int, HierarchyComponentSummary> Cache = new();
-        private static readonly Dictionary<int, StaticTooltipEntry> StaticTooltips = new();
         private static readonly List<Component> Components = new();
         private static readonly List<HierarchyComponentEntry> ComponentEntries = new();
         private static readonly Texture GenericScriptIcon = EditorGUIUtility.IconContent("cs Script Icon").image;
-
-        // Unity 6 keeps these legacy bits in serialized scenes but marks their enum names obsolete.
-        private const StaticEditorFlags NavigationStaticFlag = (StaticEditorFlags)8;
-        private const StaticEditorFlags OffMeshLinkGenerationFlag = (StaticEditorFlags)32;
-        private const StaticEditorFlags KnownStaticFlags =
-            StaticEditorFlags.ContributeGI |
-            StaticEditorFlags.OccluderStatic |
-            StaticEditorFlags.BatchingStatic |
-            NavigationStaticFlag |
-            StaticEditorFlags.OccludeeStatic |
-            OffMeshLinkGenerationFlag |
-            StaticEditorFlags.ReflectionProbeStatic;
 
         static HierarchyComponentCache()
         {
@@ -112,23 +130,8 @@ namespace LoogaSoft.Hierarchy.Editor
         internal static void Invalidate()
         {
             Cache.Clear();
-            StaticTooltips.Clear();
             Invalidated?.Invoke();
             EditorApplication.RepaintHierarchyWindow();
-        }
-
-        internal static string GetStaticTooltip(GameObject gameObject)
-        {
-            int instanceId = gameObject.GetInstanceID();
-            StaticEditorFlags flags = GameObjectUtility.GetStaticEditorFlags(gameObject);
-            if (StaticTooltips.TryGetValue(instanceId, out StaticTooltipEntry entry) && entry.Flags == flags)
-            {
-                return entry.Tooltip;
-            }
-
-            string tooltip = BuildStaticTooltip(flags);
-            StaticTooltips[instanceId] = new StaticTooltipEntry(flags, tooltip);
-            return tooltip;
         }
 
         private static HierarchyComponentSummary Evaluate(GameObject gameObject)
@@ -173,7 +176,6 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             return new HierarchyComponentSummary(
-                gameObject.isStatic,
                 ComponentEntries.ToArray(),
                 monoBehaviourCount,
                 missingScriptCount);
@@ -199,54 +201,5 @@ namespace LoogaSoft.Hierarchy.Editor
                 !icon.name.EndsWith("Script Icon", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static string BuildStaticTooltip(StaticEditorFlags flags)
-        {
-            if ((flags & KnownStaticFlags) == KnownStaticFlags)
-            {
-                return "Fully Static";
-            }
-
-            StringBuilder tooltip = new();
-            AppendStaticFlag(tooltip, flags, StaticEditorFlags.ContributeGI, "Contribute GI");
-            AppendStaticFlag(tooltip, flags, StaticEditorFlags.OccluderStatic, "Occluder Static");
-            AppendStaticFlag(tooltip, flags, StaticEditorFlags.BatchingStatic, "Batching Static");
-            AppendStaticFlag(tooltip, flags, NavigationStaticFlag, "Navigation Static");
-            AppendStaticFlag(tooltip, flags, StaticEditorFlags.OccludeeStatic, "Occludee Static");
-            AppendStaticFlag(tooltip, flags, OffMeshLinkGenerationFlag, "Off Mesh Link Generation");
-            AppendStaticFlag(tooltip, flags, StaticEditorFlags.ReflectionProbeStatic, "Reflection Probe Static");
-            return tooltip.Length > 0 ? tooltip.ToString() : "Static";
-        }
-
-        private static void AppendStaticFlag(
-            StringBuilder tooltip,
-            StaticEditorFlags flags,
-            StaticEditorFlags expected,
-            string label)
-        {
-            if ((flags & expected) == 0)
-            {
-                return;
-            }
-
-            if (tooltip.Length > 0)
-            {
-                tooltip.AppendLine();
-            }
-
-            tooltip.Append(label);
-        }
-
-        private readonly struct StaticTooltipEntry
-        {
-            internal StaticTooltipEntry(StaticEditorFlags flags, string tooltip)
-            {
-                Flags = flags;
-                Tooltip = tooltip;
-            }
-
-            internal StaticEditorFlags Flags { get; }
-
-            internal string Tooltip { get; }
-        }
     }
 }

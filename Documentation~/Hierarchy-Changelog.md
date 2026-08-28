@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Consolidated component indicators into one summary control that reveals detailed icons on hover.
+- Removed static-state indicators from Hierarchy rows.
 - Added the presentation palette to Project-window folders in list and grid views.
 - Stored folder colors and semantic icons by asset GUID so customizations survive folder moves.
 - Replaced both palette clear icons with DPI-aware outlined X glyphs.
@@ -19,9 +21,7 @@
 - Moved Looga Hierarchy actions to an Alt-right-click menu and removed the standard context submenu.
 - Replaced hierarchy status badges with bounded, cached component summaries.
 - Aggregated generic MonoBehaviours under one counted script icon while preserving distinct component icons.
-- Retained static-state tooltips and added a configurable component-icon limit.
-- Moved component counts beside their icons, collapsed MeshFilter and MeshRenderer pairs, and replaced the static `S` with a pushpin.
-- Culled hierarchy indicators dynamically when the complete object name needs their row space.
+- Added a configurable component-icon limit, moved counts beside their icons, and collapsed MeshFilter and MeshRenderer pairs.
 
 ## 0.8.0 - 2026-08-02
 

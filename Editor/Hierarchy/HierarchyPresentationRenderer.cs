@@ -70,6 +70,23 @@ namespace LoogaSoft.Hierarchy.Editor
             return false;
         }
 
+        internal static Color ResolveRowBackground(GameObject gameObject, Rect rowRect)
+        {
+            Color background = ResolveNativeBackground(ResolveRowState(gameObject, rowRect));
+            if (!TryResolveColor(gameObject, out Color color, out int levelsFromOwner))
+            {
+                return background;
+            }
+
+            float opacity = levelsFromOwner == 0 ? HeaderOpacity : DescendantOpacity;
+            float alpha = Mathf.Clamp01(color.a * opacity);
+            return new Color(
+                Mathf.Lerp(background.r, color.r, alpha),
+                Mathf.Lerp(background.g, color.g, alpha),
+                Mathf.Lerp(background.b, color.b, alpha),
+                1f);
+        }
+
         private static bool TryResolveCustomIcon(
             GameObject gameObject,
             HierarchyPresentation presentation,

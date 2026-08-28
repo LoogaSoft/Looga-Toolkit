@@ -6,7 +6,7 @@ using UnityEngine;
 namespace LoogaSoft.Hierarchy.Editor
 {
     /// <summary>
-    /// Draws cached component summaries and static state in Hierarchy rows.
+    /// Draws one component summary control and reveals its cached component icons on hover.
     /// </summary>
     internal static class HierarchyComponentRenderer
     {
@@ -14,23 +14,17 @@ namespace LoogaSoft.Hierarchy.Editor
         private const float IndicatorSpacing = 1f;
         private const float CountLabelGap = 1f;
         private const float CountCharacterWidth = 5f;
-        private const float NamePrefixWidth = 18f;
-        private const float NameRightPadding = 8f;
+        private const float RevealDuration = 0.12f;
 
         private static readonly Dictionary<Type, GUIContent> ComponentContents = new();
         private static readonly Dictionary<int, string> CountLabels = new();
-        private static readonly Dictionary<int, NameWidthEntry> NameWidths = new();
+        private static readonly Dictionary<int, RevealState> RevealStates = new();
 
         private static readonly GUIContent ScriptContent =
             CreateIconContent("cs Script Icon", "C#", "MonoBehaviours");
         private static readonly GUIContent OverflowContent =
             new("…", "More component types are hidden by the configured icon limit.");
-        private static readonly GUIContent StaticContent = new(string.Empty);
-        private static readonly GUIContent NameContent = new();
-
-        private static readonly Vector3[] PushpinHeadVertices = new Vector3[4];
-        private static readonly Vector3[] PushpinShoulderVertices = new Vector3[4];
-        private static readonly Vector3[] PushpinStemVertices = new Vector3[3];
+        private static readonly GUIContent SummaryContent = new();
 
         private static readonly GUIStyle IconStyle = new(EditorStyles.label)
         {
@@ -55,7 +49,7 @@ namespace LoogaSoft.Hierarchy.Editor
 
         static HierarchyComponentRenderer()
         {
-            HierarchyComponentCache.Invalidated += NameWidths.Clear;
+            HierarchyComponentCache.Invalidated += RevealStates.Clear;
         }
 
         internal static float GetReservedWidth(
@@ -64,28 +58,85 @@ namespace LoogaSoft.Hierarchy.Editor
             int maximumComponentIcons)
         {
             HierarchyComponentSummary summary = HierarchyComponentCache.Get(gameObject);
-            return CalculateLayout(gameObject, rowRect, summary, maximumComponentIcons).Width;
+            if (!summary.HasComponents)
+            {
+                return 0f;
+            }
+
+            DetailLayout layout = CalculateDetailLayout(summary, maximumComponentIcons);
+            return IndicatorSize +
+                IndicatorSpacing +
+                layout.Width * GetRevealProgress(gameObject.GetInstanceID());
         }
 
         internal static void Draw(GameObject gameObject, Rect rowRect, int maximumComponentIcons)
         {
+            HierarchyComponentSummary summary = HierarchyComponentCache.Get(gameObject);
+            int instanceId = gameObject.GetInstanceID();
+            if (!summary.HasComponents)
+            {
+                RevealStates.Remove(instanceId);
+                return;
+            }
+
+            DetailLayout layout = CalculateDetailLayout(summary, maximumComponentIcons);
+            Rect summaryRect = GetSummaryRect(rowRect);
+            float currentProgress = GetRevealProgress(instanceId);
+            Rect expandedRect = new(
+                summaryRect.x - layout.Width,
+                rowRect.y,
+                layout.Width + summaryRect.width,
+                rowRect.height);
+            bool pointerOverControl = summaryRect.Contains(Event.current.mousePosition) ||
+                (currentProgress > 0f && expandedRect.Contains(Event.current.mousePosition));
+            float progress = UpdateReveal(instanceId, pointerOverControl);
+
             if (Event.current.type != EventType.Repaint)
             {
                 return;
             }
 
-            HierarchyComponentSummary summary = HierarchyComponentCache.Get(gameObject);
-            IndicatorLayout layout = CalculateLayout(gameObject, rowRect, summary, maximumComponentIcons);
-            if (!layout.HasIndicators)
+            float revealedWidth = layout.Width * progress;
+            Rect clearRect = new(
+                summaryRect.x - revealedWidth,
+                rowRect.y,
+                summaryRect.width + revealedWidth,
+                rowRect.height);
+            EditorGUI.DrawRect(
+                clearRect,
+                HierarchyPresentationRenderer.ResolveRowBackground(gameObject, rowRect));
+
+            if (revealedWidth > 0.01f)
             {
-                return;
+                DrawDetails(summary, rowRect, summaryRect.x, layout, progress);
             }
 
-            float right = rowRect.xMax - 1f;
-            if (layout.ShowStatic)
-            {
-                DrawStatic(gameObject, rowRect, ref right);
-            }
+            SummaryContent.tooltip = summary.ComponentTooltip;
+            DrawSummaryGlyph(summaryRect);
+            GUI.Label(summaryRect, SummaryContent, GUIStyle.none);
+        }
+
+        private static void DrawDetails(
+            HierarchyComponentSummary summary,
+            Rect rowRect,
+            float expansionRight,
+            DetailLayout layout,
+            float progress)
+        {
+            float revealedWidth = layout.Width * progress;
+            Rect clipRect = new(
+                expansionRight - revealedWidth,
+                rowRect.y,
+                revealedWidth,
+                rowRect.height);
+            GUI.BeginGroup(clipRect);
+
+            Rect localRowRect = new(
+                rowRect.x - clipRect.x,
+                0f,
+                rowRect.width,
+                rowRect.height);
+            float right = expansionRight - clipRect.x + layout.Width * (1f - progress);
 
             if (layout.ShowScript)
             {
@@ -98,7 +149,7 @@ namespace LoogaSoft.Hierarchy.Editor
                     summary.MonoBehaviourCount,
                     true,
                     tint,
-                    rowRect,
+                    localRowRect,
                     ref right);
             }
 
@@ -110,24 +161,17 @@ namespace LoogaSoft.Hierarchy.Editor
                     entry.Count,
                     entry.Count > 1,
                     Color.white,
-                    rowRect,
+                    localRowRect,
                     ref right);
             }
 
             if (layout.ShowOverflow)
             {
                 int hiddenCount = summary.Components.Length - layout.VisibleComponentCount;
-                DrawIcon(OverflowContent, hiddenCount, true, Color.white, rowRect, ref right);
+                DrawIcon(OverflowContent, hiddenCount, true, Color.white, localRowRect, ref right);
             }
-        }
 
-        private static void DrawStatic(GameObject gameObject, Rect rowRect, ref float right)
-        {
-            Rect indicatorRect = GetIndicatorRect(rowRect, right);
-            StaticContent.tooltip = HierarchyComponentCache.GetStaticTooltip(gameObject);
-            DrawPushpin(indicatorRect);
-            GUI.Label(indicatorRect, StaticContent, GUIStyle.none);
-            right -= IndicatorSize + IndicatorSpacing;
+            GUI.EndGroup();
         }
 
         private static void DrawIcon(
@@ -168,45 +212,31 @@ namespace LoogaSoft.Hierarchy.Editor
             GUI.Label(labelRect, label, CountLabelStyle);
         }
 
-        private static Rect GetIndicatorRect(Rect rowRect, float right)
+        private static void DrawSummaryGlyph(Rect rect)
         {
-            return GetIndicatorRect(rowRect, right, IndicatorSize);
-        }
+            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
+            float lineThickness = Mathf.Max(1f / pixelsPerPoint, 1f);
+            float dotSize = Mathf.Max(2f / pixelsPerPoint, 2f);
+            float dotX = SnapToPixel(rect.x + 1.5f, pixelsPerPoint);
+            float barX = SnapToPixel(rect.x + 5f, pixelsPerPoint);
+            float barWidth = Mathf.Max(1f, rect.xMax - barX - 1.5f);
+            Color color = EditorGUIUtility.isProSkin
+                ? new Color(0.76f, 0.80f, 0.86f, 1f)
+                : new Color(0.28f, 0.32f, 0.38f, 1f);
 
-        private static Rect GetIndicatorRect(Rect rowRect, float right, float width)
-        {
-            return new Rect(
-                right - width,
-                rowRect.y + Mathf.Floor((rowRect.height - IndicatorSize) * 0.5f),
-                width,
-                IndicatorSize);
-        }
-
-        private static void GetVisibleComponents(
-            HierarchyComponentSummary summary,
-            int maximumComponentIcons,
-            out int visibleComponentCount,
-            out bool showOverflow)
-        {
-            int remainingSlots = maximumComponentIcons - (summary.MonoBehaviourCount > 0 ? 1 : 0);
-            if (remainingSlots <= 0)
+            for (int index = 0; index < 3; index++)
             {
-                visibleComponentCount = 0;
-                showOverflow = false;
-                return;
-            }
-
-            visibleComponentCount = Mathf.Min(summary.Components.Length, remainingSlots);
-            showOverflow = summary.Components.Length > visibleComponentCount && remainingSlots > 1;
-            if (showOverflow)
-            {
-                visibleComponentCount--;
+                float centerY = SnapToPixel(rect.y + 3f + index * 4f, pixelsPerPoint);
+                EditorGUI.DrawRect(
+                    new Rect(dotX, centerY - dotSize * 0.5f, dotSize, dotSize),
+                    color);
+                EditorGUI.DrawRect(
+                    new Rect(barX, centerY - lineThickness * 0.5f, barWidth, lineThickness),
+                    color);
             }
         }
 
-        private static IndicatorLayout CalculateLayout(
-            GameObject gameObject,
-            Rect rowRect,
+        private static DetailLayout CalculateDetailLayout(
             HierarchyComponentSummary summary,
             int maximumComponentIcons)
         {
@@ -216,67 +246,10 @@ namespace LoogaSoft.Hierarchy.Editor
                 out int visibleComponentCount,
                 out bool showOverflow);
 
-            bool showStatic = summary.IsStatic;
             bool showScript = summary.MonoBehaviourCount > 0;
-            float availableWidth = GetAvailableIndicatorWidth(gameObject, rowRect);
-            float width = CalculateLayoutWidth(
-                summary,
-                showStatic,
-                showScript,
-                visibleComponentCount,
-                showOverflow);
-
-            while (width > availableWidth)
-            {
-                if (showOverflow)
-                {
-                    showOverflow = false;
-                }
-                else if (visibleComponentCount > 0)
-                {
-                    visibleComponentCount--;
-                }
-                else if (showScript)
-                {
-                    showScript = false;
-                }
-                else if (showStatic)
-                {
-                    showStatic = false;
-                }
-                else
-                {
-                    break;
-                }
-
-                width = CalculateLayoutWidth(
-                    summary,
-                    showStatic,
-                    showScript,
-                    visibleComponentCount,
-                    showOverflow);
-            }
-
-            return new IndicatorLayout(
-                showStatic,
-                showScript,
-                visibleComponentCount,
-                showOverflow,
-                width);
-        }
-
-        private static float CalculateLayoutWidth(
-            HierarchyComponentSummary summary,
-            bool showStatic,
-            bool showScript,
-            int visibleComponentCount,
-            bool showOverflow)
-        {
-            float width = showStatic ? IndicatorSize + IndicatorSpacing : 0f;
-            if (showScript)
-            {
-                width += GetIndicatorWidth(summary.MonoBehaviourCount, true) + IndicatorSpacing;
-            }
+            float width = showScript
+                ? GetIndicatorWidth(summary.MonoBehaviourCount, true) + IndicatorSpacing
+                : 0f;
 
             for (int index = 0; index < visibleComponentCount; index++)
             {
@@ -290,31 +263,74 @@ namespace LoogaSoft.Hierarchy.Editor
                 width += GetIndicatorWidth(hiddenCount, true) + IndicatorSpacing;
             }
 
-            return width;
+            return new DetailLayout(showScript, visibleComponentCount, showOverflow, width);
         }
 
-        private static float GetAvailableIndicatorWidth(GameObject gameObject, Rect rowRect)
+        private static void GetVisibleComponents(
+            HierarchyComponentSummary summary,
+            int maximumComponentIcons,
+            out int visibleComponentCount,
+            out bool showOverflow)
         {
-            float nameWidth = GetNameWidth(gameObject);
-            return Mathf.Max(0f, rowRect.width - NamePrefixWidth - nameWidth - NameRightPadding);
-        }
-
-        private static float GetNameWidth(GameObject gameObject)
-        {
-            int instanceId = gameObject.GetInstanceID();
-            string objectName = gameObject.name;
-            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
-            if (NameWidths.TryGetValue(instanceId, out NameWidthEntry entry) &&
-                entry.Name == objectName &&
-                Mathf.Approximately(entry.PixelsPerPoint, pixelsPerPoint))
+            int remainingSlots = Mathf.Max(
+                0,
+                maximumComponentIcons - (summary.MonoBehaviourCount > 0 ? 1 : 0));
+            visibleComponentCount = Mathf.Min(summary.Components.Length, remainingSlots);
+            showOverflow = summary.Components.Length > visibleComponentCount && remainingSlots > 1;
+            if (showOverflow)
             {
-                return entry.Width;
+                visibleComponentCount--;
+            }
+        }
+
+        private static float UpdateReveal(int instanceId, bool pointerOverControl)
+        {
+            double now = EditorApplication.timeSinceStartup;
+            if (!RevealStates.TryGetValue(instanceId, out RevealState state))
+            {
+                state = new RevealState(0f, now);
             }
 
-            NameContent.text = objectName;
-            float width = EditorStyles.label.CalcSize(NameContent).x;
-            NameWidths[instanceId] = new NameWidthEntry(objectName, pixelsPerPoint, width);
-            return width;
+            float deltaTime = Mathf.Clamp((float)(now - state.LastUpdate), 0f, 0.1f);
+            float target = pointerOverControl ? 1f : 0f;
+            float progress = Mathf.MoveTowards(
+                state.Progress,
+                target,
+                RevealDuration > 0f ? deltaTime / RevealDuration : 1f);
+            bool changed = !Mathf.Approximately(progress, state.Progress);
+            RevealStates[instanceId] = new RevealState(progress, now);
+
+            if (changed || !Mathf.Approximately(progress, target))
+            {
+                EditorApplication.RepaintHierarchyWindow();
+            }
+
+            return progress;
+        }
+
+        private static float GetRevealProgress(int instanceId)
+        {
+            return RevealStates.TryGetValue(instanceId, out RevealState state)
+                ? state.Progress
+                : 0f;
+        }
+
+        private static Rect GetSummaryRect(Rect rowRect)
+        {
+            return new Rect(
+                rowRect.xMax - IndicatorSize - 1f,
+                rowRect.y + Mathf.Floor((rowRect.height - IndicatorSize) * 0.5f),
+                IndicatorSize,
+                IndicatorSize);
+        }
+
+        private static Rect GetIndicatorRect(Rect rowRect, float right, float width)
+        {
+            return new Rect(
+                right - width,
+                rowRect.y + Mathf.Floor((rowRect.height - IndicatorSize) * 0.5f),
+                width,
+                IndicatorSize);
         }
 
         private static float GetIndicatorWidth(int count, bool showCount)
@@ -330,48 +346,6 @@ namespace LoogaSoft.Hierarchy.Editor
         private static float GetCountLabelWidth(string label)
         {
             return label.Length * CountCharacterWidth;
-        }
-
-        private static void DrawPushpin(Rect indicatorRect)
-        {
-            float pixelsPerPoint = EditorGUIUtility.pixelsPerPoint;
-            float centerX = SnapToPixel(indicatorRect.center.x, pixelsPerPoint);
-            float centerY = SnapToPixel(indicatorRect.center.y, pixelsPerPoint);
-
-            SetVertex(PushpinHeadVertices, 0, centerX - 3f, centerY - 4f);
-            SetVertex(PushpinHeadVertices, 1, centerX + 3f, centerY - 4f);
-            SetVertex(PushpinHeadVertices, 2, centerX + 2f, centerY - 2f);
-            SetVertex(PushpinHeadVertices, 3, centerX - 2f, centerY - 2f);
-
-            SetVertex(PushpinShoulderVertices, 0, centerX - 2f, centerY - 2f);
-            SetVertex(PushpinShoulderVertices, 1, centerX + 2f, centerY - 2f);
-            SetVertex(PushpinShoulderVertices, 2, centerX + 3f, centerY);
-            SetVertex(PushpinShoulderVertices, 3, centerX - 3f, centerY);
-
-            SetVertex(PushpinStemVertices, 0, centerX - 0.8f, centerY);
-            SetVertex(PushpinStemVertices, 1, centerX + 0.8f, centerY);
-            SetVertex(PushpinStemVertices, 2, centerX, centerY + 5f);
-
-            Color previousColor = Handles.color;
-            Handles.BeginGUI();
-            Handles.color = EditorGUIUtility.isProSkin
-                ? new Color(0.76f, 0.80f, 0.86f, 1f)
-                : new Color(0.28f, 0.32f, 0.38f, 1f);
-            Handles.DrawAAConvexPolygon(PushpinHeadVertices);
-            Handles.DrawAAConvexPolygon(PushpinShoulderVertices);
-            Handles.DrawAAConvexPolygon(PushpinStemVertices);
-            Handles.color = previousColor;
-            Handles.EndGUI();
-        }
-
-        private static void SetVertex(Vector3[] vertices, int index, float x, float y)
-        {
-            vertices[index] = new Vector3(x, y, 0f);
-        }
-
-        private static float SnapToPixel(float value, float pixelsPerPoint)
-        {
-            return Mathf.Round(value * pixelsPerPoint) / pixelsPerPoint;
         }
 
         private static GUIContent GetComponentContent(HierarchyComponentEntry entry)
@@ -415,23 +389,24 @@ namespace LoogaSoft.Hierarchy.Editor
             return content;
         }
 
-        private readonly struct IndicatorLayout
+        private static float SnapToPixel(float value, float pixelsPerPoint)
         {
-            internal IndicatorLayout(
-                bool showStatic,
+            return Mathf.Round(value * pixelsPerPoint) / pixelsPerPoint;
+        }
+
+        private readonly struct DetailLayout
+        {
+            internal DetailLayout(
                 bool showScript,
                 int visibleComponentCount,
                 bool showOverflow,
                 float width)
             {
-                ShowStatic = showStatic;
                 ShowScript = showScript;
                 VisibleComponentCount = visibleComponentCount;
                 ShowOverflow = showOverflow;
                 Width = width;
             }
-
-            internal bool ShowStatic { get; }
 
             internal bool ShowScript { get; }
 
@@ -440,24 +415,19 @@ namespace LoogaSoft.Hierarchy.Editor
             internal bool ShowOverflow { get; }
 
             internal float Width { get; }
-
-            internal bool HasIndicators => ShowStatic || ShowScript || VisibleComponentCount > 0 || ShowOverflow;
         }
 
-        private readonly struct NameWidthEntry
+        private readonly struct RevealState
         {
-            internal NameWidthEntry(string name, float pixelsPerPoint, float width)
+            internal RevealState(float progress, double lastUpdate)
             {
-                Name = name;
-                PixelsPerPoint = pixelsPerPoint;
-                Width = width;
+                Progress = progress;
+                LastUpdate = lastUpdate;
             }
 
-            internal string Name { get; }
+            internal float Progress { get; }
 
-            internal float PixelsPerPoint { get; }
-
-            internal float Width { get; }
+            internal double LastUpdate { get; }
         }
     }
 }

@@ -17,6 +17,8 @@ namespace LoogaSoft.Navigation.Editor
         protected const float InspectorBarHeight = 26f;
         protected const float ProjectBarHeight = 20f;
         private const float HistoryIconSize = 18f;
+        protected const float ProjectCreateAreaWidth = 30f;
+        protected const float ProjectSearchAreaWidth = 310f;
 
         private readonly VisualElement _historyContainer;
         private readonly ToolbarButton _backButton;
@@ -25,7 +27,13 @@ namespace LoogaSoft.Navigation.Editor
         private readonly VisualElement _spacer;
         private int _lastWidth;
 
-        protected EditorNavigationBar(EditorWindow window, float barHeight, bool showCreateAssetButton)
+        protected EditorNavigationBar(
+            EditorWindow window,
+            float barHeight,
+            bool reserveContentSpace,
+            bool historyAlignsRight,
+            float leftInset = 0f,
+            float rightInset = 0f)
         {
             Window = window;
 
@@ -33,6 +41,7 @@ namespace LoogaSoft.Navigation.Editor
             _forwardButton = CreateArrowButton(false, MoveForward);
 
             VisualElement flexibleSpace = new();
+            flexibleSpace.pickingMode = PickingMode.Ignore;
             flexibleSpace.style.flexGrow = 1f;
             flexibleSpace.style.flexShrink = 1f;
 
@@ -48,11 +57,12 @@ namespace LoogaSoft.Navigation.Editor
 
             _bar = new Toolbar
             {
-                name = BarName
+                name = BarName,
+                pickingMode = reserveContentSpace ? PickingMode.Position : PickingMode.Ignore
             };
             _bar.style.position = Position.Absolute;
-            _bar.style.left = 0f;
-            _bar.style.right = 0f;
+            _bar.style.left = leftInset;
+            _bar.style.right = rightInset;
             _bar.style.top = 0f;
             _bar.style.height = barHeight;
             _bar.style.minHeight = barHeight;
@@ -62,24 +72,35 @@ namespace LoogaSoft.Navigation.Editor
             _bar.style.paddingLeft = 3f;
             _bar.style.paddingRight = 4f;
             _bar.style.borderBottomWidth = 0f;
+            if (!reserveContentSpace)
+            {
+                _bar.style.backgroundColor = Color.clear;
+                _bar.style.unityBackgroundImageTintColor = Color.clear;
+            }
+
             _bar.Add(_backButton);
             _bar.Add(_forwardButton);
-            _bar.Add(flexibleSpace);
+            if (historyAlignsRight)
+                _bar.Add(flexibleSpace);
+
             _bar.Add(_historyContainer);
-            if (showCreateAssetButton)
-                _bar.Add(CreateAssetButton());
+            if (!historyAlignsRight)
+                _bar.Add(flexibleSpace);
 
             _bar.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
 
-            _spacer = new VisualElement
+            if (reserveContentSpace)
             {
-                name = SpacerName,
-                pickingMode = PickingMode.Ignore
-            };
-            _spacer.style.height = barHeight;
-            _spacer.style.minHeight = barHeight;
-            _spacer.style.maxHeight = barHeight;
-            _spacer.style.flexShrink = 0f;
+                _spacer = new VisualElement
+                {
+                    name = SpacerName,
+                    pickingMode = PickingMode.Ignore
+                };
+                _spacer.style.height = barHeight;
+                _spacer.style.minHeight = barHeight;
+                _spacer.style.maxHeight = barHeight;
+                _spacer.style.flexShrink = 0f;
+            }
         }
 
         protected EditorWindow Window { get; }
@@ -88,7 +109,7 @@ namespace LoogaSoft.Navigation.Editor
             : Window.position.width;
 
         public bool IsValid => Window != null;
-        public bool IsAttached => _bar.parent != null && _spacer.parent != null;
+        public bool IsAttached => _bar.parent != null && (_spacer == null || _spacer.parent != null);
 
         public void Attach()
         {
@@ -98,7 +119,7 @@ namespace LoogaSoft.Navigation.Editor
             VisualElement root = Window.rootVisualElement;
             RemoveForeignDuplicates(root);
 
-            if (_spacer.parent != root)
+            if (_spacer != null && _spacer.parent != root)
                 root.Insert(0, _spacer);
 
             if (_bar.parent != root)
@@ -111,7 +132,7 @@ namespace LoogaSoft.Navigation.Editor
         {
             _bar.UnregisterCallback<GeometryChangedEvent>(OnGeometryChanged);
             _bar.RemoveFromHierarchy();
-            _spacer.RemoveFromHierarchy();
+            _spacer?.RemoveFromHierarchy();
             OnDisposed();
         }
 
@@ -256,44 +277,6 @@ namespace LoogaSoft.Navigation.Editor
             return button;
         }
 
-        private ToolbarButton CreateAssetButton()
-        {
-            ToolbarButton button = null;
-            button = new ToolbarButton(() => ShowCreateAssetMenu(button))
-            {
-                text = "+",
-                tooltip = "Create asset"
-            };
-            button.style.width = 28f;
-            button.style.minWidth = 28f;
-            button.style.maxWidth = 28f;
-            button.style.height = ProjectBarHeight;
-            button.style.marginLeft = 2f;
-            button.style.marginRight = 0f;
-            button.style.marginTop = 0f;
-            button.style.marginBottom = 0f;
-            button.style.paddingLeft = 0f;
-            button.style.paddingRight = 0f;
-            button.style.paddingTop = 0f;
-            button.style.paddingBottom = 1f;
-            button.style.fontSize = 19f;
-            button.style.unityFontStyleAndWeight = FontStyle.Bold;
-            button.style.unityTextAlign = TextAnchor.MiddleCenter;
-            RemoveButtonBorders(button);
-            return button;
-        }
-
-        private void ShowCreateAssetMenu(VisualElement button)
-        {
-            Rect buttonBounds = button.worldBound;
-            Rect screenBounds = new(
-                Window.position.x + buttonBounds.x,
-                Window.position.y + buttonBounds.yMax,
-                buttonBounds.width,
-                1f);
-            EditorUtility.DisplayPopupMenu(screenBounds, "Assets/Create", null);
-        }
-
         private static void RemoveButtonBorders(VisualElement button)
         {
             button.style.borderLeftWidth = 0f;
@@ -329,7 +312,7 @@ namespace LoogaSoft.Navigation.Editor
         private const int MaximumHistoryButtons = 9;
 
         public InspectorNavigationBar(EditorWindow window)
-            : base(window, InspectorBarHeight, false)
+            : base(window, InspectorBarHeight, true, true)
         {
             InspectorSelectionHistory.Changed += Refresh;
         }
@@ -422,7 +405,13 @@ namespace LoogaSoft.Navigation.Editor
         private readonly ProjectFolderHistory _history;
 
         public ProjectNavigationBar(EditorWindow window, ProjectFolderHistory history)
-            : base(window, ProjectBarHeight, true)
+            : base(
+                window,
+                ProjectBarHeight,
+                false,
+                false,
+                ProjectCreateAreaWidth,
+                ProjectSearchAreaWidth)
         {
             _history = history;
             _history.Changed += Refresh;
@@ -445,7 +434,7 @@ namespace LoogaSoft.Navigation.Editor
         {
             IReadOnlyList<string> entries = _history.Entries;
             int maximumButtons = Mathf.Clamp(
-                Mathf.FloorToInt((AvailableWidth - 108f) / 104f),
+                Mathf.FloorToInt((AvailableWidth - 60f) / 104f),
                 0,
                 MaximumHistoryButtons);
             if (maximumButtons == 0)

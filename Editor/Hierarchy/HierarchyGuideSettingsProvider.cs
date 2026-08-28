@@ -75,7 +75,7 @@ namespace LoogaSoft.Hierarchy.Editor
             EditorGUILayout.LabelField("Organization", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(_showFavorites, new GUIContent("Favorites"));
             EditorGUILayout.PropertyField(_showPresentation, new GUIContent("Object Colors"));
-            EditorGUILayout.PropertyField(_showComponentIcons, new GUIContent("Component Icons"));
+            EditorGUILayout.PropertyField(_showComponentIcons, new GUIContent("Component Summary"));
 
             using (new EditorGUI.DisabledScope(!_showComponentIcons.boolValue))
             {
@@ -85,7 +85,7 @@ namespace LoogaSoft.Hierarchy.Editor
                     8,
                     new GUIContent(
                         "Maximum Component Icons",
-                        "Maximum number of component summary icons shown on each row."));
+                        "Maximum number of component icons revealed when the summary is hovered."));
             }
 
             if (EditorGUI.EndChangeCheck())
