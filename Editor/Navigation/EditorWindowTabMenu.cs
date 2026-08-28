@@ -206,7 +206,7 @@ namespace LoogaSoft.Navigation.Editor
 
         private void OpenWindowMenu()
         {
-            List<EditorWindowEntry> entries = DockAreaBridge.GetWindowEntries(_dockArea);
+            List<EditorWindowEntry> entries = EditorWindowCatalog.GetEntries(_dockArea);
             if (entries.Count == 0)
                 return;
 
@@ -358,6 +358,189 @@ namespace LoogaSoft.Navigation.Editor
         public Texture2D Icon { get; }
     }
 
+    internal static class EditorWindowCatalog
+    {
+        private static readonly HashSet<string> AdditionalBuiltInWindowTypes = new()
+        {
+            "UnityEditor.AudioMixerWindow",
+            "UnityEditor.Build.Profile.BuildProfileWindow",
+            "UnityEditor.BuildPlayerWindow",
+            "UnityEditor.ConsoleWindow",
+            "UnityEditor.PackageManager.UI.PackageManagerWindow",
+            "UnityEditor.PreferenceSettingsWindow",
+            "UnityEditor.ProjectSettingsWindow",
+            "UnityEditor.ShortcutManagement.ShortcutManagerWindow"
+        };
+
+        private static readonly HashSet<string> NativeOnlyWindowTypes = new()
+        {
+            "Unity.Hierarchy.Editor.HierarchyWindow",
+            "UnityEditor.SceneHierarchyWindow"
+        };
+
+        private static readonly string[] TransientWindowNameParts =
+        {
+            "Blackboard",
+            "BlockEditor",
+            "ColumnEditor",
+            "Dropdown",
+            "Minimap",
+            "OverlayPreset",
+            "Picker",
+            "Popup",
+            "Preview",
+            "Selector",
+            "Tooltip"
+        };
+
+        private static readonly Type WindowTitleAttributeType =
+            typeof(UnityEditor.Editor).Assembly.GetType("UnityEditor.EditorWindowTitleAttribute");
+        private static readonly MethodInfo WindowTitleMethod = typeof(EditorWindow).GetMethod(
+            "GetLocalizedTitleContentFromType",
+            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
+
+        private static IReadOnlyList<Type> _discoverableWindowTypes;
+
+        public static List<EditorWindowEntry> GetEntries(Object dockArea)
+        {
+            HashSet<Type> windowTypes = new();
+            DockAreaBridge.AddPaneTypes(dockArea, windowTypes);
+
+            IReadOnlyList<Type> discoverableTypes = GetDiscoverableWindowTypes();
+            for (int i = 0; i < discoverableTypes.Count; i++)
+            {
+                windowTypes.Add(discoverableTypes[i]);
+            }
+
+            List<EditorWindowEntry> entries = new(windowTypes.Count);
+            foreach (Type windowType in windowTypes)
+            {
+                GUIContent title = GetWindowTitle(windowType);
+                entries.Add(new EditorWindowEntry(
+                    title.text,
+                    windowType,
+                    title.image as Texture2D));
+            }
+
+            entries.Sort(CompareWindowEntries);
+            return entries;
+        }
+
+        private static IReadOnlyList<Type> GetDiscoverableWindowTypes()
+        {
+            if (_discoverableWindowTypes != null)
+                return _discoverableWindowTypes;
+
+            HashSet<Type> menuWindowTypes = GetMenuWindowTypes();
+            List<Type> windowTypes = new();
+            foreach (Type windowType in TypeCache.GetTypesDerivedFrom<EditorWindow>())
+            {
+                if (!IsUsableWindowType(windowType))
+                {
+                    continue;
+                }
+
+                bool hasWindowMenu = menuWindowTypes.Contains(windowType);
+                bool isAdditionalBuiltIn = AdditionalBuiltInWindowTypes.Contains(windowType.FullName);
+                bool hasWindowTitle = HasWindowTitle(windowType) &&
+                                      !NativeOnlyWindowTypes.Contains(windowType.FullName) &&
+                                      !LooksTransient(windowType);
+                if (hasWindowMenu || isAdditionalBuiltIn || hasWindowTitle)
+                {
+                    windowTypes.Add(windowType);
+                }
+            }
+
+            _discoverableWindowTypes = windowTypes;
+            return _discoverableWindowTypes;
+        }
+
+        private static HashSet<Type> GetMenuWindowTypes()
+        {
+            HashSet<Type> windowTypes = new();
+            foreach (MethodInfo method in TypeCache.GetMethodsWithAttribute<MenuItem>())
+            {
+                Type windowType = method.DeclaringType;
+                if (!IsUsableWindowType(windowType))
+                {
+                    continue;
+                }
+
+                foreach (MenuItem menuItem in method.GetCustomAttributes<MenuItem>(false))
+                {
+                    if (!menuItem.validate &&
+                        !string.IsNullOrEmpty(menuItem.menuItem))
+                    {
+                        windowTypes.Add(windowType);
+                        break;
+                    }
+                }
+            }
+
+            return windowTypes;
+        }
+
+        private static bool IsUsableWindowType(Type windowType)
+        {
+            return windowType != null &&
+                   !windowType.IsAbstract &&
+                   !windowType.ContainsGenericParameters &&
+                   typeof(EditorWindow).IsAssignableFrom(windowType);
+        }
+
+        private static bool HasWindowTitle(Type windowType)
+        {
+            return WindowTitleAttributeType != null &&
+                   windowType.IsDefined(WindowTitleAttributeType, true);
+        }
+
+        private static bool LooksTransient(Type windowType)
+        {
+            string name = windowType.Name;
+            for (int i = 0; i < TransientWindowNameParts.Length; i++)
+            {
+                if (name.IndexOf(TransientWindowNameParts[i], StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static GUIContent GetWindowTitle(Type windowType)
+        {
+            if (WindowTitleMethod != null)
+            {
+                try
+                {
+                    if (WindowTitleMethod.Invoke(null, new object[] { windowType }) is GUIContent title &&
+                        !string.IsNullOrWhiteSpace(title.text))
+                    {
+                        return new GUIContent(title);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Use the type name when Unity cannot provide localized window content.
+                }
+            }
+
+            string name = ObjectNames.NicifyVariableName(windowType.Name);
+            if (name.EndsWith(" Window", StringComparison.Ordinal))
+            {
+                name = name[..^7];
+            }
+
+            return new GUIContent(name, EditorGUIUtility.ObjectContent(null, windowType).image);
+        }
+
+        private static int CompareWindowEntries(EditorWindowEntry left, EditorWindowEntry right)
+        {
+            return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
     internal static class DockAreaBridge
     {
         private const BindingFlags InstanceFlags =
@@ -383,10 +566,6 @@ namespace LoogaSoft.Navigation.Editor
         private static readonly PropertyInfo VisualTreeProperty = FindProperty(
             DockAreaType,
             "visualTree");
-        private static readonly MethodInfo WindowTitleMethod = typeof(EditorWindow).GetMethod(
-            "GetLocalizedTitleContentFromType",
-            BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
-
         private static bool _warningLogged;
 
         public static bool IsAvailable =>
@@ -415,43 +594,28 @@ namespace LoogaSoft.Navigation.Editor
             return tabArea.width > 0f && tabArea.height > 0f && totalTabWidth > 0f;
         }
 
-        public static List<EditorWindowEntry> GetWindowEntries(Object dockArea)
+        public static void AddPaneTypes(Object dockArea, HashSet<Type> windowTypes)
         {
-            List<EditorWindowEntry> entries = new();
-            if (!IsAvailable || dockArea == null)
-                return entries;
+            if (!IsAvailable || dockArea == null || windowTypes == null)
+                return;
 
             try
             {
                 if (GetPaneTypesMethod.Invoke(dockArea, null) is not IEnumerable paneTypes)
-                    return entries;
+                    return;
 
-                HashSet<Type> addedTypes = new();
                 foreach (object value in paneTypes)
                 {
-                    if (value is not Type windowType ||
-                        windowType.IsAbstract ||
-                        !typeof(EditorWindow).IsAssignableFrom(windowType) ||
-                        !addedTypes.Add(windowType))
+                    if (value is Type windowType)
                     {
-                        continue;
+                        windowTypes.Add(windowType);
                     }
-
-                    GUIContent title = GetWindowTitle(windowType);
-                    entries.Add(new EditorWindowEntry(
-                        title.text,
-                        windowType,
-                        title.image as Texture2D));
                 }
-
-                entries.Sort(CompareWindowEntries);
             }
             catch (Exception exception)
             {
                 LogWarningOnce(exception);
             }
-
-            return entries;
         }
 
         public static bool AddTab(Object dockArea, EditorWindow window)
@@ -470,36 +634,6 @@ namespace LoogaSoft.Navigation.Editor
                 LogWarningOnce(exception);
                 return false;
             }
-        }
-
-        private static GUIContent GetWindowTitle(Type windowType)
-        {
-            if (WindowTitleMethod != null)
-            {
-                try
-                {
-                    if (WindowTitleMethod.Invoke(null, new object[] { windowType }) is GUIContent title &&
-                        !string.IsNullOrWhiteSpace(title.text))
-                    {
-                        return new GUIContent(title);
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogWarningOnce(exception);
-                }
-            }
-
-            string name = ObjectNames.NicifyVariableName(windowType.Name);
-            if (name.EndsWith(" Window", StringComparison.Ordinal))
-                name = name[..^7];
-
-            return new GUIContent(name, EditorGUIUtility.ObjectContent(null, windowType).image);
-        }
-
-        private static int CompareWindowEntries(EditorWindowEntry left, EditorWindowEntry right)
-        {
-            return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
         }
 
         private static T GetValue<T>(MemberInfo member, Object target)
