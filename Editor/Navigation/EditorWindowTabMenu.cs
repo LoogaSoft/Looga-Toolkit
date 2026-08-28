@@ -313,14 +313,22 @@ namespace LoogaSoft.Navigation.Editor
         protected override AdvancedDropdownItem BuildRoot()
         {
             AdvancedDropdownItem root = new("Add Window");
+            Dictionary<string, AdvancedDropdownItem> categories = new(StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < _entries.Count; i++)
             {
                 EditorWindowEntry entry = _entries[i];
+                if (!categories.TryGetValue(entry.Category, out AdvancedDropdownItem category))
+                {
+                    category = new AdvancedDropdownItem(entry.Category);
+                    categories.Add(entry.Category, category);
+                    root.AddChild(category);
+                }
+
                 EditorWindowDropdownItem item = new(entry.Name, entry.WindowType)
                 {
                     icon = entry.Icon
                 };
-                root.AddChild(item);
+                category.AddChild(item);
             }
 
             return root;
@@ -346,30 +354,46 @@ namespace LoogaSoft.Navigation.Editor
 
     internal readonly struct EditorWindowEntry
     {
-        public EditorWindowEntry(string name, Type windowType, Texture2D icon)
+        public EditorWindowEntry(string category, string name, Type windowType, Texture2D icon)
         {
+            Category = category;
             Name = name;
             WindowType = windowType;
             Icon = icon;
         }
 
+        public string Category { get; }
         public string Name { get; }
         public Type WindowType { get; }
         public Texture2D Icon { get; }
     }
 
+    internal readonly struct EditorWindowRegistration
+    {
+        public EditorWindowRegistration(Type windowType, string category)
+        {
+            WindowType = windowType;
+            Category = category;
+        }
+
+        public Type WindowType { get; }
+        public string Category { get; }
+    }
+
     internal static class EditorWindowCatalog
     {
-        private static readonly HashSet<string> AdditionalBuiltInWindowTypes = new()
+        private const string GeneralCategory = "General";
+
+        private static readonly Dictionary<string, string> AdditionalBuiltInWindowCategories = new()
         {
-            "UnityEditor.AudioMixerWindow",
-            "UnityEditor.Build.Profile.BuildProfileWindow",
-            "UnityEditor.BuildPlayerWindow",
-            "UnityEditor.ConsoleWindow",
-            "UnityEditor.PackageManager.UI.PackageManagerWindow",
-            "UnityEditor.PreferenceSettingsWindow",
-            "UnityEditor.ProjectSettingsWindow",
-            "UnityEditor.ShortcutManagement.ShortcutManagerWindow"
+            { "UnityEditor.AudioMixerWindow", "Audio" },
+            { "UnityEditor.Build.Profile.BuildProfileWindow", "Build" },
+            { "UnityEditor.BuildPlayerWindow", "Build" },
+            { "UnityEditor.ConsoleWindow", GeneralCategory },
+            { "UnityEditor.PackageManager.UI.PackageManagerWindow", "Package Management" },
+            { "UnityEditor.PreferenceSettingsWindow", "Settings" },
+            { "UnityEditor.ProjectSettingsWindow", "Settings" },
+            { "UnityEditor.ShortcutManagement.ShortcutManagerWindow", "Settings" }
         };
 
         private static readonly HashSet<string> NativeOnlyWindowTypes = new()
@@ -399,26 +423,34 @@ namespace LoogaSoft.Navigation.Editor
             "GetLocalizedTitleContentFromType",
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
 
-        private static IReadOnlyList<Type> _discoverableWindowTypes;
+        private static IReadOnlyList<EditorWindowRegistration> _discoverableWindows;
 
         public static List<EditorWindowEntry> GetEntries(Object dockArea)
         {
-            HashSet<Type> windowTypes = new();
-            DockAreaBridge.AddPaneTypes(dockArea, windowTypes);
+            HashSet<Type> nativeWindowTypes = new();
+            DockAreaBridge.AddPaneTypes(dockArea, nativeWindowTypes);
 
-            IReadOnlyList<Type> discoverableTypes = GetDiscoverableWindowTypes();
-            for (int i = 0; i < discoverableTypes.Count; i++)
+            Dictionary<Type, string> windowCategories = new();
+            foreach (Type windowType in nativeWindowTypes)
             {
-                windowTypes.Add(discoverableTypes[i]);
+                windowCategories.Add(windowType, GetDefaultCategory(windowType));
             }
 
-            List<EditorWindowEntry> entries = new(windowTypes.Count);
-            foreach (Type windowType in windowTypes)
+            IReadOnlyList<EditorWindowRegistration> discoverableWindows = GetDiscoverableWindows();
+            for (int i = 0; i < discoverableWindows.Count; i++)
             {
-                GUIContent title = GetWindowTitle(windowType);
+                EditorWindowRegistration registration = discoverableWindows[i];
+                windowCategories[registration.WindowType] = registration.Category;
+            }
+
+            List<EditorWindowEntry> entries = new(windowCategories.Count);
+            foreach (KeyValuePair<Type, string> pair in windowCategories)
+            {
+                GUIContent title = GetWindowTitle(pair.Key);
                 entries.Add(new EditorWindowEntry(
+                    pair.Value,
                     title.text,
-                    windowType,
+                    pair.Key,
                     title.image as Texture2D));
             }
 
@@ -426,13 +458,13 @@ namespace LoogaSoft.Navigation.Editor
             return entries;
         }
 
-        private static IReadOnlyList<Type> GetDiscoverableWindowTypes()
+        private static IReadOnlyList<EditorWindowRegistration> GetDiscoverableWindows()
         {
-            if (_discoverableWindowTypes != null)
-                return _discoverableWindowTypes;
+            if (_discoverableWindows != null)
+                return _discoverableWindows;
 
-            HashSet<Type> menuWindowTypes = GetMenuWindowTypes();
-            List<Type> windowTypes = new();
+            Dictionary<Type, string> menuWindowCategories = GetMenuWindowCategories();
+            List<EditorWindowRegistration> windows = new();
             foreach (Type windowType in TypeCache.GetTypesDerivedFrom<EditorWindow>())
             {
                 if (!IsUsableWindowType(windowType))
@@ -440,24 +472,33 @@ namespace LoogaSoft.Navigation.Editor
                     continue;
                 }
 
-                bool hasWindowMenu = menuWindowTypes.Contains(windowType);
-                bool isAdditionalBuiltIn = AdditionalBuiltInWindowTypes.Contains(windowType.FullName);
+                bool hasWindowMenu = menuWindowCategories.TryGetValue(
+                    windowType,
+                    out string menuCategory);
+                bool isAdditionalBuiltIn = AdditionalBuiltInWindowCategories.TryGetValue(
+                    windowType.FullName,
+                    out string builtInCategory);
                 bool hasWindowTitle = HasWindowTitle(windowType) &&
                                       !NativeOnlyWindowTypes.Contains(windowType.FullName) &&
                                       !LooksTransient(windowType);
                 if (hasWindowMenu || isAdditionalBuiltIn || hasWindowTitle)
                 {
-                    windowTypes.Add(windowType);
+                    string category = hasWindowMenu
+                        ? menuCategory
+                        : isAdditionalBuiltIn
+                            ? builtInCategory
+                            : GetDefaultCategory(windowType);
+                    windows.Add(new EditorWindowRegistration(windowType, category));
                 }
             }
 
-            _discoverableWindowTypes = windowTypes;
-            return _discoverableWindowTypes;
+            _discoverableWindows = windows;
+            return _discoverableWindows;
         }
 
-        private static HashSet<Type> GetMenuWindowTypes()
+        private static Dictionary<Type, string> GetMenuWindowCategories()
         {
-            HashSet<Type> windowTypes = new();
+            Dictionary<Type, MenuCategoryCandidate> candidates = new();
             foreach (MethodInfo method in TypeCache.GetMethodsWithAttribute<MenuItem>())
             {
                 Type windowType = method.DeclaringType;
@@ -471,14 +512,117 @@ namespace LoogaSoft.Navigation.Editor
                     if (!menuItem.validate &&
                         !string.IsNullOrEmpty(menuItem.menuItem))
                     {
-                        windowTypes.Add(windowType);
-                        break;
+                        MenuCategoryCandidate candidate = GetMenuCategory(menuItem.menuItem);
+                        if (!candidates.TryGetValue(windowType, out MenuCategoryCandidate current) ||
+                            candidate.Priority > current.Priority ||
+                            candidate.Priority == current.Priority &&
+                            string.Compare(
+                                candidate.Category,
+                                current.Category,
+                                StringComparison.OrdinalIgnoreCase) < 0)
+                        {
+                            candidates[windowType] = candidate;
+                        }
                     }
                 }
             }
 
-            return windowTypes;
+            Dictionary<Type, string> categories = new(candidates.Count);
+            foreach (KeyValuePair<Type, MenuCategoryCandidate> pair in candidates)
+            {
+                categories.Add(pair.Key, pair.Value.Category);
+            }
+
+            return categories;
         }
+
+        #region Categories
+        private static MenuCategoryCandidate GetMenuCategory(string menuPath)
+        {
+            string[] parts = menuPath.Split('/');
+            string root = parts[0].Trim();
+            if (string.Equals(root, "Window", StringComparison.OrdinalIgnoreCase))
+            {
+                string category = parts.Length >= 3 ? parts[1].Trim() : GeneralCategory;
+                return new MenuCategoryCandidate(NormalizeCategory(category), 3);
+            }
+
+            if (string.Equals(root, "Assets", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(root, "CONTEXT", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(root, "GameObject", StringComparison.OrdinalIgnoreCase))
+            {
+                return new MenuCategoryCandidate("Tools", 1);
+            }
+
+            return new MenuCategoryCandidate(NormalizeCategory(root), 2);
+        }
+
+        private static string GetDefaultCategory(Type windowType)
+        {
+            string fullName = windowType.FullName ?? windowType.Name;
+            string typeName = windowType.Name;
+            if (AdditionalBuiltInWindowCategories.TryGetValue(fullName, out string category))
+                return category;
+
+            if (ContainsAny(typeName, "Hierarchy", "Inspector", "ProjectBrowser", "SceneView", "GameView"))
+                return GeneralCategory;
+
+            if (ContainsAny(typeName, "Animation", "Animator"))
+                return "Animation";
+
+            if (ContainsAny(typeName, "Audio", "Mixer"))
+                return "Audio";
+
+            if (ContainsAny(typeName, "Build", "PlayerSettings"))
+                return "Build";
+
+            if (ContainsAny(typeName, "Debug", "Diagnostics", "Memory", "Profiler"))
+                return "Analysis";
+
+            if (ContainsAny(typeName, "Graphics", "Light", "Occlusion", "Render", "Shader"))
+                return "Rendering";
+
+            if (ContainsAny(fullName, "UIElements", "UI.Builder"))
+                return "UI Toolkit";
+
+            if (ContainsAny(typeName, "Package"))
+                return "Package Management";
+
+            if (ContainsAny(typeName, "Preference", "Settings", "Shortcut"))
+                return "Settings";
+
+            if (ContainsAny(typeName, "Search"))
+                return "Search";
+
+            string assemblyName = windowType.Assembly.GetName().Name;
+            if (fullName.StartsWith("LoogaSoft.", StringComparison.Ordinal) ||
+                assemblyName.StartsWith("LoogaSoft.", StringComparison.Ordinal))
+            {
+                return "LoogaSoft";
+            }
+
+            if (assemblyName.StartsWith("Unity", StringComparison.Ordinal))
+                return "Unity";
+
+            return "Project";
+        }
+
+        private static string NormalizeCategory(string category)
+        {
+            return string.IsNullOrWhiteSpace(category) ? "Other" : category;
+        }
+
+        private static bool ContainsAny(string value, params string[] terms)
+        {
+            for (int i = 0; i < terms.Length; i++)
+            {
+                if (value.IndexOf(terms[i], StringComparison.OrdinalIgnoreCase) >= 0)
+                    return true;
+            }
+
+            return false;
+        }
+        #endregion
 
         private static bool IsUsableWindowType(Type windowType)
         {
@@ -537,7 +681,32 @@ namespace LoogaSoft.Navigation.Editor
 
         private static int CompareWindowEntries(EditorWindowEntry left, EditorWindowEntry right)
         {
-            return string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+            int categoryComparison = CompareCategories(left.Category, right.Category);
+            return categoryComparison != 0
+                ? categoryComparison
+                : string.Compare(left.Name, right.Name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int CompareCategories(string left, string right)
+        {
+            bool leftIsGeneral = string.Equals(left, GeneralCategory, StringComparison.OrdinalIgnoreCase);
+            bool rightIsGeneral = string.Equals(right, GeneralCategory, StringComparison.OrdinalIgnoreCase);
+            if (leftIsGeneral != rightIsGeneral)
+                return leftIsGeneral ? -1 : 1;
+
+            return string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private readonly struct MenuCategoryCandidate
+        {
+            public MenuCategoryCandidate(string category, int priority)
+            {
+                Category = category;
+                Priority = priority;
+            }
+
+            public string Category { get; }
+            public int Priority { get; }
         }
     }
 
