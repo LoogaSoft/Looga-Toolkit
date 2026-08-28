@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Added nested-property drawer support for `LoogaList` collections.
+- Added nested-property drawer support with smooth drag reordering for `LoogaList` collections.
 - Added resizable, session-persistent navigation panes to Looga sidebar inspectors and editor workspaces.
 - Changed the Hierarchy component summary to the light-gray Remix menu-unfold-2-line icon.
 - Showed the Hierarchy component summary only while its object row is hovered.

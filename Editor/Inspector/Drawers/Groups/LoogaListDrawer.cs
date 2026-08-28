@@ -22,9 +22,14 @@ namespace LoogaSoft.Inspector.Editor
         private const float RowGap = 1f;
         private const float DragHandleWidth = 16f;
         private const float DeleteButtonWidth = 20f;
+        private const float ReorderAnimationSeconds = 0.08f;
 
         private static string _dragKey = string.Empty;
         private static int _dragIndex = -1;
+        private static int _dropIndex = -1;
+        private static int _previousDropIndex = -1;
+        private static float _dragMouseOffsetY;
+        private static double _dropAnimationStartTime;
 
         public override void OnGUI(Rect position, SerializedProperty property, GUIContent label)
         {
@@ -181,25 +186,94 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             string key = GetKey(property);
-            float y = bodyRect.y + BodyPadding;
+            Rect contentRect = LoogaEditorStyle.PixelSnap(new Rect(
+                bodyRect.x + BodyPadding,
+                bodyRect.y + BodyPadding,
+                Mathf.Max(0f, bodyRect.width - BodyPadding * 2f),
+                Mathf.Max(0f, bodyRect.height - BodyPadding * 2f)));
+            HandleDragOver(property, key, contentRect);
+
+            bool dragging = _dragKey == key &&
+                _dragIndex >= 0 &&
+                _dragIndex < property.arraySize;
+            int dropIndex = dragging
+                ? Mathf.Clamp(_dropIndex, 0, property.arraySize)
+                : -1;
+            int previousDropIndex = dragging
+                ? Mathf.Clamp(_previousDropIndex, 0, property.arraySize)
+                : dropIndex;
+            float animationProgress = dragging ? GetReorderAnimationProgress() : 1f;
+            float draggedRowHeight = dragging ? GetRowHeight(property, _dragIndex) : 0f;
+            SerializedProperty draggedElement = null;
+            float draggedElementHeight = 0f;
+            float y = contentRect.y;
+
             for (int i = 0; i < property.arraySize; i++)
             {
                 SerializedProperty element = property.GetArrayElementAtIndex(i);
                 float elementHeight = EditorGUI.GetPropertyHeight(element, true);
                 float rowHeight = LoogaEditorStyle.PixelCeil(elementHeight + RowPaddingY * 2f);
+
+                if (dragging && i == _dragIndex)
+                {
+                    draggedElement = element;
+                    draggedElementHeight = elementHeight;
+                    continue;
+                }
+
+                float rowY;
+                if (dragging)
+                {
+                    float previousY = GetVisualRowY(
+                        property,
+                        contentRect,
+                        i,
+                        _dragIndex,
+                        previousDropIndex,
+                        draggedRowHeight);
+                    float targetY = GetVisualRowY(
+                        property,
+                        contentRect,
+                        i,
+                        _dragIndex,
+                        dropIndex,
+                        draggedRowHeight);
+                    rowY = Mathf.Lerp(previousY, targetY, animationProgress);
+                }
+                else
+                {
+                    rowY = y;
+                    y += rowHeight + LoogaEditorStyle.Pixels(RowGap);
+                }
+
                 Rect rowRect = LoogaEditorStyle.PixelSnap(new Rect(
-                    bodyRect.x + BodyPadding,
-                    y,
-                    Mathf.Max(0f, bodyRect.width - BodyPadding * 2f),
+                    contentRect.x,
+                    rowY,
+                    contentRect.width,
                     rowHeight));
 
-                DrawRow(rowRect, property, element, elementHeight, key, i);
-                y += rowHeight + LoogaEditorStyle.Pixels(RowGap);
+                DrawRow(rowRect, property, element, elementHeight, key, i, false);
             }
 
-            if (Event.current.type == EventType.MouseUp && _dragKey == key)
+            if (dragging && draggedElement != null)
             {
-                ClearDrag();
+                float draggedY = GetClampedDraggedRowY(
+                    contentRect,
+                    draggedRowHeight,
+                    Event.current.mousePosition.y);
+                Rect draggedRowRect = LoogaEditorStyle.PixelSnap(new Rect(
+                    contentRect.x,
+                    draggedY,
+                    contentRect.width,
+                    draggedRowHeight));
+                DrawRow(
+                    draggedRowRect,
+                    property,
+                    draggedElement,
+                    draggedElementHeight,
+                    key,
+                    _dragIndex,
+                    true);
             }
         }
 
@@ -209,7 +283,8 @@ namespace LoogaSoft.Inspector.Editor
             SerializedProperty element,
             float elementHeight,
             string key,
-            int index)
+            int index,
+            bool dragging)
         {
             Event currentEvent = Event.current;
             if (currentEvent.type == EventType.Repaint)
@@ -217,6 +292,11 @@ namespace LoogaSoft.Inspector.Editor
                 Color rowColor = rowRect.Contains(currentEvent.mousePosition)
                     ? Color.Lerp(LoogaEditorStyle.ListRowColor, LoogaEditorStyle.ListHoverColor, 0.65f)
                     : LoogaEditorStyle.ListRowColor;
+                if (dragging)
+                {
+                    rowColor = Color.Lerp(rowColor, LoogaEditorStyle.SelectionColor, 0.55f);
+                }
+
                 EditorGUI.DrawRect(rowRect, rowColor);
             }
 
@@ -237,16 +317,25 @@ namespace LoogaSoft.Inspector.Editor
                 elementHeight);
 
             DrawDragHandle(dragRect);
+            EditorGUIUtility.AddCursorRect(dragRect, MouseCursor.MoveArrow);
             EditorGUI.PropertyField(elementRect, element, true);
 
             if (GUI.Button(deleteRect, new GUIContent("-", "Remove item"), EditorStyles.miniButton))
             {
+                if (_dragKey == key)
+                {
+                    ClearDrag();
+                }
+
                 DeleteElement(property, index);
                 GUI.changed = true;
                 return;
             }
 
-            HandleDrag(property, key, index, dragRect, rowRect);
+            if (!dragging)
+            {
+                BeginDrag(key, index, dragRect, rowRect);
+            }
         }
 
         private static void DrawDragHandle(Rect rect)
@@ -267,8 +356,7 @@ namespace LoogaSoft.Inspector.Editor
             }
         }
 
-        private static void HandleDrag(
-            SerializedProperty property,
+        private static void BeginDrag(
             string key,
             int index,
             Rect dragRect,
@@ -281,24 +369,48 @@ namespace LoogaSoft.Inspector.Editor
             {
                 _dragKey = key;
                 _dragIndex = index;
+                _dropIndex = index;
+                _previousDropIndex = index;
+                _dragMouseOffsetY = currentEvent.mousePosition.y - rowRect.y;
+                _dropAnimationStartTime = EditorApplication.timeSinceStartup;
                 currentEvent.Use();
-                return;
             }
+        }
 
+        private static void HandleDragOver(
+            SerializedProperty property,
+            string key,
+            Rect contentRect)
+        {
+            Event currentEvent = Event.current;
             if (_dragKey != key || _dragIndex < 0)
                 return;
 
-            if (currentEvent.type == EventType.MouseDrag && rowRect.Contains(currentEvent.mousePosition))
+            if (currentEvent.type == EventType.MouseDrag)
             {
-                if (_dragIndex != index)
+                int newDropIndex = GetDropIndex(
+                    property,
+                    contentRect,
+                    currentEvent.mousePosition.y,
+                    _dragIndex);
+                if (newDropIndex != _dropIndex)
                 {
-                    property.MoveArrayElement(_dragIndex, index);
-                    _dragIndex = index;
-                    GUI.changed = true;
+                    _previousDropIndex = _dropIndex;
+                    _dropIndex = newDropIndex;
+                    _dropAnimationStartTime = EditorApplication.timeSinceStartup;
                 }
 
+                GUI.changed = true;
+                RepaintInspector();
                 currentEvent.Use();
+                return;
             }
+
+            if (currentEvent.type != EventType.MouseUp)
+                return;
+
+            CommitDrag(property);
+            currentEvent.Use();
         }
 
         private static float GetBodyHeight(SerializedProperty property)
@@ -319,6 +431,142 @@ namespace LoogaSoft.Inspector.Editor
             }
 
             return height;
+        }
+
+        private static float GetRowHeight(SerializedProperty property, int index)
+        {
+            if (index < 0 || index >= property.arraySize)
+                return 0f;
+
+            SerializedProperty element = property.GetArrayElementAtIndex(index);
+            float elementHeight = EditorGUI.GetPropertyHeight(element, true);
+            return LoogaEditorStyle.PixelCeil(elementHeight + RowPaddingY * 2f);
+        }
+
+        private static float GetReorderAnimationProgress()
+        {
+            double elapsed = EditorApplication.timeSinceStartup - _dropAnimationStartTime;
+            float progress = Mathf.Clamp01((float)(elapsed / ReorderAnimationSeconds));
+            if (progress < 1f)
+            {
+                RepaintInspector();
+            }
+
+            return progress * progress * (3f - 2f * progress);
+        }
+
+        private static float GetClampedDraggedRowY(
+            Rect contentRect,
+            float draggedRowHeight,
+            float mouseY)
+        {
+            return Mathf.Clamp(
+                mouseY - _dragMouseOffsetY,
+                contentRect.y,
+                Mathf.Max(contentRect.y, contentRect.yMax - draggedRowHeight));
+        }
+
+        private static float GetVisualRowY(
+            SerializedProperty property,
+            Rect contentRect,
+            int rowIndex,
+            int sourceIndex,
+            int dropIndex,
+            float draggedRowHeight)
+        {
+            float y = contentRect.y;
+            int clampedDropIndex = Mathf.Clamp(dropIndex, 0, property.arraySize);
+
+            for (int i = 0; i < property.arraySize; i++)
+            {
+                if (i == clampedDropIndex)
+                {
+                    y += draggedRowHeight + LoogaEditorStyle.Pixels(RowGap);
+                }
+
+                if (i == sourceIndex)
+                    continue;
+
+                if (i == rowIndex)
+                    return y;
+
+                y += GetRowHeight(property, i) + LoogaEditorStyle.Pixels(RowGap);
+            }
+
+            return y;
+        }
+
+        private static int GetDropIndex(
+            SerializedProperty property,
+            Rect contentRect,
+            float mouseY,
+            int sourceIndex)
+        {
+            if (property.arraySize == 0 || sourceIndex < 0 || sourceIndex >= property.arraySize)
+                return 0;
+
+            float clampedMouseY = Mathf.Clamp(mouseY, contentRect.y, contentRect.yMax);
+            int dropIndex = sourceIndex;
+
+            for (int i = sourceIndex + 1; i < property.arraySize; i++)
+            {
+                float lowerRowTop = GetOriginalRowTop(property, contentRect, i);
+                if (clampedMouseY <= lowerRowTop)
+                    break;
+
+                dropIndex = i + 1;
+            }
+
+            for (int i = sourceIndex - 1; i >= 0; i--)
+            {
+                float upperRowBottom = GetOriginalRowTop(property, contentRect, i) +
+                    GetRowHeight(property, i);
+                if (clampedMouseY >= upperRowBottom)
+                    break;
+
+                dropIndex = i;
+            }
+
+            return Mathf.Clamp(dropIndex, 0, property.arraySize);
+        }
+
+        private static float GetOriginalRowTop(
+            SerializedProperty property,
+            Rect contentRect,
+            int rowIndex)
+        {
+            float y = contentRect.y;
+            int count = Mathf.Clamp(rowIndex, 0, property.arraySize);
+            for (int i = 0; i < count; i++)
+            {
+                y += GetRowHeight(property, i) + LoogaEditorStyle.Pixels(RowGap);
+            }
+
+            return y;
+        }
+
+        private static void CommitDrag(SerializedProperty property)
+        {
+            int sourceIndex = _dragIndex;
+            int dropIndex = Mathf.Clamp(_dropIndex, 0, property.arraySize);
+            ClearDrag();
+
+            if (sourceIndex < 0 || sourceIndex >= property.arraySize)
+                return;
+
+            if (dropIndex == sourceIndex || dropIndex == sourceIndex + 1)
+                return;
+
+            int targetIndex = dropIndex > sourceIndex ? dropIndex - 1 : dropIndex;
+            property.MoveArrayElement(sourceIndex, targetIndex);
+            GUI.changed = true;
+            RepaintInspector();
+        }
+
+        private static void RepaintInspector()
+        {
+            EditorWindow window = EditorWindow.mouseOverWindow ?? EditorWindow.focusedWindow;
+            window?.Repaint();
         }
 
         private static void DeleteElement(SerializedProperty property, int index)
@@ -352,6 +600,10 @@ namespace LoogaSoft.Inspector.Editor
         {
             _dragKey = string.Empty;
             _dragIndex = -1;
+            _dropIndex = -1;
+            _previousDropIndex = -1;
+            _dragMouseOffsetY = 0f;
+            _dropAnimationStartTime = 0d;
         }
     }
 }
