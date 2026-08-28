@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace LoogaSoft.Inspector.Runtime
 {
@@ -22,7 +23,7 @@ namespace LoogaSoft.Inspector.Runtime
     /// Draws an array or list with the Looga Inspector list interface.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field)]
-    public sealed class LoogaListAttribute : Attribute, ILoogaAttribute
+    public sealed class LoogaListAttribute : PropertyAttribute, ILoogaAttribute
     {
         public LoogaListAttribute(LoogaListMode mode = LoogaListMode.Collapsible)
         {
