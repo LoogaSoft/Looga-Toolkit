@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Matched Project navigation to Unity's toolbar height and restored its Create menu.
+- Removed navigation control dividers and increased the history and arrow icon weight.
 - Added bounded back, forward, and direct history navigation bars to Inspector and Project windows.
 - Added the Alt-left-click color and semantic-icon palette to Project-window folders with GUID-backed metadata and live previews.
 - Replaced the palette clear slash with a pixel-aligned outlined X glyph.

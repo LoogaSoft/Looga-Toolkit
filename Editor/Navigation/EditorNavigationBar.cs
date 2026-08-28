@@ -13,8 +13,10 @@ namespace LoogaSoft.Navigation.Editor
     {
         private const string BarName = "Looga Editor Navigation Bar";
         private const string SpacerName = "Looga Editor Navigation Spacer";
-        private const float BarHeight = 26f;
         private const float ArrowButtonWidth = 28f;
+        protected const float InspectorBarHeight = 26f;
+        protected const float ProjectBarHeight = 20f;
+        private const float HistoryIconSize = 18f;
 
         private readonly VisualElement _historyContainer;
         private readonly ToolbarButton _backButton;
@@ -23,7 +25,7 @@ namespace LoogaSoft.Navigation.Editor
         private readonly VisualElement _spacer;
         private int _lastWidth;
 
-        protected EditorNavigationBar(EditorWindow window)
+        protected EditorNavigationBar(EditorWindow window, float barHeight, bool showCreateAssetButton)
         {
             Window = window;
 
@@ -41,7 +43,7 @@ namespace LoogaSoft.Navigation.Editor
             _historyContainer.style.flexDirection = FlexDirection.Row;
             _historyContainer.style.flexShrink = 0f;
             _historyContainer.style.alignItems = Align.Center;
-            _historyContainer.style.height = BarHeight;
+            _historyContainer.style.height = barHeight;
             _historyContainer.style.overflow = Overflow.Hidden;
 
             _bar = new Toolbar
@@ -52,21 +54,21 @@ namespace LoogaSoft.Navigation.Editor
             _bar.style.left = 0f;
             _bar.style.right = 0f;
             _bar.style.top = 0f;
-            _bar.style.height = BarHeight;
-            _bar.style.minHeight = BarHeight;
-            _bar.style.maxHeight = BarHeight;
+            _bar.style.height = barHeight;
+            _bar.style.minHeight = barHeight;
+            _bar.style.maxHeight = barHeight;
             _bar.style.flexDirection = FlexDirection.Row;
             _bar.style.alignItems = Align.Center;
             _bar.style.paddingLeft = 3f;
             _bar.style.paddingRight = 4f;
-            _bar.style.borderBottomWidth = DevicePixel(1f);
-            _bar.style.borderBottomColor = EditorGUIUtility.isProSkin
-                ? new Color(0.12f, 0.12f, 0.12f, 1f)
-                : new Color(0.54f, 0.54f, 0.54f, 1f);
+            _bar.style.borderBottomWidth = 0f;
             _bar.Add(_backButton);
             _bar.Add(_forwardButton);
             _bar.Add(flexibleSpace);
             _bar.Add(_historyContainer);
+            if (showCreateAssetButton)
+                _bar.Add(CreateAssetButton());
+
             _bar.RegisterCallback<GeometryChangedEvent>(OnGeometryChanged);
 
             _spacer = new VisualElement
@@ -74,9 +76,9 @@ namespace LoogaSoft.Navigation.Editor
                 name = SpacerName,
                 pickingMode = PickingMode.Ignore
             };
-            _spacer.style.height = BarHeight + DevicePixel(1f);
-            _spacer.style.minHeight = BarHeight + DevicePixel(1f);
-            _spacer.style.maxHeight = BarHeight + DevicePixel(1f);
+            _spacer.style.height = barHeight;
+            _spacer.style.minHeight = barHeight;
+            _spacer.style.maxHeight = barHeight;
             _spacer.style.flexShrink = 0f;
         }
 
@@ -143,9 +145,10 @@ namespace LoogaSoft.Navigation.Editor
             {
                 tooltip = tooltip
             };
-            button.style.height = 22f;
-            button.style.minHeight = 22f;
-            button.style.maxHeight = 22f;
+            float buttonHeight = showLabel ? ProjectBarHeight : 22f;
+            button.style.height = buttonHeight;
+            button.style.minHeight = buttonHeight;
+            button.style.maxHeight = buttonHeight;
             button.style.marginLeft = 1f;
             button.style.marginRight = 1f;
             button.style.marginTop = 0f;
@@ -157,6 +160,7 @@ namespace LoogaSoft.Navigation.Editor
             button.style.flexDirection = FlexDirection.Row;
             button.style.alignItems = Align.Center;
             button.style.justifyContent = Justify.Center;
+            RemoveButtonBorders(button);
 
             if (selected)
                 button.style.backgroundColor = SelectionColor;
@@ -167,9 +171,9 @@ namespace LoogaSoft.Navigation.Editor
                 scaleMode = ScaleMode.ScaleToFit,
                 pickingMode = PickingMode.Ignore
             };
-            image.style.width = 16f;
-            image.style.height = 16f;
-            image.style.minWidth = 16f;
+            image.style.width = HistoryIconSize;
+            image.style.height = HistoryIconSize;
+            image.style.minWidth = HistoryIconSize;
             image.style.flexShrink = 0f;
             image.style.alignSelf = Align.Center;
             button.Add(image);
@@ -186,15 +190,15 @@ namespace LoogaSoft.Navigation.Editor
                 text.style.textOverflow = TextOverflow.Ellipsis;
                 text.style.whiteSpace = WhiteSpace.NoWrap;
                 button.Add(text);
-                button.style.width = 96f;
-                button.style.minWidth = 96f;
-                button.style.maxWidth = 96f;
+                button.style.width = 100f;
+                button.style.minWidth = 100f;
+                button.style.maxWidth = 100f;
             }
             else
             {
-                button.style.width = 24f;
-                button.style.minWidth = 24f;
-                button.style.maxWidth = 24f;
+                button.style.width = 28f;
+                button.style.minWidth = 28f;
+                button.style.maxWidth = 28f;
             }
 
             return button;
@@ -227,22 +231,16 @@ namespace LoogaSoft.Navigation.Editor
             ? new Color(0.17f, 0.36f, 0.54f, 1f)
             : new Color(0.24f, 0.48f, 0.73f, 1f);
 
-        private static float DevicePixel(float pixels)
-        {
-            return pixels / Mathf.Max(1f, EditorGUIUtility.pixelsPerPoint);
-        }
-
         private static ToolbarButton CreateArrowButton(bool pointsLeft, Action clicked)
         {
             ToolbarButton button = new(clicked)
             {
-                text = pointsLeft ? "\u2039" : "\u203A",
                 tooltip = pointsLeft ? "Back" : "Forward"
             };
             button.style.width = ArrowButtonWidth;
             button.style.minWidth = ArrowButtonWidth;
             button.style.maxWidth = ArrowButtonWidth;
-            button.style.height = 22f;
+            button.style.height = 20f;
             button.style.marginLeft = 0f;
             button.style.marginRight = 0f;
             button.style.marginTop = 0f;
@@ -250,10 +248,58 @@ namespace LoogaSoft.Navigation.Editor
             button.style.paddingLeft = 0f;
             button.style.paddingRight = 0f;
             button.style.paddingTop = 0f;
-            button.style.paddingBottom = 2f;
-            button.style.fontSize = 22f;
-            button.style.unityTextAlign = TextAnchor.MiddleCenter;
+            button.style.paddingBottom = 0f;
+            button.style.alignItems = Align.Center;
+            button.style.justifyContent = Justify.Center;
+            RemoveButtonBorders(button);
+            button.Add(new NavigationArrowGlyph(pointsLeft));
             return button;
+        }
+
+        private ToolbarButton CreateAssetButton()
+        {
+            ToolbarButton button = null;
+            button = new ToolbarButton(() => ShowCreateAssetMenu(button))
+            {
+                text = "+",
+                tooltip = "Create asset"
+            };
+            button.style.width = 28f;
+            button.style.minWidth = 28f;
+            button.style.maxWidth = 28f;
+            button.style.height = ProjectBarHeight;
+            button.style.marginLeft = 2f;
+            button.style.marginRight = 0f;
+            button.style.marginTop = 0f;
+            button.style.marginBottom = 0f;
+            button.style.paddingLeft = 0f;
+            button.style.paddingRight = 0f;
+            button.style.paddingTop = 0f;
+            button.style.paddingBottom = 1f;
+            button.style.fontSize = 19f;
+            button.style.unityFontStyleAndWeight = FontStyle.Bold;
+            button.style.unityTextAlign = TextAnchor.MiddleCenter;
+            RemoveButtonBorders(button);
+            return button;
+        }
+
+        private void ShowCreateAssetMenu(VisualElement button)
+        {
+            Rect buttonBounds = button.worldBound;
+            Rect screenBounds = new(
+                Window.position.x + buttonBounds.x,
+                Window.position.y + buttonBounds.yMax,
+                buttonBounds.width,
+                1f);
+            EditorUtility.DisplayPopupMenu(screenBounds, "Assets/Create", null);
+        }
+
+        private static void RemoveButtonBorders(VisualElement button)
+        {
+            button.style.borderLeftWidth = 0f;
+            button.style.borderRightWidth = 0f;
+            button.style.borderTopWidth = 0f;
+            button.style.borderBottomWidth = 0f;
         }
 
         private void OnGeometryChanged(GeometryChangedEvent evt)
@@ -283,7 +329,7 @@ namespace LoogaSoft.Navigation.Editor
         private const int MaximumHistoryButtons = 9;
 
         public InspectorNavigationBar(EditorWindow window)
-            : base(window)
+            : base(window, InspectorBarHeight, false)
         {
             InspectorSelectionHistory.Changed += Refresh;
         }
@@ -305,7 +351,7 @@ namespace LoogaSoft.Navigation.Editor
         {
             IReadOnlyList<InspectorSelectionState> entries = InspectorSelectionHistory.Entries;
             int maximumButtons = Mathf.Clamp(
-                Mathf.FloorToInt((AvailableWidth - 76f) / 26f),
+                Mathf.FloorToInt((AvailableWidth - 76f) / 30f),
                 0,
                 MaximumHistoryButtons);
             if (maximumButtons == 0)
@@ -376,7 +422,7 @@ namespace LoogaSoft.Navigation.Editor
         private readonly ProjectFolderHistory _history;
 
         public ProjectNavigationBar(EditorWindow window, ProjectFolderHistory history)
-            : base(window)
+            : base(window, ProjectBarHeight, true)
         {
             _history = history;
             _history.Changed += Refresh;
@@ -399,7 +445,7 @@ namespace LoogaSoft.Navigation.Editor
         {
             IReadOnlyList<string> entries = _history.Entries;
             int maximumButtons = Mathf.Clamp(
-                Mathf.FloorToInt((AvailableWidth - 76f) / 100f),
+                Mathf.FloorToInt((AvailableWidth - 108f) / 104f),
                 0,
                 MaximumHistoryButtons);
             if (maximumButtons == 0)
@@ -452,6 +498,42 @@ namespace LoogaSoft.Navigation.Editor
 
             indices.Sort();
             return indices;
+        }
+    }
+
+    internal sealed class NavigationArrowGlyph : VisualElement
+    {
+        private readonly bool _pointsLeft;
+
+        public NavigationArrowGlyph(bool pointsLeft)
+        {
+            _pointsLeft = pointsLeft;
+            pickingMode = PickingMode.Ignore;
+            style.width = 12f;
+            style.height = 15f;
+            generateVisualContent += Draw;
+        }
+
+        private void Draw(MeshGenerationContext context)
+        {
+            Painter2D painter = context.painter2D;
+            painter.strokeColor = EditorStyles.label.normal.textColor;
+            painter.lineWidth = 2.25f;
+            painter.BeginPath();
+            if (_pointsLeft)
+            {
+                painter.MoveTo(new Vector2(8.5f, 2f));
+                painter.LineTo(new Vector2(3.5f, 7.5f));
+                painter.LineTo(new Vector2(8.5f, 13f));
+            }
+            else
+            {
+                painter.MoveTo(new Vector2(3.5f, 2f));
+                painter.LineTo(new Vector2(8.5f, 7.5f));
+                painter.LineTo(new Vector2(3.5f, 13f));
+            }
+
+            painter.Stroke();
         }
     }
 }
