@@ -18,6 +18,7 @@ namespace LoogaSoft.Inspector.Editor
         public const float ChildRowHeight = 24f;
         public const float DividerWidth = 1f;
         public const float ContentPadding = 10f;
+        public const float ScrollBottomPadding = 8f;
 
         private static GUIStyle _buttonStyle;
         private static GUIStyle _selectedButtonStyle;

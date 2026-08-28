@@ -290,6 +290,7 @@ namespace LoogaSoft.Inspector.Editor
             }
             finally
             {
+                GUILayout.Space(EditorGUIUtility.singleLineHeight + LoogaSidebarGUI.ScrollBottomPadding);
                 EditorGUILayout.EndScrollView();
             }
         }

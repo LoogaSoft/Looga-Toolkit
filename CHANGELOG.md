@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Kept the final embedded inspector controls reachable in Looga sidebar scroll views.
 - Added nested-property drawer support with smooth drag reordering for `LoogaList` collections.
 - Unified expanded `LoogaList` headers and elements inside one shared container.
 - Added resizable, session-persistent navigation panes to Looga sidebar inspectors and editor workspaces.
