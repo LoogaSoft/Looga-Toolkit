@@ -112,9 +112,13 @@ namespace LoogaSoft.Navigation.Editor
         private const string ButtonName = "Looga Add Editor Window Tab";
         private const float ButtonSize = 22f;
         private const float TabGap = 1f;
+        private const float PlusHalfSize = 5f;
+        private const float PlusLineWidth = 2.25f;
 
         private readonly Object _dockArea;
         private readonly ToolbarButton _button;
+        private bool _isHovered;
+        private bool _isPressed;
 
         public DockTabButton(Object dockArea)
         {
@@ -122,9 +126,14 @@ namespace LoogaSoft.Navigation.Editor
             _button = new ToolbarButton(OpenWindowMenu)
             {
                 name = ButtonName,
-                text = "+",
+                text = string.Empty,
                 tooltip = "Add Window"
             };
+            _button.generateVisualContent += DrawPlus;
+            _button.RegisterCallback<PointerEnterEvent>(OnPointerEnter);
+            _button.RegisterCallback<PointerLeaveEvent>(OnPointerLeave);
+            _button.RegisterCallback<PointerDownEvent>(OnPointerDown);
+            _button.RegisterCallback<PointerUpEvent>(OnPointerUp);
             _button.style.position = Position.Absolute;
             _button.style.width = ButtonSize;
             _button.style.minWidth = ButtonSize;
@@ -139,9 +148,13 @@ namespace LoogaSoft.Navigation.Editor
             _button.style.paddingLeft = 0f;
             _button.style.paddingRight = 0f;
             _button.style.paddingTop = 0f;
-            _button.style.paddingBottom = 2f;
-            _button.style.fontSize = 18f;
-            _button.style.unityTextAlign = TextAnchor.MiddleCenter;
+            _button.style.paddingBottom = 0f;
+            _button.style.backgroundColor = Color.clear;
+            _button.style.backgroundImage = StyleKeyword.None;
+            _button.style.borderLeftWidth = 0f;
+            _button.style.borderRightWidth = 0f;
+            _button.style.borderTopWidth = 0f;
+            _button.style.borderBottomWidth = 0f;
         }
 
         public void Attach()
@@ -201,20 +214,69 @@ namespace LoogaSoft.Navigation.Editor
                 new AdvancedDropdownState(),
                 entries,
                 AddWindow);
-            dropdown.Show(GetScreenAnchor());
+            dropdown.Show(GetDropdownAnchor());
         }
 
-        private Rect GetScreenAnchor()
+        private Rect GetDropdownAnchor()
         {
-            Rect dockScreenRect = DockAreaBridge.GetScreenPosition(_dockArea);
-            float left = _button.resolvedStyle.left;
-            float top = _button.resolvedStyle.top;
-            return new Rect(
-                dockScreenRect.x + left,
-                dockScreenRect.y + top,
-                ButtonSize,
-                ButtonSize);
+            Rect worldBounds = _button.worldBound;
+            return new Rect(worldBounds.position, worldBounds.size);
         }
+
+        private void DrawPlus(MeshGenerationContext context)
+        {
+            Rect bounds = _button.contentRect;
+            Vector2 center = bounds.center;
+            Color baseColor = EditorGUIUtility.isProSkin
+                ? new Color(0.72f, 0.72f, 0.72f)
+                : new Color(0.28f, 0.28f, 0.28f);
+
+            if (_isPressed)
+            {
+                baseColor *= 0.75f;
+            }
+            else if (_isHovered)
+            {
+                baseColor = EditorGUIUtility.isProSkin ? Color.white : Color.black;
+            }
+
+            Painter2D painter = context.painter2D;
+            painter.strokeColor = baseColor;
+            painter.lineWidth = PlusLineWidth;
+            painter.BeginPath();
+            painter.MoveTo(new Vector2(center.x - PlusHalfSize, center.y));
+            painter.LineTo(new Vector2(center.x + PlusHalfSize, center.y));
+            painter.MoveTo(new Vector2(center.x, center.y - PlusHalfSize));
+            painter.LineTo(new Vector2(center.x, center.y + PlusHalfSize));
+            painter.Stroke();
+        }
+
+        #region Pointer
+        private void OnPointerEnter(PointerEnterEvent current)
+        {
+            _isHovered = true;
+            _button.MarkDirtyRepaint();
+        }
+
+        private void OnPointerLeave(PointerLeaveEvent current)
+        {
+            _isHovered = false;
+            _isPressed = false;
+            _button.MarkDirtyRepaint();
+        }
+
+        private void OnPointerDown(PointerDownEvent current)
+        {
+            _isPressed = true;
+            _button.MarkDirtyRepaint();
+        }
+
+        private void OnPointerUp(PointerUpEvent current)
+        {
+            _isPressed = false;
+            _button.MarkDirtyRepaint();
+        }
+        #endregion
 
         private void AddWindow(Type windowType)
         {
@@ -321,9 +383,6 @@ namespace LoogaSoft.Navigation.Editor
         private static readonly PropertyInfo VisualTreeProperty = FindProperty(
             DockAreaType,
             "visualTree");
-        private static readonly PropertyInfo ScreenPositionProperty = FindProperty(
-            DockAreaType,
-            "screenPosition");
         private static readonly MethodInfo WindowTitleMethod = typeof(EditorWindow).GetMethod(
             "GetLocalizedTitleContentFromType",
             BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);
@@ -337,17 +396,11 @@ namespace LoogaSoft.Navigation.Editor
             ScrollOffsetField != null &&
             GetPaneTypesMethod != null &&
             AddTabMethod != null &&
-            VisualTreeProperty != null &&
-            ScreenPositionProperty != null;
+            VisualTreeProperty != null;
 
         public static VisualElement GetVisualTree(Object dockArea)
         {
             return GetValue<VisualElement>(VisualTreeProperty, dockArea);
-        }
-
-        public static Rect GetScreenPosition(Object dockArea)
-        {
-            return GetValue<Rect>(ScreenPositionProperty, dockArea);
         }
 
         public static bool TryGetTabLayout(
