@@ -2022,12 +2022,14 @@ namespace LoogaSoft.Inspector.Editor
         #region Getters
         private List<SerializedProperty> GetSerializedProperties()
         {
+            if (_nestedSerializedObject != null)
+                return CollectSerializedProperties(InspectedSerializedObject);
+
             _rootSerializedProperties.Clear();
             _rootPropertiesByName.Clear();
 
             using SerializedProperty iterator = InspectedSerializedObject.GetIterator();
             
-            //get visible properties
             if (iterator.NextVisible(true))
             {
                 do
@@ -2042,6 +2044,23 @@ namespace LoogaSoft.Inspector.Editor
             }
             
             return _rootSerializedProperties;
+        }
+
+        private static List<SerializedProperty> CollectSerializedProperties(SerializedObject serializedObject)
+        {
+            List<SerializedProperty> properties = new();
+            using SerializedProperty iterator = serializedObject.GetIterator();
+
+            if (!iterator.NextVisible(true))
+                return properties;
+
+            do
+            {
+                if (iterator.name != "m_Script")
+                    properties.Add(iterator.Copy());
+            } while (iterator.NextVisible(false));
+
+            return properties;
         }
 
         private List<SerializedProperty> GetNestedSerializedProperties(SerializedProperty property)
