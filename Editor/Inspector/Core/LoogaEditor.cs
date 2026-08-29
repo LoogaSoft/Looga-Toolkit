@@ -15,6 +15,7 @@ namespace LoogaSoft.Inspector.Editor
     {
         private readonly Dictionary<string, HashSet<int>> _listSelectedIndices = new();
         private readonly Dictionary<string, int> _listSelectionAnchors = new();
+        private static readonly LoogaListAttribute DefaultListAttribute = new();
         private string _draggingListKey = string.Empty;
         private int _draggingListIndex = -1;
         private int _draggingListDropIndex = -1;
@@ -574,7 +575,8 @@ namespace LoogaSoft.Inspector.Editor
             bool isList = property.isArray && property.propertyType != SerializedPropertyType.String;
             LoogaCatalogAttribute catalogAttribute = PropertyUtils.GetAttribute<LoogaCatalogAttribute>(property);
             LoogaListAttribute loogaListAttribute = PropertyUtils.GetAttribute<LoogaListAttribute>(property);
-            bool useLoogaList = isList && loogaListAttribute != null;
+            TableListAttribute tableListAttribute = PropertyUtils.GetAttribute<TableListAttribute>(property);
+            bool useLoogaList = isList && tableListAttribute == null;
 
             // Unity draws decorators for native lists. Looga draws them only when it owns the collection UI.
             if (isList && (useLoogaList || catalogAttribute != null))
@@ -586,7 +588,7 @@ namespace LoogaSoft.Inspector.Editor
                 if (catalogAttribute != null && TryDrawCatalogProperty(property, metadata, catalogAttribute))
                     return;
                 else if (useLoogaList)
-                    DrawLoogaList(property, loogaListAttribute);
+                    DrawLoogaList(property, loogaListAttribute ?? DefaultListAttribute);
                 else if (isList)
                 {
                     EditorGUI.BeginChangeCheck();
