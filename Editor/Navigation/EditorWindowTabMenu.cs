@@ -287,8 +287,13 @@ namespace LoogaSoft.Navigation.Editor
             if (window == null)
                 return;
 
+            GUIContent title = EditorWindowCatalog.GetWindowTitle(windowType);
+            window.titleContent = new GUIContent(title);
             if (DockAreaBridge.AddTab(_dockArea, window))
+            {
+                window.titleContent = new GUIContent(title);
                 return;
+            }
 
             Object.DestroyImmediate(window);
         }
@@ -735,14 +740,14 @@ namespace LoogaSoft.Navigation.Editor
             return false;
         }
 
-        private static GUIContent GetWindowTitle(Type windowType)
+        internal static GUIContent GetWindowTitle(Type windowType)
         {
             if (WindowTitleMethod != null)
             {
                 try
                 {
                     if (WindowTitleMethod.Invoke(null, new object[] { windowType }) is GUIContent title &&
-                        !string.IsNullOrWhiteSpace(title.text))
+                        IsReadableWindowTitle(title.text, windowType))
                     {
                         return new GUIContent(title);
                     }
@@ -753,13 +758,32 @@ namespace LoogaSoft.Navigation.Editor
                 }
             }
 
-            string name = ObjectNames.NicifyVariableName(windowType.Name);
+            string name = windowType.Name;
+            if (name.EndsWith("EditorWindow", StringComparison.Ordinal))
+                name = name[..^12];
+            else if (name.EndsWith("Window", StringComparison.Ordinal))
+                name = name[..^6];
+
+            name = ObjectNames.NicifyVariableName(name);
+            if (name.StartsWith("Looga ", StringComparison.Ordinal))
+                name = name[6..];
+            else if (name.StartsWith("Kubera ", StringComparison.Ordinal))
+                name = name[7..];
+
             if (name.EndsWith(" Window", StringComparison.Ordinal))
-            {
                 name = name[..^7];
-            }
 
             return new GUIContent(name, EditorGUIUtility.ObjectContent(null, windowType).image);
+        }
+
+        private static bool IsReadableWindowTitle(string title, Type windowType)
+        {
+            if (string.IsNullOrWhiteSpace(title))
+                return false;
+
+            return !string.Equals(title, windowType.Name, StringComparison.Ordinal) &&
+                   !string.Equals(title, windowType.FullName, StringComparison.Ordinal) &&
+                   !title.Contains(".");
         }
 
         private static int CompareWindowEntries(EditorWindowEntry left, EditorWindowEntry right)
