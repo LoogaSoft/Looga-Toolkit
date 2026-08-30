@@ -53,7 +53,8 @@ namespace LoogaSoft.Navigation.Editor
                 pickingMode = PickingMode.Position
             };
             _historyContainer.style.flexDirection = FlexDirection.Row;
-            _historyContainer.style.flexShrink = 0f;
+            _historyContainer.style.minWidth = 0f;
+            _historyContainer.style.flexShrink = historyAlignsRight ? 0f : 1f;
             _historyContainer.style.alignItems = Align.Center;
             _historyContainer.style.height = barHeight;
             _historyContainer.style.overflow = Overflow.Hidden;
@@ -163,8 +164,7 @@ namespace LoogaSoft.Navigation.Editor
             string tooltip,
             bool selected,
             Action clicked,
-            bool showLabel,
-            float requestedWidth = -1f)
+            bool showLabel)
         {
             ToolbarButton button = new(clicked)
             {
@@ -205,24 +205,22 @@ namespace LoogaSoft.Navigation.Editor
 
             if (showLabel)
             {
-                float buttonWidth = requestedWidth > 0f
-                    ? requestedWidth
-                    : CalculateProjectHistoryButtonWidth(label);
                 Label text = new(label)
                 {
                     pickingMode = PickingMode.Ignore
                 };
                 text.style.minWidth = 0f;
-                text.style.maxWidth = Mathf.Max(0f, buttonWidth - 34f);
+                text.style.maxWidth = ProjectHistoryMaximumWidth - 34f;
                 text.style.flexShrink = 1f;
                 text.style.marginLeft = 4f;
                 text.style.unityTextAlign = TextAnchor.MiddleLeft;
                 text.style.textOverflow = TextOverflow.Ellipsis;
                 text.style.whiteSpace = WhiteSpace.NoWrap;
                 button.Add(text);
-                button.style.width = buttonWidth;
-                button.style.minWidth = buttonWidth;
-                button.style.maxWidth = buttonWidth;
+                button.style.width = StyleKeyword.Auto;
+                button.style.minWidth = ProjectHistoryMinimumWidth;
+                button.style.maxWidth = ProjectHistoryMaximumWidth;
+                button.style.flexShrink = 1f;
             }
             else
             {
@@ -232,16 +230,6 @@ namespace LoogaSoft.Navigation.Editor
             }
 
             return button;
-        }
-
-        protected static float CalculateProjectHistoryButtonWidth(string label)
-        {
-            GUIContent content = new(label ?? string.Empty);
-            float labelWidth = EditorStyles.label.CalcSize(content).x;
-            return Mathf.Clamp(
-                Mathf.Ceil(labelWidth + HistoryIconSize + 16f),
-                ProjectHistoryMinimumWidth,
-                ProjectHistoryMaximumWidth);
         }
 
         protected static float ProjectHistoryAvailableWidth(float barWidth)
@@ -458,34 +446,14 @@ namespace LoogaSoft.Navigation.Editor
         {
             IReadOnlyList<string> entries = _history.Entries;
             float availableWidth = ProjectHistoryAvailableWidth(AvailableWidth);
-            if (availableWidth < ProjectHistoryMinimumWidth)
+            int maximumButtons = Mathf.Clamp(
+                Mathf.FloorToInt(availableWidth / (ProjectHistoryMinimumWidth + 2f)),
+                0,
+                MaximumHistoryButtons);
+            if (maximumButtons == 0)
                 return;
 
-            List<int> candidates = RecentUniqueFolderIndices(
-                entries,
-                _history.Cursor,
-                MaximumHistoryButtons);
-            Dictionary<int, float> widths = new();
-            List<int> indices = new(MaximumHistoryButtons);
-            float occupiedWidth = 0f;
-            for (int i = 0; i < candidates.Count; i++)
-            {
-                int historyIndex = candidates[i];
-                string label = Path.GetFileName(entries[historyIndex]);
-                float desiredWidth = CalculateProjectHistoryButtonWidth(label);
-                float remainingWidth = availableWidth - occupiedWidth;
-                if (remainingWidth < ProjectHistoryMinimumWidth)
-                    break;
-
-                if (desiredWidth > remainingWidth && indices.Count > 0)
-                    continue;
-
-                float width = Mathf.Min(desiredWidth, remainingWidth);
-                indices.Add(historyIndex);
-                widths.Add(historyIndex, width);
-                occupiedWidth += width + 2f;
-            }
-
+            List<int> indices = RecentUniqueFolderIndices(entries, _history.Cursor, maximumButtons);
             indices.Sort();
             for (int i = 0; i < indices.Count; i++)
             {
@@ -498,8 +466,7 @@ namespace LoogaSoft.Navigation.Editor
                     path,
                     historyIndex == _history.Cursor,
                     () => _history.NavigateTo(capturedIndex, OpenFolder),
-                    true,
-                    widths[historyIndex]));
+                    true));
             }
         }
 
