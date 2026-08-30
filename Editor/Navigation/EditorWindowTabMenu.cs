@@ -773,7 +773,7 @@ namespace LoogaSoft.Navigation.Editor
             if (name.EndsWith(" Window", StringComparison.Ordinal))
                 name = name[..^7];
 
-            return new GUIContent(name, EditorGUIUtility.ObjectContent(null, windowType).image);
+            return new GUIContent(name);
         }
 
         private static bool IsReadableWindowTitle(string title, Type windowType)
