@@ -83,7 +83,16 @@ namespace LoogaSoft.Hierarchy.Editor
                 rowRect.height);
             bool pointerOverControl = summaryRect.Contains(Event.current.mousePosition) ||
                 (currentProgress > 0f && expandedRect.Contains(Event.current.mousePosition));
-            float progress = UpdateReveal(instanceId, pointerOverControl);
+            EventType eventType = Event.current.type;
+            if (eventType == EventType.MouseLeaveWindow)
+            {
+                pointerOverControl = false;
+            }
+
+            bool updateRevealTarget = eventType == EventType.MouseMove ||
+                eventType == EventType.MouseDrag ||
+                eventType == EventType.MouseLeaveWindow;
+            float progress = UpdateReveal(instanceId, pointerOverControl, updateRevealTarget);
 
             if (Event.current.type != EventType.Repaint)
             {
@@ -325,7 +334,10 @@ namespace LoogaSoft.Hierarchy.Editor
             }
         }
 
-        private static float UpdateReveal(int instanceId, bool pointerOverControl)
+        private static float UpdateReveal(
+            int instanceId,
+            bool pointerOverControl,
+            bool updateTarget)
         {
             double now = EditorApplication.timeSinceStartup;
             if (!RevealStates.TryGetValue(instanceId, out RevealState state))
@@ -334,6 +346,12 @@ namespace LoogaSoft.Hierarchy.Editor
             }
 
             state = AdvanceReveal(state, now);
+            if (!updateTarget)
+            {
+                RevealStates[instanceId] = state;
+                return state.Progress;
+            }
+
             float target = pointerOverControl ? 1f : 0f;
             if (!Mathf.Approximately(target, state.Target))
             {
