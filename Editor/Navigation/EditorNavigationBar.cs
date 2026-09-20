@@ -19,6 +19,7 @@ namespace LoogaSoft.Navigation.Editor
         private const float HistoryIconSize = 18f;
         protected const float ProjectHistoryMinimumWidth = 58f;
         private const float ProjectHistoryMaximumWidth = 180f;
+        private const float ProjectHistoryLabelMaximumWidth = 140f;
         private const float ProjectHistoryFixedWidth = 65f;
         protected const float ProjectCreateAreaWidth = 30f;
         protected const float ProjectSearchAreaWidth = 310f;
@@ -210,10 +211,11 @@ namespace LoogaSoft.Navigation.Editor
                     pickingMode = PickingMode.Ignore
                 };
                 text.style.minWidth = 0f;
-                text.style.maxWidth = ProjectHistoryMaximumWidth - 34f;
+                text.style.maxWidth = ProjectHistoryLabelMaximumWidth;
                 text.style.flexShrink = 1f;
                 text.style.marginLeft = 4f;
                 text.style.unityTextAlign = TextAnchor.MiddleLeft;
+                text.style.overflow = Overflow.Hidden;
                 text.style.textOverflow = TextOverflow.Ellipsis;
                 text.style.whiteSpace = WhiteSpace.NoWrap;
                 button.Add(text);

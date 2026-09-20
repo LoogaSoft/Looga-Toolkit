@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Preserved Project history label padding and ellipsized long folder names without clipping partial glyphs.
 - Added a searchable creator-grouped dock-tab menu for Unity, package, and project editor windows.
 - Added a fill-layout mode that sizes Looga sidebars from the remaining host layout space.
 - Kept the final embedded inspector controls reachable in Looga sidebar scroll views.
